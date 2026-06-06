@@ -1,0 +1,63 @@
+name: quran_app
+description: "Modern Offline-First Quran application"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Routing
+  go_router: ^14.6.2
+
+  # Networking
+  dio: ^5.7.0
+
+  # Database
+  drift: ^2.21.0
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.5
+  path: ^1.9.0
+
+  # Local preferences
+  shared_preferences: ^2.3.3
+
+  # Formatting
+  intl: ^0.20.2
+
+  # Typography
+  google_fonts: ^6.2.1
+
+  # SVG support (for ornaments)
+  flutter_svg: ^2.0.10+1
+
+  # Audio (stub for MVP v0.2)
+  just_audio: ^0.9.42
+
+  # Crypto for content integrity (SHA256)
+  crypto: ^3.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.21.2
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
+  generate: true
+  assets:
+    - assets/images/
+    - assets/ornaments/
+    - assets/translations/

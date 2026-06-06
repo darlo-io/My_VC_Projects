@@ -1,0 +1,144 @@
+{
+  "@@locale": "en",
+  "appTitle": "Quran",
+  "navHome": "Home",
+  "navRead": "Read",
+  "navSearch": "Search",
+  "navBookmarks": "Bookmarks",
+  "navProfile": "Profile",
+  "navListen": "Listen",
+  "navLearn": "Learn",
+  "navTasbih": "Tasbih",
+
+  "greetingAssalamu": "Assalamu Alaikum!",
+  "hijriDateFallback": "{date} AH",
+  "@hijriDateFallback": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "continueReading": "Continue reading",
+  "continueAction": "Continue",
+  "surahAndAyah": "Surah {surah}, ayah {ayah}",
+  "@surahAndAyah": {
+    "placeholders": {
+      "surah": { "type": "String" },
+      "ayah": { "type": "int" }
+    }
+  },
+
+  "cardRead": "Read",
+  "cardListen": "Listen",
+  "cardLearn": "Learn",
+  "cardTest": "Test",
+  "cardTasbih": "Tasbih",
+  "cardStats": "Statistics",
+
+  "chooseSurah": "Choose a surah",
+  "searchByNameOrNumber": "Search by name or number",
+  "tabSurahs": "Surahs",
+  "tabJuz": "Juz",
+  "ayahsCount": "{count, plural, =1{1 ayah} other{{count} ayahs}}",
+  "@ayahsCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "revelationMeccan": "Meccan",
+  "revelationMedinan": "Medinan",
+  "juzNumber": "Juz {number}",
+  "@juzNumber": {
+    "placeholders": { "number": { "type": "int" } }
+  },
+
+  "search": "Search",
+  "searchHint": "Search surah, ayah, translation…",
+  "searchResultsEmpty": "No results",
+  "searchResultsEmptyHint": "Try different keywords",
+  "searchSurahOnly": "Surah only",
+  "searchAll": "All",
+
+  "bookmarksEmpty": "No bookmarks yet",
+  "bookmarksEmptyHint": "Add bookmarks from any ayah",
+  "addBookmark": "Add bookmark",
+  "removeBookmark": "Remove bookmark",
+  "bookmarkLabel": "Label (optional)",
+
+  "settings": "Settings",
+  "settingsLanguage": "Interface language",
+  "settingsTheme": "Theme",
+  "settingsFontSize": "Arabic font size",
+  "settingsTranslation": "Translation",
+  "settingsAudioCache": "Audio cache",
+  "settingsStorageUsed": "{used} MB / {limit} MB used",
+  "@settingsStorageUsed": {
+    "placeholders": {
+      "used": { "type": "String" },
+      "limit": { "type": "String" }
+    }
+  },
+  "settingsCacheLimit": "Cache size limit",
+  "settingsClearCache": "Clear audio cache",
+  "settingsAbout": "About",
+  "settingsVersion": "Version {version}",
+  "@settingsVersion": {
+    "placeholders": { "version": { "type": "String" } }
+  },
+  "settingsReset": "Reset all data",
+  "settingsResetConfirm": "Are you sure? All data will be deleted.",
+  "settingsResetConfirmAction": "Delete",
+
+  "languageSystem": "System",
+  "languageEnglish": "English",
+  "languageRussian": "Русский",
+  "languageArabic": "العربية",
+
+  "comingSoon": "Coming soon",
+  "comingSoonDesc": "This feature will be available in a future update.",
+
+  "loading": "Loading…",
+  "error": "Error",
+  "retry": "Retry",
+  "cancel": "Cancel",
+  "ok": "OK",
+  "save": "Save",
+  "delete": "Delete",
+
+  "bootstrapChecking": "Checking content…",
+  "bootstrapDownloading": "Downloading content…",
+  "bootstrapSeeding": "Preparing database…",
+  "bootstrapReady": "Ready",
+  "bootstrapFailed": "Could not load content. Check your connection.",
+
+  "firstLaunchTitle": "Choose your language",
+  "firstLaunchSubtitle": "You can change this later in Settings",
+  "firstLaunchAction": "Continue",
+
+  "statsTitle": "Your progress",
+  "statsWeek": "Week",
+  "statsMonth": "Month",
+  "statsYear": "Year",
+  "statsAllTime": "All time",
+  "statsAyahsRead": "Ayahs read",
+  "statsSurahsRead": "Surahs read",
+  "statsReadingTime": "Reading time",
+  "statsActivity": "Reading activity",
+  "statsPerDay": "Ayahs per day",
+
+  "audioChooseReciter": "Choose reciter",
+  "audioChooseSurah": "Surah",
+  "audioChooseAyah": "Ayah",
+  "audioSpeed": "Speed",
+  "audioSleepTimer": "Sleep timer",
+  "audioNightMode": "Night mode",
+  "audioOff": "Off",
+
+  "hifzTitle": "Memorization",
+  "hifzRepeat": "Repeat",
+  "hifzAbRepeat": "A-B repeat",
+  "hifzProgress": "Progress",
+
+  "tasbihTotal": "Total",
+  "tasbihTapHint": "Tap to count",
+  "tasbihReset": "Reset counter",
+  "tasbihSubhanAllah": "SubhanAllah",
+  "tasbihAlhamdulillah": "Alhamdulillah",
+  "tasbihLaIla": "La ilaha illallah",
+  "tasbihAllahuAkbar": "Allahu Akbar"
+}

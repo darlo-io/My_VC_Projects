@@ -1,0 +1,33 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+    
+        {
+            "name": "quran_app",
+            "cwd": "quran_app",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "emulator-5554",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "quran_app (profile mode)",
+            "cwd": "quran_app",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile",
+            "deviceId": "emulator-5554",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "quran_app (release mode)",
+            "cwd": "quran_app",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release",
+            "deviceId": "emulator-5554",
+            "program": "lib/main.dart"
+        }
+    ]
+}
