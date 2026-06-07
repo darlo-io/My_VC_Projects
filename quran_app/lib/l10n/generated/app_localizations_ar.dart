@@ -176,6 +176,22 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settingsCacheLimit => 'حد حجم الذاكرة';
 
   @override
+  String settingsCacheLimitValue(Object mb) {
+    return '$mb م.ب';
+  }
+
+  @override
+  String get settingsCacheClearConfirm => 'حذف كل الصوت المحمّل؟';
+
+  @override
+  String get settingsCacheCleared => 'تم مسح الذاكرة';
+
+  @override
+  String settingsCacheEvicted(Object count) {
+    return 'حُذف $count ملف';
+  }
+
+  @override
   String get settingsClearCache => 'مسح ذاكرة الصوت';
 
   @override

@@ -24,4 +24,36 @@ class AudioCacheDao extends DatabaseAccessor<AppDatabase>
       (update(audioCacheMetadata)..where((r) => r.id.equals(id))).write(
         AudioCacheMetadataCompanion(lastPlayedAt: Value(when)),
       );
+
+  /// Все записи, отсортированные по `last_played_at` (oldest first —
+  /// первые кандидаты на eviction). NULL `last_played_at` идёт первым.
+  Future<List<AudioCacheMetadatum>> oldestFirst({int limit = 100}) =>
+      (select(audioCacheMetadata)
+            ..orderBy([(r) => OrderingTerm(expression: r.lastPlayedAt)])
+            ..limit(limit))
+          .get();
+
+  /// Общий размер кеша в байтах.
+  Future<int> totalBytes() async {
+    final row = await customSelect(
+      'SELECT COALESCE(SUM(file_size_bytes), 0) AS s FROM audio_cache_metadata',
+      readsFrom: {audioCacheMetadata},
+    ).getSingle();
+    return row.read<int>('s');
+  }
+
+  /// Удалить запись по id (для eviction).
+  Future<int> deleteById(int id) =>
+      (delete(audioCacheMetadata)..where((r) => r.id.equals(id))).go();
+
+  /// Очистить весь кеш.
+  Future<int> deleteAll() => delete(audioCacheMetadata).go();
+
+  /// Поток общего размера (для UI "X MB / Y MB").
+  Stream<int> watchTotalBytes() {
+    return customSelect(
+      'SELECT COALESCE(SUM(file_size_bytes), 0) AS s FROM audio_cache_metadata',
+      readsFrom: {audioCacheMetadata},
+    ).watchSingle().map((r) => r.read<int>('s'));
+  }
 }

@@ -69,6 +69,11 @@
   "settingsTranslation": "Translation",
   "settingsAudioCache": "Audio cache",
   "settingsStorageUsed": "{used} MB / {limit} MB used",
+  "settingsCacheLimit": "Cache size limit",
+  "settingsCacheLimitValue": "{mb} MB",
+  "settingsCacheClearConfirm": "Delete all downloaded audio?",
+  "settingsCacheCleared": "Cache cleared",
+  "settingsCacheEvicted": "Removed {count} files",
   "@settingsStorageUsed": {
     "placeholders": {
       "used": { "type": "String" },

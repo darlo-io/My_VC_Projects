@@ -174,6 +174,22 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsCacheLimit => 'Лимит размера кеша';
 
   @override
+  String settingsCacheLimitValue(Object mb) {
+    return '$mb МБ';
+  }
+
+  @override
+  String get settingsCacheClearConfirm => 'Удалить все скачанные аудио?';
+
+  @override
+  String get settingsCacheCleared => 'Кеш очищен';
+
+  @override
+  String settingsCacheEvicted(Object count) {
+    return 'Удалено файлов: $count';
+  }
+
+  @override
   String get settingsClearCache => 'Очистить аудио-кеш';
 
   @override
