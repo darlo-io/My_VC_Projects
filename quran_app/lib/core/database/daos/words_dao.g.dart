@@ -7,7 +7,6 @@ mixin _$WordsDaoMixin on DatabaseAccessor<AppDatabase> {
   $SurahsTable get surahs => attachedDatabase.surahs;
   $AyahsTable get ayahs => attachedDatabase.ayahs;
   $WordsTable get words => attachedDatabase.words;
-  $WordTimingsTable get wordTimings => attachedDatabase.wordTimings;
   WordsDaoManager get managers => WordsDaoManager(this);
 }
 
@@ -20,6 +19,4 @@ class WordsDaoManager {
       $$AyahsTableTableManager(_db.attachedDatabase, _db.ayahs);
   $$WordsTableTableManager get words =>
       $$WordsTableTableManager(_db.attachedDatabase, _db.words);
-  $$WordTimingsTableTableManager get wordTimings =>
-      $$WordTimingsTableTableManager(_db.attachedDatabase, _db.wordTimings);
 }

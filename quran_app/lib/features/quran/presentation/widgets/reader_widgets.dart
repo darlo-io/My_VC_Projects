@@ -5,8 +5,8 @@ import '../../../../app/providers.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/ornaments.dart';
-import '../../../audio/presentation/word_timing_provider.dart';
 import '../../../audio/data/audio_player_controller.dart';
+import '../../../audio/presentation/word_timing_provider.dart';
 
 class AyahTile extends ConsumerStatefulWidget {
   const AyahTile({
@@ -31,6 +31,9 @@ class AyahTile extends ConsumerStatefulWidget {
 class _AyahTileState extends ConsumerState<AyahTile> {
   List<Word>? _words;
   bool _loadingWords = false;
+  // Token guard против stale-load: при каждом _loadWords() увеличиваем;
+  // setState() применяем только если в setState момент токен всё ещё актуален.
+  int _loadToken = 0;
 
   @override
   void initState() {
@@ -47,9 +50,11 @@ class _AyahTileState extends ConsumerState<AyahTile> {
   }
 
   Future<void> _loadWords() async {
+    final token = ++_loadToken;
     setState(() => _loadingWords = true);
-    final list = await ref.read(wordsDaoProvider).getByAyah(widget.ayah.id);
-    if (!mounted) return;
+    final list =
+        await ref.read(wordsDaoProvider).getByAyah(widget.ayah.id);
+    if (!mounted || token != _loadToken) return;
     setState(() {
       _words = list;
       _loadingWords = false;
@@ -114,18 +119,21 @@ class _ArabicText extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Нет данных по словам (не сидированы) — fallback на plain text.
     if (words == null && !loading) {
-      return _plainText(context, ayah.textUthmani);
+      return _plainText(ayah.textUthmani);
     }
     if (loading || words == null || words!.isEmpty) {
-      return _plainText(context, ayah.textUthmani);
+      return _plainText(ayah.textUthmani);
     }
 
     final player = ref.watch(audioPlayerControllerProvider);
     final activeSurah = player.surah;
     final isCurrentSurah = activeSurah != null && activeSurah.id == ayah.surahId;
+    // Subsample: highlight меняется раз в 50 ms — этого достаточно для глаза.
+    // Без subsample parent rebuild 10×/сек → 7 ayahs × 10 = 70 rebuilds/sec
+    // для Al-Fatiha, 2860/sec для Al-Baqarah.
     final currentWord = isCurrentSurah
-        ? ref.watch(currentWordIndexProvider)
-        : const CurrentWordIndex(-1);
+        ? ref.watch(currentWordIdProvider)
+        : CurrentWordId.beforeFirst;
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -146,7 +154,7 @@ class _ArabicText extends ConsumerWidget {
     );
   }
 
-  Widget _plainText(BuildContext context, String text) {
+  Widget _plainText(String text) {
     return SelectableText(
       text,
       textDirection: TextDirection.rtl,

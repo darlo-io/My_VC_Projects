@@ -157,10 +157,10 @@ class ContentBootstrapper {
     if (firstWord == null) return;
     final wordsBaseId = firstWord.read<int>('id');
 
-    final built = AlFatihaSeed.buildTimings(
+    final timings = AlFatihaSeed.buildTimings(
       baseAyahId: baseAyahId,
       wordsBaseId: wordsBaseId,
     );
-    await wordTimingsDao.insertAll(built.timings);
+    await wordTimingsDao.insertAll(timings);
   }
 }

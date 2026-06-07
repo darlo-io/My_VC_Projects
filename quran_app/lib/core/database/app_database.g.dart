@@ -980,8 +980,12 @@ class $WordsTable extends Words with TableInfo<$WordsTable, Word> {
     'id',
     aliasedName,
     false,
+    hasAutoIncrement: true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
   );
   static const VerificationMeta _ayahIdMeta = const VerificationMeta('ayahId');
   @override
@@ -1139,6 +1143,10 @@ class $WordsTable extends Words with TableInfo<$WordsTable, Word> {
 
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {ayahId, position},
+  ];
   @override
   Word map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -1481,8 +1489,12 @@ class $WordTimingsTable extends WordTimings
     'id',
     aliasedName,
     false,
+    hasAutoIncrement: true,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
   );
   static const VerificationMeta _wordIdMeta = const VerificationMeta('wordId');
   @override
@@ -1543,8 +1555,6 @@ class $WordTimingsTable extends WordTimings
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
     }
     if (data.containsKey('word_id')) {
       context.handle(
@@ -1582,7 +1592,7 @@ class $WordTimingsTable extends WordTimings
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => const {};
+  Set<GeneratedColumn> get $primaryKey => {id};
   @override
   WordTiming map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -1729,24 +1739,20 @@ class WordTimingsCompanion extends UpdateCompanion<WordTiming> {
   final Value<String> reciterId;
   final Value<int> startMs;
   final Value<int> endMs;
-  final Value<int> rowid;
   const WordTimingsCompanion({
     this.id = const Value.absent(),
     this.wordId = const Value.absent(),
     this.reciterId = const Value.absent(),
     this.startMs = const Value.absent(),
     this.endMs = const Value.absent(),
-    this.rowid = const Value.absent(),
   });
   WordTimingsCompanion.insert({
-    required int id,
+    this.id = const Value.absent(),
     required int wordId,
     required String reciterId,
     required int startMs,
     required int endMs,
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       wordId = Value(wordId),
+  }) : wordId = Value(wordId),
        reciterId = Value(reciterId),
        startMs = Value(startMs),
        endMs = Value(endMs);
@@ -1756,7 +1762,6 @@ class WordTimingsCompanion extends UpdateCompanion<WordTiming> {
     Expression<String>? reciterId,
     Expression<int>? startMs,
     Expression<int>? endMs,
-    Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1764,7 +1769,6 @@ class WordTimingsCompanion extends UpdateCompanion<WordTiming> {
       if (reciterId != null) 'reciter_id': reciterId,
       if (startMs != null) 'start_ms': startMs,
       if (endMs != null) 'end_ms': endMs,
-      if (rowid != null) 'rowid': rowid,
     });
   }
 
@@ -1774,7 +1778,6 @@ class WordTimingsCompanion extends UpdateCompanion<WordTiming> {
     Value<String>? reciterId,
     Value<int>? startMs,
     Value<int>? endMs,
-    Value<int>? rowid,
   }) {
     return WordTimingsCompanion(
       id: id ?? this.id,
@@ -1782,7 +1785,6 @@ class WordTimingsCompanion extends UpdateCompanion<WordTiming> {
       reciterId: reciterId ?? this.reciterId,
       startMs: startMs ?? this.startMs,
       endMs: endMs ?? this.endMs,
-      rowid: rowid ?? this.rowid,
     );
   }
 
@@ -1804,9 +1806,6 @@ class WordTimingsCompanion extends UpdateCompanion<WordTiming> {
     if (endMs.present) {
       map['end_ms'] = Variable<int>(endMs.value);
     }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
     return map;
   }
 
@@ -1817,8 +1816,7 @@ class WordTimingsCompanion extends UpdateCompanion<WordTiming> {
           ..write('wordId: $wordId, ')
           ..write('reciterId: $reciterId, ')
           ..write('startMs: $startMs, ')
-          ..write('endMs: $endMs, ')
-          ..write('rowid: $rowid')
+          ..write('endMs: $endMs')
           ..write(')'))
         .toString();
   }
@@ -8079,12 +8077,11 @@ typedef $$WordsTableProcessedTableManager =
     >;
 typedef $$WordTimingsTableCreateCompanionBuilder =
     WordTimingsCompanion Function({
-      required int id,
+      Value<int> id,
       required int wordId,
       required String reciterId,
       required int startMs,
       required int endMs,
-      Value<int> rowid,
     });
 typedef $$WordTimingsTableUpdateCompanionBuilder =
     WordTimingsCompanion Function({
@@ -8093,7 +8090,6 @@ typedef $$WordTimingsTableUpdateCompanionBuilder =
       Value<String> reciterId,
       Value<int> startMs,
       Value<int> endMs,
-      Value<int> rowid,
     });
 
 final class $$WordTimingsTableReferences
@@ -8303,30 +8299,26 @@ class $$WordTimingsTableTableManager
                 Value<String> reciterId = const Value.absent(),
                 Value<int> startMs = const Value.absent(),
                 Value<int> endMs = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
               }) => WordTimingsCompanion(
                 id: id,
                 wordId: wordId,
                 reciterId: reciterId,
                 startMs: startMs,
                 endMs: endMs,
-                rowid: rowid,
               ),
           createCompanionCallback:
               ({
-                required int id,
+                Value<int> id = const Value.absent(),
                 required int wordId,
                 required String reciterId,
                 required int startMs,
                 required int endMs,
-                Value<int> rowid = const Value.absent(),
               }) => WordTimingsCompanion.insert(
                 id: id,
                 wordId: wordId,
                 reciterId: reciterId,
                 startMs: startMs,
                 endMs: endMs,
-                rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
               .map(

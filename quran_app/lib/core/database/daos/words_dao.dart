@@ -5,26 +5,11 @@ import '../tables.dart';
 
 part 'words_dao.g.dart';
 
-@DriftAccessor(tables: [Words, WordTimings])
+@DriftAccessor(tables: [Words, Ayahs])
 class WordsDao extends DatabaseAccessor<AppDatabase> with _$WordsDaoMixin {
   WordsDao(super.db);
 
-  /// Слова одной суры, отсортированные по (ayah_id, position).
-  Stream<List<Word>> watchBySurah(int surahId) {
-    final query = select(words).join([
-      innerJoin(ayahs, ayahs.id.equalsExp(words.ayahId)),
-    ])
-      ..where(ayahs.surahId.equals(surahId))
-      ..orderBy([
-        OrderingTerm.asc(ayahs.ayahNumber),
-        OrderingTerm.asc(words.position),
-      ]);
-    return query.watch().map(
-          (rows) => rows.map((r) => r.readTable(words)).toList(),
-        );
-  }
-
-  /// Слова одного аята.
+  /// Слова одного аята, отсортированные по position.
   Future<List<Word>> getByAyah(int ayahId) =>
       (select(words)
             ..where((w) => w.ayahId.equals(ayahId))

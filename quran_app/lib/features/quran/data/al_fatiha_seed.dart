@@ -116,24 +116,22 @@ class AlFatihaSeed {
     return out;
   }
 
-  /// Сгенерировать списки companions таймингов.
+  /// Сгенерировать списки companions таймингов. PK-ids проставит autoIncrement.
   /// [baseAyahId] — id первого аята суры 1 в БД (глобальный 1..6236).
-  /// Возвращает Map: wordId → (start_ms, end_ms) для использования в seed.
-  static ({List<WordTimingsCompanion> timings, Map<int, int> wordIdByIndex}) buildTimings({
+  /// [wordsBaseId] — id первой вставленной word-строки (нужен, потому что
+  /// autoIncrement уже сработал и мы знаем диапазон).
+  static List<WordTimingsCompanion> buildTimings({
     required int baseAyahId,
     required int wordsBaseId,
   }) {
     final list = <WordTimingsCompanion>[];
-    final wordIdByIndex = <int, int>{};
     var globalIdx = 0;
     for (var i = 0; i < wordsByAyah.length; i++) {
       for (var p = 0; p < wordsByAyah[i].length; p++) {
         final wordId = wordsBaseId + globalIdx;
-        wordIdByIndex[globalIdx] = wordId;
         final tt = _t[i][p];
         list.add(
           WordTimingsCompanion.insert(
-            id: 0, // autoIncrement подставит реальный id
             wordId: wordId,
             reciterId: 'ar.alafasy',
             startMs: tt[0],
@@ -143,6 +141,6 @@ class AlFatihaSeed {
         globalIdx++;
       }
     }
-    return (timings: list, wordIdByIndex: wordIdByIndex);
+    return list;
   }
 }

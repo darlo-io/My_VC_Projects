@@ -30,8 +30,9 @@ class Ayahs extends Table {
 }
 
 /// Слово в аяте.
+@DataClassName('Word')
 class Words extends Table {
-  IntColumn get id => integer()();
+  IntColumn get id => integer().autoIncrement()();
   IntColumn get ayahId => integer().references(Ayahs, #id)();
   IntColumn get position => integer()();
   TextColumn get arabic => text()();
@@ -41,12 +42,14 @@ class Words extends Table {
   TextColumn get root => text().nullable()();
 
   @override
-  Set<Column<Object>> get primaryKey => {id};
+  List<Set<Column<Object>>> get uniqueKeys => [
+        {ayahId, position},
+      ];
 }
 
 /// Тайминги слова (для подсветки при прослушивании).
 class WordTimings extends Table {
-  IntColumn get id => integer()();
+  IntColumn get id => integer().autoIncrement()();
   IntColumn get wordId => integer().references(Words, #id)();
   TextColumn get reciterId => text()();
   IntColumn get startMs => integer()();

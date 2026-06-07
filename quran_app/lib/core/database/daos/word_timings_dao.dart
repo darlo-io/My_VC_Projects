@@ -17,38 +17,14 @@ class WordTimingRow {
   final int endMs;
 }
 
-@DriftAccessor(tables: [WordTimings, Words])
+@DriftAccessor(tables: [WordTimings, Words, Ayahs])
 class WordTimingsDao extends DatabaseAccessor<AppDatabase>
     with _$WordTimingsDaoMixin {
   WordTimingsDao(super.db);
 
-  /// Тайминги всех слов аята для указанного ректора. JOIN'ит
-  /// word_timings с words, фильтрует по surah+ayah и сортирует по position.
-  Stream<List<WordTimingRow>> watchForAyah({
-    required int ayahId,
-    required String reciterId,
-  }) {
-    final query = select(wordTimings).join([
-      innerJoin(words, words.id.equalsExp(wordTimings.wordId)),
-    ])
-      ..where(
-        wordTimings.reciterId.equals(reciterId) & words.ayahId.equals(ayahId),
-      )
-      ..orderBy([OrderingTerm.asc(words.position)]);
-    return query.watch().map(
-          (rows) => rows
-              .map(
-                (r) => WordTimingRow(
-                  wordId: r.readTable(wordTimings).wordId,
-                  startMs: r.readTable(wordTimings).startMs,
-                  endMs: r.readTable(wordTimings).endMs,
-                ),
-              )
-              .toList(),
-        );
-  }
-
-  /// Тайминги для одной суры целиком (для batched batch-load).
+  /// Тайминги для одной суры, отсортированные по `(ayah_number, position,
+  /// start_ms)`. Последний ключ — контракт для бинарного поиска по
+  /// `startMs` в [currentWordIndexProvider].
   Future<List<WordTimingRow>> getForSurah({
     required int surahId,
     required String reciterId,
@@ -60,7 +36,7 @@ class WordTimingsDao extends DatabaseAccessor<AppDatabase>
       INNER JOIN words w ON w.id = wt.word_id
       INNER JOIN ayahs a ON a.id = w.ayah_id
       WHERE wt.reciter_id = ? AND a.surah_id = ?
-      ORDER BY a.ayah_number, w.position
+      ORDER BY a.ayah_number, w.position, wt.start_ms
       ''',
       variables: [
         Variable.withString(reciterId),
@@ -77,14 +53,6 @@ class WordTimingsDao extends DatabaseAccessor<AppDatabase>
           ),
         )
         .toList();
-  }
-
-  Future<int> count() async {
-    final row = await customSelect(
-      'SELECT COUNT(*) AS c FROM word_timings',
-      readsFrom: {wordTimings},
-    ).getSingle();
-    return row.read<int>('c');
   }
 
   Future<void> insertAll(List<WordTimingsCompanion> items) async {

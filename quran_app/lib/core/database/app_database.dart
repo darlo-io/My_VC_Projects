@@ -55,7 +55,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -66,7 +66,7 @@ class AppDatabase extends _$AppDatabase {
         onUpgrade: (m, from, to) async {
           // На dev-сборках БД пуста — пересоздаём; на прод-миграции здесь
           // будут точечные ALTER TABLE для каждого бампа.
-          if (from < 3) {
+          if (from < 4) {
             await m.deleteTable('settings_entries');
             await m.deleteTable('audio_cache_metadata');
             await m.deleteTable('learning_words');
