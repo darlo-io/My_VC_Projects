@@ -1,0 +1,18 @@
+# Workspace-level ignores (debug artifacts produced by interactive sessions).
+# Per-project .gitignore files (e.g. quran_app/.gitignore) still apply for
+# build outputs and Flutter/Dart artifacts inside each project.
+
+# Ad-hoc debug logs (not in any project)
+*.log
+!quran_app/.gitignore
+!docs/**
+
+# APK inspection / extracted-APK folders
+/apk_inspect/
+/apk_inspect.zip
+
+# Debug screenshots from `adb shell screencap`
+/s*.png
+/s*.png.bak
+/screen.png
+/screen.png.bak
