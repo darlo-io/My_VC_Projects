@@ -2242,7 +2242,7 @@ class $TranslatorsTable extends Translators
     aliasedName,
     false,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
@@ -2289,8 +2289,6 @@ class $TranslatorsTable extends Translators
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
     }
     if (data.containsKey('name')) {
       context.handle(
@@ -2323,7 +2321,7 @@ class $TranslatorsTable extends Translators
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => const {};
+  Set<GeneratedColumn> get $primaryKey => {id};
   @override
   Translator map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -2456,22 +2454,18 @@ class TranslatorsCompanion extends UpdateCompanion<Translator> {
   final Value<String> name;
   final Value<String> languageCode;
   final Value<String> source;
-  final Value<int> rowid;
   const TranslatorsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.languageCode = const Value.absent(),
     this.source = const Value.absent(),
-    this.rowid = const Value.absent(),
   });
   TranslatorsCompanion.insert({
-    required int id,
+    this.id = const Value.absent(),
     required String name,
     required String languageCode,
     required String source,
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       name = Value(name),
+  }) : name = Value(name),
        languageCode = Value(languageCode),
        source = Value(source);
   static Insertable<Translator> custom({
@@ -2479,14 +2473,12 @@ class TranslatorsCompanion extends UpdateCompanion<Translator> {
     Expression<String>? name,
     Expression<String>? languageCode,
     Expression<String>? source,
-    Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (languageCode != null) 'language_code': languageCode,
       if (source != null) 'source': source,
-      if (rowid != null) 'rowid': rowid,
     });
   }
 
@@ -2495,14 +2487,12 @@ class TranslatorsCompanion extends UpdateCompanion<Translator> {
     Value<String>? name,
     Value<String>? languageCode,
     Value<String>? source,
-    Value<int>? rowid,
   }) {
     return TranslatorsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
       languageCode: languageCode ?? this.languageCode,
       source: source ?? this.source,
-      rowid: rowid ?? this.rowid,
     );
   }
 
@@ -2521,9 +2511,6 @@ class TranslatorsCompanion extends UpdateCompanion<Translator> {
     if (source.present) {
       map['source'] = Variable<String>(source.value);
     }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
     return map;
   }
 
@@ -2533,8 +2520,7 @@ class TranslatorsCompanion extends UpdateCompanion<Translator> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('languageCode: $languageCode, ')
-          ..write('source: $source, ')
-          ..write('rowid: $rowid')
+          ..write('source: $source')
           ..write(')'))
         .toString();
   }
@@ -2924,7 +2910,7 @@ class $TafsirSourcesTable extends TafsirSources
     aliasedName,
     false,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _slugMeta = const VerificationMeta('slug');
   @override
@@ -2986,8 +2972,6 @@ class $TafsirSourcesTable extends TafsirSources
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
     }
     if (data.containsKey('slug')) {
       context.handle(
@@ -3028,7 +3012,7 @@ class $TafsirSourcesTable extends TafsirSources
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => const {};
+  Set<GeneratedColumn> get $primaryKey => {id};
   @override
   TafsirSource map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -3177,24 +3161,20 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
   final Value<String> nameAr;
   final Value<String> nameEn;
   final Value<String> languageCode;
-  final Value<int> rowid;
   const TafsirSourcesCompanion({
     this.id = const Value.absent(),
     this.slug = const Value.absent(),
     this.nameAr = const Value.absent(),
     this.nameEn = const Value.absent(),
     this.languageCode = const Value.absent(),
-    this.rowid = const Value.absent(),
   });
   TafsirSourcesCompanion.insert({
-    required int id,
+    this.id = const Value.absent(),
     required String slug,
     required String nameAr,
     required String nameEn,
     required String languageCode,
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       slug = Value(slug),
+  }) : slug = Value(slug),
        nameAr = Value(nameAr),
        nameEn = Value(nameEn),
        languageCode = Value(languageCode);
@@ -3204,7 +3184,6 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
     Expression<String>? nameAr,
     Expression<String>? nameEn,
     Expression<String>? languageCode,
-    Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3212,7 +3191,6 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
       if (nameAr != null) 'name_ar': nameAr,
       if (nameEn != null) 'name_en': nameEn,
       if (languageCode != null) 'language_code': languageCode,
-      if (rowid != null) 'rowid': rowid,
     });
   }
 
@@ -3222,7 +3200,6 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
     Value<String>? nameAr,
     Value<String>? nameEn,
     Value<String>? languageCode,
-    Value<int>? rowid,
   }) {
     return TafsirSourcesCompanion(
       id: id ?? this.id,
@@ -3230,7 +3207,6 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
       nameAr: nameAr ?? this.nameAr,
       nameEn: nameEn ?? this.nameEn,
       languageCode: languageCode ?? this.languageCode,
-      rowid: rowid ?? this.rowid,
     );
   }
 
@@ -3252,9 +3228,6 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
     if (languageCode.present) {
       map['language_code'] = Variable<String>(languageCode.value);
     }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
     return map;
   }
 
@@ -3265,8 +3238,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
           ..write('slug: $slug, ')
           ..write('nameAr: $nameAr, ')
           ..write('nameEn: $nameEn, ')
-          ..write('languageCode: $languageCode, ')
-          ..write('rowid: $rowid')
+          ..write('languageCode: $languageCode')
           ..write(')'))
         .toString();
   }
@@ -8604,11 +8576,10 @@ typedef $$RecitersTableProcessedTableManager =
     >;
 typedef $$TranslatorsTableCreateCompanionBuilder =
     TranslatorsCompanion Function({
-      required int id,
+      Value<int> id,
       required String name,
       required String languageCode,
       required String source,
-      Value<int> rowid,
     });
 typedef $$TranslatorsTableUpdateCompanionBuilder =
     TranslatorsCompanion Function({
@@ -8616,7 +8587,6 @@ typedef $$TranslatorsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> languageCode,
       Value<String> source,
-      Value<int> rowid,
     });
 
 final class $$TranslatorsTableReferences
@@ -8811,27 +8781,23 @@ class $$TranslatorsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> languageCode = const Value.absent(),
                 Value<String> source = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
               }) => TranslatorsCompanion(
                 id: id,
                 name: name,
                 languageCode: languageCode,
                 source: source,
-                rowid: rowid,
               ),
           createCompanionCallback:
               ({
-                required int id,
+                Value<int> id = const Value.absent(),
                 required String name,
                 required String languageCode,
                 required String source,
-                Value<int> rowid = const Value.absent(),
               }) => TranslatorsCompanion.insert(
                 id: id,
                 name: name,
                 languageCode: languageCode,
                 source: source,
-                rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -9295,12 +9261,11 @@ typedef $$TranslationsTableProcessedTableManager =
     >;
 typedef $$TafsirSourcesTableCreateCompanionBuilder =
     TafsirSourcesCompanion Function({
-      required int id,
+      Value<int> id,
       required String slug,
       required String nameAr,
       required String nameEn,
       required String languageCode,
-      Value<int> rowid,
     });
 typedef $$TafsirSourcesTableUpdateCompanionBuilder =
     TafsirSourcesCompanion Function({
@@ -9309,7 +9274,6 @@ typedef $$TafsirSourcesTableUpdateCompanionBuilder =
       Value<String> nameAr,
       Value<String> nameEn,
       Value<String> languageCode,
-      Value<int> rowid,
     });
 
 final class $$TafsirSourcesTableReferences
@@ -9523,30 +9487,26 @@ class $$TafsirSourcesTableTableManager
                 Value<String> nameAr = const Value.absent(),
                 Value<String> nameEn = const Value.absent(),
                 Value<String> languageCode = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
               }) => TafsirSourcesCompanion(
                 id: id,
                 slug: slug,
                 nameAr: nameAr,
                 nameEn: nameEn,
                 languageCode: languageCode,
-                rowid: rowid,
               ),
           createCompanionCallback:
               ({
-                required int id,
+                Value<int> id = const Value.absent(),
                 required String slug,
                 required String nameAr,
                 required String nameEn,
                 required String languageCode,
-                Value<int> rowid = const Value.absent(),
               }) => TafsirSourcesCompanion.insert(
                 id: id,
                 slug: slug,
                 nameAr: nameAr,
                 nameEn: nameEn,
                 languageCode: languageCode,
-                rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
               .map(

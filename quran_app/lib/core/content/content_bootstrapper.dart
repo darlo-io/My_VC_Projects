@@ -124,7 +124,7 @@ class ContentBootstrapper {
         result.translators
             .map(
               (t) => TranslatorsCompanion.insert(
-                id: t['id'] as int,
+                id: Value(t['id'] as int),
                 name: t['name'] as String,
                 languageCode: t['language_code'] as String,
                 source: (t['source'] as String?) ?? '',

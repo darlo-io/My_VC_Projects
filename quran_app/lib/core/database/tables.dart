@@ -75,6 +75,9 @@ class Translators extends Table {
   TextColumn get name => text()();
   TextColumn get languageCode => text()();
   TextColumn get source => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
 }
 
 /// Переводы аятов.
@@ -99,6 +102,9 @@ class TafsirSources extends Table {
   TextColumn get nameAr => text()();
   TextColumn get nameEn => text()();
   TextColumn get languageCode => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
 }
 
 /// Тафсиры.

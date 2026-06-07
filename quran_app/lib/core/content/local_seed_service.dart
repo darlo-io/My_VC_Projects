@@ -32,20 +32,20 @@ class LocalSeedService {
     final raw = await rootBundle.loadString(assetPath);
     final json = jsonDecode(raw) as Map<String, dynamic>;
 
-    final surahs = (json['surahs'] as List)
-        .cast<Map<String, dynamic>>()
-        .map(_surahToDownloadFormat)
-        .toList();
+    final rawSurahs = (json['surahs'] as List).cast<Map<String, dynamic>>();
     final translators = (json['translators'] as List)
         .cast<Map<String, dynamic>>();
     final translations = (json['translations'] as List)
         .cast<Map<String, dynamic>>();
 
+    final surahs = rawSurahs.map(_surahToDownloadFormat).toList();
+    final ayahs = _explodeAyahs(rawSurahs);
+
     _cached = ContentDownloadResult(
       surahs: surahs,
       translators: translators,
       translations: translations,
-      ayahs: _explodeAyahs(surahs),
+      ayahs: ayahs,
     );
     return _cached!;
   }
@@ -53,6 +53,9 @@ class LocalSeedService {
   /// JSON хранит аяты вложенно в `surah.ayahs: [{number, numberInSurah, text}]`.
   /// Чтобы не менять [ContentDownloader] / [ContentBootstrapper], разворачиваем
   /// в плоский список — тот же формат, что и API.
+  ///
+  /// Принимает **исходный** список (с ключами `id` и `ayahs`), а не
+  /// трансформированный через [_surahToDownloadFormat] (где этих ключей нет).
   List<Map<String, dynamic>> _explodeAyahs(
     List<Map<String, dynamic>> surahs,
   ) {
