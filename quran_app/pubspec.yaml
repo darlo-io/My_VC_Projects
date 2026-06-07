@@ -35,9 +35,6 @@ dependencies:
   # Formatting
   intl: ^0.20.2
 
-  # Typography
-  google_fonts: ^6.2.1
-
   # Audio (stub for MVP v0.2)
   just_audio: ^0.9.42
 
@@ -56,3 +53,15 @@ flutter:
   generate: true
   assets:
     - assets/quran_seed/quran_full.json
+  fonts:
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/amiri/Amiri-Regular.ttf
+        - asset: assets/fonts/amiri/Amiri-Bold.ttf
+          weight: 700
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/inter/Inter-Variable.ttf
+    - family: CormorantGaramond
+      fonts:
+        - asset: assets/fonts/cormorantgaramond/CormorantGaramond-Variable.ttf

@@ -30,7 +30,7 @@ class AppTheme {
       canvasColor: AppColors.background,
       splashColor: AppColors.gold.withValues(alpha: 0.08),
       highlightColor: AppColors.gold.withValues(alpha: 0.05),
-      textTheme: AppTypography.textTheme(scheme),
+      textTheme: AppTypography.textTheme(),
       iconTheme: const IconThemeData(color: AppColors.gold, size: 24),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
@@ -42,7 +42,7 @@ class AppTheme {
           systemNavigationBarColor: AppColors.background,
         ),
         iconTheme: const IconThemeData(color: AppColors.gold),
-        titleTextStyle: AppTypography.textTheme(scheme).headlineMedium,
+        titleTextStyle: AppTypography.textTheme().headlineMedium,
         centerTitle: false,
       ),
       cardTheme: CardThemeData(
