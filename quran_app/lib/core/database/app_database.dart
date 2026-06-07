@@ -51,7 +51,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -60,11 +60,9 @@ class AppDatabase extends _$AppDatabase {
           await _createFts();
         },
         onUpgrade: (m, from, to) async {
-          // v1 → v2: schema tightening. For new installs only (no users yet).
-          // For each future bump, add a per-step migration here.
-          if (from < 2) {
-            // Добавить уникальные индексы и autoIncrement, которых не было в v1.
-            // На dev-сборках БД пуста — проще пересоздать.
+          // На dev-сборках БД пуста — пересоздаём; на прод-миграции здесь
+          // будут точечные ALTER TABLE для каждого бампа.
+          if (from < 3) {
             await m.deleteTable('settings_entries');
             await m.deleteTable('audio_cache_metadata');
             await m.deleteTable('learning_words');

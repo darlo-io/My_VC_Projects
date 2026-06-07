@@ -5709,6 +5709,10 @@ class $AudioCacheMetadataTable extends AudioCacheMetadata
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {reciterId, surahId},
+  ];
+  @override
   AudioCacheMetadatum map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return AudioCacheMetadatum(

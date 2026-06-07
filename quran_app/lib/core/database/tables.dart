@@ -179,6 +179,11 @@ class AudioCacheMetadata extends Table {
   IntColumn get fileSizeBytes => integer()();
   DateTimeColumn get downloadedAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get lastPlayedAt => dateTime().nullable()();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+        {reciterId, surahId},
+      ];
 }
 
 /// EAV-настройки (только для расширяемых данных, простые — в SharedPreferences).

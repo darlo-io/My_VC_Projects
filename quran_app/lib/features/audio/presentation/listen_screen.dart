@@ -43,7 +43,9 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
       });
     });
     ref.listen<AudioPlayerState>(audioPlayerControllerProvider, (prev, next) {
-      if (next.reciter != null) {
+      // Пишем в SharedPreferences только при реальной смене чтеца,
+      // а не на каждый position-tick (~60 раз/сек).
+      if (next.reciter != null && prev?.reciter?.id != next.reciter!.id) {
         ref.read(appPreferencesProvider).setReciterId(next.reciter!.id);
       }
     });

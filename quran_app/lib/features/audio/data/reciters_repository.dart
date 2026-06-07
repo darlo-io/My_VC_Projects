@@ -99,22 +99,15 @@ const kDefaultReciters = <ReciterSeed>[
   ),
 ];
 
-/// Разрешает URL конкретной суры у данного ректора.
+/// Разрешает URL конкретной суры у данного ректора по cdnTemplate.
 String resolveAudioUrl(Reciter reciter, int surahNumber) {
-  return reciter.id // используем cdnTemplate, зашитый в id
-      // (см. kDefaultReciters) — для MVP шаблон хранится не в БД,
-      // а вшит в [ReciterSeed]. Здесь мы восстанавливаем URL по id.
-      .let((_) => _resolveFromId(reciter.id, surahNumber));
+  return _resolveFromId(reciter.id, surahNumber);
 }
 
 String _resolveFromId(String reciterId, int surah) {
   final surahStr = surah.toString().padLeft(3, '0');
   return 'https://cdn.islamic.network/quran/audio-surah/128/'
       '$reciterId/$surahStr.mp3';
-}
-
-extension _Let<T> on T {
-  R let<R>(R Function(T) f) => f(this);
 }
 
 /// Репозиторий ректоров. На первом запуске сеет таблицу дефолтным списком.
@@ -144,5 +137,4 @@ class RecitersRepository {
 
   Stream<List<Reciter>> watchAll() => _dao.watchAll();
   Future<Reciter?> getById(String id) => _dao.getById(id);
-  Future<List<Reciter>> getAll() => _dao.getAll();
 }

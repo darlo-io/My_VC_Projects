@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -10,13 +11,14 @@ import '../../../core/database/daos/audio_cache_dao.dart';
 /// Локальный кеш MP3-файлов сур.
 ///
 /// Стратегия:
-/// 1. По `{reciterId, surah}` ищем строку в `audio_cache_metadata`.
-/// 2. Если файл есть на диске → возвращаем путь.
+/// 1. По `{reciterId, surah}` строим ключ и ищем строку в
+///    `audio_cache_metadata` (UNIQUE(reciterId, surahId)).
+/// 2. Если файл есть на диске и непустой → возвращаем путь.
 /// 3. Если файла нет → скачиваем по URL, сохраняем, записываем метаданные.
 ///
-/// LRU-вытеснение: в этой итерации (audio foundation) — простая версия
-/// по `last_played_at`. Полная LRU-политика с лимитом диска и авто-чисткой
-/// будет в следующей итерации (см. ARCHITECTURE §14).
+/// Race-safety: параллельные вызовы с одним ключом ожидают один и тот же
+/// in-flight Future (предотвращает corrupted file при двойном tap).
+/// При ошибке загрузки — частичный файл удаляется.
 class AudioCache {
   AudioCache({required this.dio, required this.dao});
 
@@ -24,6 +26,7 @@ class AudioCache {
   final AudioCacheDao dao;
 
   Directory? _root;
+  final Map<String, Future<File>> _inFlight = {};
 
   Future<Directory> _ensureRoot() async {
     if (_root != null) return _root!;
@@ -36,7 +39,6 @@ class AudioCache {
     return dir;
   }
 
-  /// Строит локальный путь для файла суры данного ректора.
   Future<File> _localFile(String reciterId, int surah) async {
     final root = await _ensureRoot();
     final safeId = reciterId.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
@@ -44,8 +46,34 @@ class AudioCache {
     return File(p.join(root.path, name));
   }
 
+  String _key(String reciterId, int surah) => '$reciterId:$surah';
+
   /// Возвращает локальный файл для проигрывания. Скачивает при отсутствии.
   Future<File> getOrDownload({
+    required String reciterId,
+    required int surah,
+    required String url,
+    void Function(double progress)? onProgress,
+  }) async {
+    final key = _key(reciterId, surah);
+    final existing = _inFlight[key];
+    if (existing != null) return existing;
+
+    final future = _resolveOrFetch(
+      reciterId: reciterId,
+      surah: surah,
+      url: url,
+      onProgress: onProgress,
+    );
+    _inFlight[key] = future;
+    try {
+      return await future;
+    } finally {
+      _inFlight.remove(key);
+    }
+  }
+
+  Future<File> _resolveOrFetch({
     required String reciterId,
     required int surah,
     required String url,
@@ -56,7 +84,18 @@ class AudioCache {
       await _touchPlayed(reciterId, surah, file);
       return file;
     }
-    await _download(url, file, onProgress: onProgress);
+    try {
+      await _download(url, file, onProgress: onProgress);
+    } catch (e) {
+      // Не оставлять partial-файл: следующий вызов прочтёт его как
+      // валидный кеш и подаст плееру битый MP3.
+      if (file.existsSync()) {
+        try {
+          await file.delete();
+        } catch (_) {/* ignore */}
+      }
+      rethrow;
+    }
     await _register(reciterId, surah, file);
     return file;
   }

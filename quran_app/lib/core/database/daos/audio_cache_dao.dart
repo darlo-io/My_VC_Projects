@@ -24,20 +24,4 @@ class AudioCacheDao extends DatabaseAccessor<AppDatabase>
       (update(audioCacheMetadata)..where((r) => r.id.equals(id))).write(
         AudioCacheMetadataCompanion(lastPlayedAt: Value(when)),
       );
-
-  /// Последние N записей по `last_played_at` (для будущего LRU).
-  Future<List<AudioCacheMetadatum>> recent({int limit = 50}) =>
-      (select(audioCacheMetadata)
-            ..orderBy([(r) => OrderingTerm.desc(r.lastPlayedAt)])
-            ..limit(limit))
-          .get();
-
-  /// Общий размер кеша в байтах.
-  Future<int> totalBytes() async {
-    final row = await customSelect(
-      'SELECT COALESCE(SUM(file_size_bytes), 0) AS s FROM audio_cache_metadata',
-      readsFrom: {audioCacheMetadata},
-    ).getSingle();
-    return row.read<int>('s');
-  }
 }

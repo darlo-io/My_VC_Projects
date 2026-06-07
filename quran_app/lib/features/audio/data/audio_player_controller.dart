@@ -18,6 +18,7 @@ class AudioPlayerState {
     required this.loading,
     required this.positionMs,
     required this.durationMs,
+    this.error,
   });
 
   final Reciter? reciter;
@@ -27,6 +28,7 @@ class AudioPlayerState {
   final bool loading;
   final int positionMs;
   final int durationMs;
+  final String? error;
 
   static const empty = AudioPlayerState(
     reciter: null,
@@ -46,16 +48,18 @@ class AudioPlayerState {
     bool? loading,
     int? positionMs,
     int? durationMs,
-    bool resetSurah = false,
+    String? error,
+    bool clearError = false,
   }) {
     return AudioPlayerState(
       reciter: reciter ?? this.reciter,
-      surah: resetSurah ? null : (surah ?? this.surah),
-      surahName: resetSurah ? '' : (surahName ?? this.surahName),
+      surah: surah ?? this.surah,
+      surahName: surahName ?? this.surahName,
       playing: playing ?? this.playing,
       loading: loading ?? this.loading,
       positionMs: positionMs ?? this.positionMs,
       durationMs: durationMs ?? this.durationMs,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 }
@@ -115,28 +119,46 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
     return seed.cdnTemplate.replaceAll('{surah}', surah.toString().padLeft(3, '0'));
   }
 
-  /// Загрузить и проиграть суру.
+  /// Загрузить и проиграть суру. При ошибке — сбрасывает loading и
+  /// выставляет [AudioPlayerState.error], чтобы UI мог показать retry.
   Future<void> playSurah({required String reciterId, required int surahId}) async {
-    final reciter = await _reciters.getById(reciterId);
-    if (reciter == null) return;
-    final surah = await _surahDao.getById(surahId);
-    if (surah == null) return;
+    try {
+      final reciter = await _reciters.getById(reciterId);
+      if (reciter == null) {
+        state = state.copyWith(
+          loading: false,
+          error: 'Reciter not found: $reciterId',
+        );
+        return;
+      }
+      final surah = await _surahDao.getById(surahId);
+      if (surah == null) {
+        state = state.copyWith(
+          loading: false,
+          error: 'Surah not found: $surahId',
+        );
+        return;
+      }
 
-    state = state.copyWith(
-      reciter: reciter,
-      surah: surah,
-      surahName: surah.nameTransliteration,
-      loading: true,
-    );
+      state = state.copyWith(
+        reciter: reciter,
+        surah: surah,
+        surahName: surah.nameTransliteration,
+        loading: true,
+        clearError: true,
+      );
 
-    final url = _resolveUrl(reciter, surahId);
-    final file = await _cache.getOrDownload(
-      reciterId: reciterId,
-      surah: surahId,
-      url: url,
-    );
-    await _player.setFilePath(file.path);
-    await _player.play();
+      final url = _resolveUrl(reciter, surahId);
+      final file = await _cache.getOrDownload(
+        reciterId: reciterId,
+        surah: surahId,
+        url: url,
+      );
+      await _player.setFilePath(file.path);
+      await _player.play();
+    } catch (e) {
+      state = state.copyWith(loading: false, error: '$e');
+    }
   }
 
   Future<void> togglePlay() async {
