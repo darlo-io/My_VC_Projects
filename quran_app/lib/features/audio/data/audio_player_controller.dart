@@ -73,12 +73,10 @@ class AudioPlayerState {
 /// - Поддержка play/pause/seek/stop
 class AudioPlayerController extends StateNotifier<AudioPlayerState> {
   AudioPlayerController({
-    required AudioCache cache,
+    required this._cache,
     required RecitersRepository reciters,
-    required SurahDao surahDao,
-  })  : _cache = cache,
-        _reciters = reciters,
-        _surahDao = surahDao,
+    required this._surahDao,
+  })  : _reciters = reciters,
         super(AudioPlayerState.empty) {
     _wireStreams();
   }

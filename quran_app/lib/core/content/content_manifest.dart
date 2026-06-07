@@ -5,6 +5,13 @@ import 'package:crypto/crypto.dart' as crypto;
 
 import '../storage/app_preferences.dart';
 import 'quran_api.dart';
+import 'seed_types.dart';
+
+// Re-export so existing consumers of `content_manifest.dart` for the
+// ContentDownloadResult type keep compiling. The actual definition lives
+// in seed_types.dart so the parser stays pure-Dart and testable without
+// dragging Flutter/Dio into the test graph.
+export 'seed_types.dart' show ContentDownloadResult;
 
 /// Версия контента: меняется при обновлении текстов/переводов.
 const String kContentVersion = '1.0.0';
@@ -108,20 +115,6 @@ class ContentManifestRepository {
     await _prefs.setString(_keyVersion, m.contentVersion);
     await _prefs.setString(_keyHash, m.contentHash());
   }
-}
-
-class ContentDownloadResult {
-  const ContentDownloadResult({
-    required this.surahs,
-    required this.ayahs,
-    required this.translations,
-    required this.translators,
-  });
-
-  final List<Map<String, dynamic>> surahs;
-  final List<Map<String, dynamic>> ayahs;
-  final List<Map<String, dynamic>> translations;
-  final List<Map<String, dynamic>> translators;
 }
 
 /// Сервис скачивания контента с API.

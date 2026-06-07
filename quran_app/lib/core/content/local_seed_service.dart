@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/services.dart' show rootBundle;
 
-import 'content_manifest.dart';
+import 'seed_parser.dart';
+import 'seed_types.dart';
 
 /// Локальный seed-датасет: все 114 сур Корана (Uthmani + ru.kuliev +
 /// en.sahih), зашитые в APK как `assets/quran_seed/quran_full.json`.
@@ -13,6 +13,9 @@ import 'content_manifest.dart';
 /// - ~5 МБ JSON, парсится за ~100 ms
 /// - API остаётся резервным каналом для будущих обновлений контента
 ///   (см. `ContentDownloader.downloadAll`)
+///
+/// Парсинг делегирован [SeedParser] — pure-Dart функция, тестируемая
+/// через `dart test` без flutter_tester.
 class LocalSeedService {
   LocalSeedService({this.assetPath = 'assets/quran_seed/quran_full.json'});
 
@@ -30,58 +33,7 @@ class LocalSeedService {
 
   Future<ContentDownloadResult> _doLoad() async {
     final raw = await rootBundle.loadString(assetPath);
-    final json = jsonDecode(raw) as Map<String, dynamic>;
-
-    final rawSurahs = (json['surahs'] as List).cast<Map<String, dynamic>>();
-    final translators = (json['translators'] as List)
-        .cast<Map<String, dynamic>>();
-    final translations = (json['translations'] as List)
-        .cast<Map<String, dynamic>>();
-
-    final surahs = rawSurahs.map(_surahToDownloadFormat).toList();
-    final ayahs = _explodeAyahs(rawSurahs);
-
-    _cached = ContentDownloadResult(
-      surahs: surahs,
-      translators: translators,
-      translations: translations,
-      ayahs: ayahs,
-    );
+    _cached = SeedParser.parse(raw);
     return _cached!;
-  }
-
-  /// JSON хранит аяты вложенно в `surah.ayahs: [{number, numberInSurah, text}]`.
-  /// Чтобы не менять [ContentDownloader] / [ContentBootstrapper], разворачиваем
-  /// в плоский список — тот же формат, что и API.
-  ///
-  /// Принимает **исходный** список (с ключами `id` и `ayahs`), а не
-  /// трансформированный через [_surahToDownloadFormat] (где этих ключей нет).
-  List<Map<String, dynamic>> _explodeAyahs(
-    List<Map<String, dynamic>> surahs,
-  ) {
-    final out = <Map<String, dynamic>>[];
-    for (final s in surahs) {
-      final surahId = s['id'] as int;
-      for (final a in (s['ayahs'] as List).cast<Map<String, dynamic>>()) {
-        out.add({
-          'id': a['number'] as int,
-          'surah_id': surahId,
-          'ayah_number': a['numberInSurah'] as int,
-          'text_uthmani': a['text'] as String,
-        });
-      }
-    }
-    return out;
-  }
-
-  Map<String, dynamic> _surahToDownloadFormat(Map<String, dynamic> s) {
-    return {
-      'number': s['id'],
-      'name': s['name_ar'],
-      'englishName': s['name_en'],
-      'englishNameTranslation': s['name_transliteration'],
-      'revelationType': s['revelation_type'],
-      'numberOfAyahs': s['ayah_count'],
-    };
   }
 }

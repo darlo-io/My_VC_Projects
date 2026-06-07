@@ -144,7 +144,7 @@ class _GoldFramePainter extends CustomPainter {
       ..color = color.withValues(alpha: 0.35)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.5;
-    final inset = 8.0;
+    const inset = 8.0;
     final innerRect = Rect.fromLTWH(
       strokeWidth / 2 + inset,
       strokeWidth / 2 + inset,
@@ -198,7 +198,7 @@ class SurahTitleFrame extends StatelessWidget {
                 Text(
                   arabicName,
                   textDirection: TextDirection.rtl,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w700,
                     color: AppColors.gold,
@@ -243,7 +243,7 @@ class _SurahTitlePainter extends CustomPainter {
     // Центральная линия с разрывом
     final leftEnd = w / 2 - 110;
     final rightStart = w / 2 + 110;
-    final halfGap = 18.0;
+    const halfGap = 18.0;
 
     canvas.drawLine(
       Offset(16, cy),
@@ -521,7 +521,7 @@ class _OrnateDividerPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     final cy = size.height / 2;
     final w = size.width;
-    final r = 2.5;
+    const r = 2.5;
 
     // Линии по бокам
     final linePaint = Paint()
@@ -583,7 +583,7 @@ class _ArabesquePainter extends CustomPainter {
     for (var x = 0.0; x < size.width + step; x += step) {
       for (var y = 0.0; y < size.height + step; y += step) {
         final path = Path();
-        final r = step * 0.35;
+        const r = step * 0.35;
         path.addOval(Rect.fromCircle(center: Offset(x, y), radius: r));
         // Внутренний крестик
         path.moveTo(x - r * 0.4, y);

@@ -143,6 +143,11 @@ class ContentReadyNotifier extends AsyncNotifier<bool> {
       state = AsyncValue.data(ok);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
+      // Re-throw so the caller (e.g. _BootstrapScreen) can show a retry
+      // button. Without this, errors are silently absorbed: the router
+      // stays on /bootstrap and the user sees an infinite "Loading…"
+      // screen with no way to recover.
+      rethrow;
     }
   }
 }

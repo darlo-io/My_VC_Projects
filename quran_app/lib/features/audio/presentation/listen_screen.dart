@@ -238,7 +238,7 @@ class _ReciterChip extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              GoldIconBadge(
+              const GoldIconBadge(
                 icon: Icons.mic_none,
                 size: 44,
                 iconSize: 22,

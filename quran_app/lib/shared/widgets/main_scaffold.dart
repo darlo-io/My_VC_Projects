@@ -45,7 +45,7 @@ class MainScaffold extends StatelessWidget {
           SafeArea(
             top: false,
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.backgroundDeep,
                 border: Border(
                   top: BorderSide(
