@@ -318,9 +318,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsPerDay => 'Ayahs per day';
 
   @override
-  String get audioChooseReciter => 'Choose reciter';
-
-  @override
   String get audioChooseSurah => 'Surah';
 
   @override

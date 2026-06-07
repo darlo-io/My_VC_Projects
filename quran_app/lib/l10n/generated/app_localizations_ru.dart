@@ -320,9 +320,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get statsPerDay => 'Аятов в день';
 
   @override
-  String get audioChooseReciter => 'Выберите чтеца';
-
-  @override
   String get audioChooseSurah => 'Сура';
 
   @override

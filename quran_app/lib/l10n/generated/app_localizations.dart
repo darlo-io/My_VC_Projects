@@ -670,12 +670,6 @@ abstract class AppLocalizations {
   /// **'Ayahs per day'**
   String get statsPerDay;
 
-  /// No description provided for @audioChooseReciter.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose reciter'**
-  String get audioChooseReciter;
-
   /// No description provided for @audioChooseSurah.
   ///
   /// In en, this message translates to:

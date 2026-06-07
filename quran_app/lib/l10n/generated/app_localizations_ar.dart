@@ -320,9 +320,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get statsPerDay => 'آيات في اليوم';
 
   @override
-  String get audioChooseReciter => 'اختر القارئ';
-
-  @override
   String get audioChooseSurah => 'السورة';
 
   @override

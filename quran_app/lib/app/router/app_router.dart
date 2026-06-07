@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/audio/presentation/listen_screen.dart';
 import '../../l10n/generated/app_localizations.dart';
-import '../../features/audio/presentation/reciter_picker_screen.dart';
 import '../../features/bookmarks/presentation/bookmarks_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/learning/presentation/learn_screen.dart';
@@ -34,18 +33,18 @@ final routerProvider = Provider<GoRouter>((ref) {
           return null;
         },
         loading: () => isBootstrap ? null : '/bootstrap',
-        error: (_, __) => isBootstrap ? null : '/bootstrap',
+        error: (_, _) => isBootstrap ? null : '/bootstrap',
       );
     },
     refreshListenable: _RouterRefresh(ref),
     routes: [
       GoRoute(
         path: '/onboarding',
-        builder: (_, __) => const LanguagePickerScreen(),
+        builder: (_, _) => const LanguagePickerScreen(),
       ),
       GoRoute(
         path: '/bootstrap',
-        builder: (_, __) => const _BootstrapScreen(),
+        builder: (_, _) => const _BootstrapScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) => MainScaffold(child: child),
@@ -86,23 +85,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/listen',
-        builder: (_, __) => const ListenScreen(),
-      ),
-      GoRoute(
-        path: '/listen/reciter',
-        builder: (_, __) => const ReciterPickerScreen(),
+        builder: (_, _) => const ListenScreen(),
       ),
       GoRoute(
         path: '/learn',
-        builder: (_, __) => const LearnScreen(),
+        builder: (_, _) => const LearnScreen(),
       ),
       GoRoute(
         path: '/statistics',
-        builder: (_, __) => const StatisticsScreen(),
+        builder: (_, _) => const StatisticsScreen(),
       ),
       GoRoute(
         path: '/tasbih',
-        builder: (_, __) => const TasbihScreen(),
+        builder: (_, _) => const TasbihScreen(),
       ),
     ],
   );
@@ -110,10 +105,10 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 class _RouterRefresh extends ChangeNotifier {
   _RouterRefresh(Ref ref) {
-    ref.listen<AsyncValue<bool>>(contentReadyProvider, (_, __) {
+    ref.listen<AsyncValue<bool>>(contentReadyProvider, (_, _) {
       notifyListeners();
     });
-    ref.listen<String?>(languageProvider, (_, __) => notifyListeners());
+    ref.listen<String?>(languageProvider, (_, _) => notifyListeners());
   }
 }
 
