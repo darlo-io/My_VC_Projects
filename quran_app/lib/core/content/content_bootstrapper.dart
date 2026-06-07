@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 
+import '../../features/audio/data/reciters_repository.dart';
 import '../database/app_database.dart';
 import '../database/daos/ayah_dao.dart';
 import '../database/daos/surah_dao.dart';
@@ -17,6 +18,7 @@ class ContentBootstrapper {
     required this.translationDao,
     required this.downloader,
     required this.manifestRepository,
+    required this.recitersRepository,
   });
 
   final AppDatabase db;
@@ -25,6 +27,7 @@ class ContentBootstrapper {
   final TranslationDao translationDao;
   final ContentDownloader downloader;
   final ContentManifestRepository manifestRepository;
+  final RecitersRepository recitersRepository;
 
   /// Возвращает true, если контент уже загружен.
   Future<bool> isReady() async {
@@ -117,6 +120,9 @@ class ContentBootstrapper {
     // 4) Сохраняем манифест, чтобы последующие запуски могли свериться
     //    (в будущем — verify hash / min_app_version).
     await manifestRepository.apply(manifest);
+
+    // 5) Seed ректоров — дефолтный список, идемпотентно.
+    await recitersRepository.ensureSeeded();
 
     return true;
   }

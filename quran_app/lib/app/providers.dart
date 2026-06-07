@@ -5,13 +5,18 @@ import '../core/content/content_bootstrapper.dart';
 import '../core/content/content_manifest.dart';
 import '../core/content/quran_api.dart';
 import '../core/database/app_database.dart';
+import '../core/database/daos/audio_cache_dao.dart';
 import '../core/database/daos/ayah_dao.dart';
 import '../core/database/daos/bookmark_dao.dart';
 import '../core/database/daos/position_dao.dart';
+import '../core/database/daos/reciter_dao.dart';
 import '../core/database/daos/surah_dao.dart';
 import '../core/database/daos/translation_dao.dart';
 import '../core/networking/api_client.dart';
 import '../core/storage/app_preferences.dart';
+import '../features/audio/data/audio_cache.dart';
+import '../features/audio/data/audio_player_controller.dart';
+import '../features/audio/data/reciters_repository.dart';
 
 /// DI-граф приложения.
 
@@ -49,6 +54,36 @@ final translationDaoProvider = Provider<TranslationDao>(
 final positionDaoProvider = Provider<PositionDao>(
   (ref) => ref.watch(appDatabaseProvider).positionDao,
 );
+final reciterDaoProvider = Provider<ReciterDao>(
+  (ref) => ref.watch(appDatabaseProvider).reciterDao,
+);
+final audioCacheDaoProvider = Provider<AudioCacheDao>(
+  (ref) => ref.watch(appDatabaseProvider).audioCacheDao,
+);
+
+final recitersRepositoryProvider = Provider<RecitersRepository>(
+  (ref) => RecitersRepository(ref.watch(reciterDaoProvider)),
+);
+
+final audioCacheProvider = Provider<AudioCache>(
+  (ref) => AudioCache(
+    dio: ref.watch(apiClientProvider).raw,
+    dao: ref.watch(audioCacheDaoProvider),
+  ),
+);
+
+final audioPlayerControllerProvider =
+    StateNotifierProvider<AudioPlayerController, AudioPlayerState>(
+  (ref) => AudioPlayerController(
+    cache: ref.watch(audioCacheProvider),
+    reciters: ref.watch(recitersRepositoryProvider),
+    surahDao: ref.watch(surahDaoProvider),
+  ),
+);
+
+final recitersStreamProvider = StreamProvider(
+  (ref) => ref.watch(recitersRepositoryProvider).watchAll(),
+);
 
 final contentDownloaderProvider = Provider<ContentDownloader>(
   (ref) => ContentDownloader(ref.watch(quranApiProvider)),
@@ -67,6 +102,7 @@ final contentBootstrapperProvider = Provider<ContentBootstrapper>(
     translationDao: ref.watch(translationDaoProvider),
     downloader: ref.watch(contentDownloaderProvider),
     manifestRepository: ref.watch(contentManifestRepositoryProvider),
+    recitersRepository: ref.watch(recitersRepositoryProvider),
   ),
 );
 

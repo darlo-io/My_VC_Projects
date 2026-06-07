@@ -170,6 +170,7 @@ class LearningWords extends Table {
 }
 
 /// Метаданные аудио-кеша.
+@DataClassName('AudioCacheMetadatum')
 class AudioCacheMetadata extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get reciterId => text()();

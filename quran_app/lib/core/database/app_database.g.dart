@@ -5540,7 +5540,7 @@ class LearningWordsCompanion extends UpdateCompanion<LearningWord> {
 }
 
 class $AudioCacheMetadataTable extends AudioCacheMetadata
-    with TableInfo<$AudioCacheMetadataTable, AudioCacheMetadataData> {
+    with TableInfo<$AudioCacheMetadataTable, AudioCacheMetadatum> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -5642,7 +5642,7 @@ class $AudioCacheMetadataTable extends AudioCacheMetadata
   static const String $name = 'audio_cache_metadata';
   @override
   VerificationContext validateIntegrity(
-    Insertable<AudioCacheMetadataData> instance, {
+    Insertable<AudioCacheMetadatum> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -5709,9 +5709,9 @@ class $AudioCacheMetadataTable extends AudioCacheMetadata
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  AudioCacheMetadataData map(Map<String, dynamic> data, {String? tablePrefix}) {
+  AudioCacheMetadatum map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return AudioCacheMetadataData(
+    return AudioCacheMetadatum(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -5749,8 +5749,8 @@ class $AudioCacheMetadataTable extends AudioCacheMetadata
   }
 }
 
-class AudioCacheMetadataData extends DataClass
-    implements Insertable<AudioCacheMetadataData> {
+class AudioCacheMetadatum extends DataClass
+    implements Insertable<AudioCacheMetadatum> {
   final int id;
   final String reciterId;
   final int surahId;
@@ -5758,7 +5758,7 @@ class AudioCacheMetadataData extends DataClass
   final int fileSizeBytes;
   final DateTime downloadedAt;
   final DateTime? lastPlayedAt;
-  const AudioCacheMetadataData({
+  const AudioCacheMetadatum({
     required this.id,
     required this.reciterId,
     required this.surahId,
@@ -5796,12 +5796,12 @@ class AudioCacheMetadataData extends DataClass
     );
   }
 
-  factory AudioCacheMetadataData.fromJson(
+  factory AudioCacheMetadatum.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return AudioCacheMetadataData(
+    return AudioCacheMetadatum(
       id: serializer.fromJson<int>(json['id']),
       reciterId: serializer.fromJson<String>(json['reciterId']),
       surahId: serializer.fromJson<int>(json['surahId']),
@@ -5825,7 +5825,7 @@ class AudioCacheMetadataData extends DataClass
     };
   }
 
-  AudioCacheMetadataData copyWith({
+  AudioCacheMetadatum copyWith({
     int? id,
     String? reciterId,
     int? surahId,
@@ -5833,7 +5833,7 @@ class AudioCacheMetadataData extends DataClass
     int? fileSizeBytes,
     DateTime? downloadedAt,
     Value<DateTime?> lastPlayedAt = const Value.absent(),
-  }) => AudioCacheMetadataData(
+  }) => AudioCacheMetadatum(
     id: id ?? this.id,
     reciterId: reciterId ?? this.reciterId,
     surahId: surahId ?? this.surahId,
@@ -5842,8 +5842,8 @@ class AudioCacheMetadataData extends DataClass
     downloadedAt: downloadedAt ?? this.downloadedAt,
     lastPlayedAt: lastPlayedAt.present ? lastPlayedAt.value : this.lastPlayedAt,
   );
-  AudioCacheMetadataData copyWithCompanion(AudioCacheMetadataCompanion data) {
-    return AudioCacheMetadataData(
+  AudioCacheMetadatum copyWithCompanion(AudioCacheMetadataCompanion data) {
+    return AudioCacheMetadatum(
       id: data.id.present ? data.id.value : this.id,
       reciterId: data.reciterId.present ? data.reciterId.value : this.reciterId,
       surahId: data.surahId.present ? data.surahId.value : this.surahId,
@@ -5862,7 +5862,7 @@ class AudioCacheMetadataData extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('AudioCacheMetadataData(')
+    return (StringBuffer('AudioCacheMetadatum(')
           ..write('id: $id, ')
           ..write('reciterId: $reciterId, ')
           ..write('surahId: $surahId, ')
@@ -5887,7 +5887,7 @@ class AudioCacheMetadataData extends DataClass
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is AudioCacheMetadataData &&
+      (other is AudioCacheMetadatum &&
           other.id == this.id &&
           other.reciterId == this.reciterId &&
           other.surahId == this.surahId &&
@@ -5897,8 +5897,7 @@ class AudioCacheMetadataData extends DataClass
           other.lastPlayedAt == this.lastPlayedAt);
 }
 
-class AudioCacheMetadataCompanion
-    extends UpdateCompanion<AudioCacheMetadataData> {
+class AudioCacheMetadataCompanion extends UpdateCompanion<AudioCacheMetadatum> {
   final Value<int> id;
   final Value<String> reciterId;
   final Value<int> surahId;
@@ -5927,7 +5926,7 @@ class AudioCacheMetadataCompanion
        surahId = Value(surahId),
        filePath = Value(filePath),
        fileSizeBytes = Value(fileSizeBytes);
-  static Insertable<AudioCacheMetadataData> custom({
+  static Insertable<AudioCacheMetadatum> custom({
     Expression<int>? id,
     Expression<String>? reciterId,
     Expression<int>? surahId,
@@ -6246,6 +6245,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this as AppDatabase,
   );
   late final PositionDao positionDao = PositionDao(this as AppDatabase);
+  late final ReciterDao reciterDao = ReciterDao(this as AppDatabase);
+  late final AudioCacheDao audioCacheDao = AudioCacheDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -11644,21 +11645,21 @@ class $$AudioCacheMetadataTableTableManager
         RootTableManager<
           _$AppDatabase,
           $AudioCacheMetadataTable,
-          AudioCacheMetadataData,
+          AudioCacheMetadatum,
           $$AudioCacheMetadataTableFilterComposer,
           $$AudioCacheMetadataTableOrderingComposer,
           $$AudioCacheMetadataTableAnnotationComposer,
           $$AudioCacheMetadataTableCreateCompanionBuilder,
           $$AudioCacheMetadataTableUpdateCompanionBuilder,
           (
-            AudioCacheMetadataData,
+            AudioCacheMetadatum,
             BaseReferences<
               _$AppDatabase,
               $AudioCacheMetadataTable,
-              AudioCacheMetadataData
+              AudioCacheMetadatum
             >,
           ),
-          AudioCacheMetadataData,
+          AudioCacheMetadatum,
           PrefetchHooks Function()
         > {
   $$AudioCacheMetadataTableTableManager(
@@ -11725,21 +11726,21 @@ typedef $$AudioCacheMetadataTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $AudioCacheMetadataTable,
-      AudioCacheMetadataData,
+      AudioCacheMetadatum,
       $$AudioCacheMetadataTableFilterComposer,
       $$AudioCacheMetadataTableOrderingComposer,
       $$AudioCacheMetadataTableAnnotationComposer,
       $$AudioCacheMetadataTableCreateCompanionBuilder,
       $$AudioCacheMetadataTableUpdateCompanionBuilder,
       (
-        AudioCacheMetadataData,
+        AudioCacheMetadatum,
         BaseReferences<
           _$AppDatabase,
           $AudioCacheMetadataTable,
-          AudioCacheMetadataData
+          AudioCacheMetadatum
         >,
       ),
-      AudioCacheMetadataData,
+      AudioCacheMetadatum,
       PrefetchHooks Function()
     >;
 typedef $$SettingsEntriesTableCreateCompanionBuilder =

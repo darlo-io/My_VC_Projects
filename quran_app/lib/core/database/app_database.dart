@@ -5,9 +5,11 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'daos/audio_cache_dao.dart';
 import 'daos/ayah_dao.dart';
 import 'daos/bookmark_dao.dart';
 import 'daos/position_dao.dart';
+import 'daos/reciter_dao.dart';
 import 'daos/surah_dao.dart';
 import 'daos/translation_dao.dart';
 import 'tables.dart';
@@ -39,6 +41,8 @@ part 'app_database.g.dart';
     BookmarkDao,
     TranslationDao,
     PositionDao,
+    ReciterDao,
+    AudioCacheDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
