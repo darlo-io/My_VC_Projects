@@ -6251,6 +6251,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final PositionDao positionDao = PositionDao(this as AppDatabase);
   late final ReciterDao reciterDao = ReciterDao(this as AppDatabase);
   late final AudioCacheDao audioCacheDao = AudioCacheDao(this as AppDatabase);
+  late final WordsDao wordsDao = WordsDao(this as AppDatabase);
+  late final WordTimingsDao wordTimingsDao = WordTimingsDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();

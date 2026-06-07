@@ -12,6 +12,8 @@ import '../core/database/daos/position_dao.dart';
 import '../core/database/daos/reciter_dao.dart';
 import '../core/database/daos/surah_dao.dart';
 import '../core/database/daos/translation_dao.dart';
+import '../core/database/daos/word_timings_dao.dart';
+import '../core/database/daos/words_dao.dart';
 import '../core/networking/api_client.dart';
 import '../core/storage/app_preferences.dart';
 import '../features/audio/data/audio_cache.dart';
@@ -60,6 +62,12 @@ final reciterDaoProvider = Provider<ReciterDao>(
 final audioCacheDaoProvider = Provider<AudioCacheDao>(
   (ref) => ref.watch(appDatabaseProvider).audioCacheDao,
 );
+final wordsDaoProvider = Provider<WordsDao>(
+  (ref) => ref.watch(appDatabaseProvider).wordsDao,
+);
+final wordTimingsDaoProvider = Provider<WordTimingsDao>(
+  (ref) => ref.watch(appDatabaseProvider).wordTimingsDao,
+);
 
 final recitersRepositoryProvider = Provider<RecitersRepository>(
   (ref) => RecitersRepository(ref.watch(reciterDaoProvider)),
@@ -100,6 +108,8 @@ final contentBootstrapperProvider = Provider<ContentBootstrapper>(
     surahDao: ref.watch(surahDaoProvider),
     ayahDao: ref.watch(ayahDaoProvider),
     translationDao: ref.watch(translationDaoProvider),
+    wordsDao: ref.watch(wordsDaoProvider),
+    wordTimingsDao: ref.watch(wordTimingsDaoProvider),
     downloader: ref.watch(contentDownloaderProvider),
     manifestRepository: ref.watch(contentManifestRepositoryProvider),
     recitersRepository: ref.watch(recitersRepositoryProvider),

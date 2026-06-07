@@ -12,6 +12,8 @@ import 'daos/position_dao.dart';
 import 'daos/reciter_dao.dart';
 import 'daos/surah_dao.dart';
 import 'daos/translation_dao.dart';
+import 'daos/word_timings_dao.dart';
+import 'daos/words_dao.dart';
 import 'tables.dart';
 
 part 'app_database.g.dart';
@@ -43,6 +45,8 @@ part 'app_database.g.dart';
     PositionDao,
     ReciterDao,
     AudioCacheDao,
+    WordsDao,
+    WordTimingsDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {

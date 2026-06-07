@@ -5,8 +5,10 @@ import '../../../../app/providers.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/ornaments.dart';
+import '../../../audio/presentation/word_timing_provider.dart';
+import '../../../audio/data/audio_player_controller.dart';
 
-class AyahTile extends ConsumerWidget {
+class AyahTile extends ConsumerStatefulWidget {
   const AyahTile({
     required this.ayah,
     required this.translation,
@@ -23,7 +25,39 @@ class AyahTile extends ConsumerWidget {
   final VoidCallback onToggleBookmark;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AyahTile> createState() => _AyahTileState();
+}
+
+class _AyahTileState extends ConsumerState<AyahTile> {
+  List<Word>? _words;
+  bool _loadingWords = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWords();
+  }
+
+  @override
+  void didUpdateWidget(covariant AyahTile old) {
+    super.didUpdateWidget(old);
+    if (old.ayah.id != widget.ayah.id) {
+      _loadWords();
+    }
+  }
+
+  Future<void> _loadWords() async {
+    setState(() => _loadingWords = true);
+    final list = await ref.read(wordsDaoProvider).getByAyah(widget.ayah.id);
+    if (!mounted) return;
+    setState(() {
+      _words = list;
+      _loadingWords = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
@@ -31,30 +65,25 @@ class AyahTile extends ConsumerWidget {
         children: [
           Row(
             children: [
-              AyahNumberBadge(number: ayah.ayahNumber),
+              AyahNumberBadge(number: widget.ayah.ayahNumber),
               const Spacer(),
               IconButton(
-                onPressed: onToggleBookmark,
-                icon: BookmarkStar(filled: isBookmarked, size: 22),
+                onPressed: widget.onToggleBookmark,
+                icon: BookmarkStar(filled: widget.isBookmarked, size: 22),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          SelectableText(
-            ayah.textUthmani,
-            textDirection: TextDirection.rtl,
-            textAlign: TextAlign.justify,
-            style: TextStyle(
-              fontSize: fontSize,
-              height: 2.0,
-              color: AppColors.textPrimary,
-              fontFamily: 'Amiri',
-            ),
+          _ArabicText(
+            ayah: widget.ayah,
+            fontSize: widget.fontSize,
+            words: _words,
+            loading: _loadingWords,
           ),
-          if (translation != null) ...[
+          if (widget.translation != null) ...[
             const SizedBox(height: 12),
             Text(
-              translation!,
+              widget.translation!,
               style: const TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,
@@ -63,6 +92,116 @@ class AyahTile extends ConsumerWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _ArabicText extends ConsumerWidget {
+  const _ArabicText({
+    required this.ayah,
+    required this.fontSize,
+    required this.words,
+    required this.loading,
+  });
+
+  final Ayah ayah;
+  final double fontSize;
+  final List<Word>? words;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Нет данных по словам (не сидированы) — fallback на plain text.
+    if (words == null && !loading) {
+      return _plainText(context, ayah.textUthmani);
+    }
+    if (loading || words == null || words!.isEmpty) {
+      return _plainText(context, ayah.textUthmani);
+    }
+
+    final player = ref.watch(audioPlayerControllerProvider);
+    final activeSurah = player.surah;
+    final isCurrentSurah = activeSurah != null && activeSurah.id == ayah.surahId;
+    final currentWord = isCurrentSurah
+        ? ref.watch(currentWordIndexProvider)
+        : const CurrentWordIndex(-1);
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Wrap(
+        alignment: WrapAlignment.start,
+        textDirection: TextDirection.rtl,
+        crossAxisAlignment: WrapCrossAlignment.start,
+        children: words!.map((w) {
+          final isCurrent = w.id == currentWord.value && isCurrentSurah;
+          return _WordSpan(
+            word: w,
+            fontSize: fontSize,
+            highlighted: isCurrent,
+            onTap: isCurrentSurah ? () => seekToWord(ref, w.id) : null,
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _plainText(BuildContext context, String text) {
+    return SelectableText(
+      text,
+      textDirection: TextDirection.rtl,
+      textAlign: TextAlign.justify,
+      style: TextStyle(
+        fontSize: fontSize,
+        height: 2.0,
+        color: AppColors.textPrimary,
+        fontFamily: 'Amiri',
+      ),
+    );
+  }
+}
+
+class _WordSpan extends StatelessWidget {
+  const _WordSpan({
+    required this.word,
+    required this.fontSize,
+    required this.highlighted,
+    this.onTap,
+  });
+
+  final Word word;
+  final double fontSize;
+  final bool highlighted;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+        margin: const EdgeInsets.symmetric(horizontal: 1),
+        decoration: BoxDecoration(
+          color: highlighted
+              ? AppColors.gold.withValues(alpha: 0.22)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(4),
+          border: highlighted
+              ? Border.all(color: AppColors.gold, width: 1)
+              : null,
+        ),
+        child: Text(
+          word.arabic,
+          textDirection: TextDirection.rtl,
+          style: TextStyle(
+            fontSize: fontSize,
+            height: 2.0,
+            color: highlighted ? AppColors.gold : AppColors.textPrimary,
+            fontFamily: 'Amiri',
+            fontWeight: highlighted ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
       ),
     );
   }

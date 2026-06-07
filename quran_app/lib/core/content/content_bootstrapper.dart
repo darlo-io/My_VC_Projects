@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 
 import '../../features/audio/data/reciters_repository.dart';
+import '../../features/quran/data/al_fatiha_seed.dart';
 import '../database/app_database.dart';
 import '../database/daos/ayah_dao.dart';
 import '../database/daos/surah_dao.dart';
 import '../database/daos/translation_dao.dart';
+import '../database/daos/word_timings_dao.dart';
+import '../database/daos/words_dao.dart';
 import '../search/arabic_normalizer.dart';
 import 'content_manifest.dart';
 
@@ -16,6 +19,8 @@ class ContentBootstrapper {
     required this.surahDao,
     required this.ayahDao,
     required this.translationDao,
+    required this.wordsDao,
+    required this.wordTimingsDao,
     required this.downloader,
     required this.manifestRepository,
     required this.recitersRepository,
@@ -25,6 +30,8 @@ class ContentBootstrapper {
   final SurahDao surahDao;
   final AyahDao ayahDao;
   final TranslationDao translationDao;
+  final WordsDao wordsDao;
+  final WordTimingsDao wordTimingsDao;
   final ContentDownloader downloader;
   final ContentManifestRepository manifestRepository;
   final RecitersRepository recitersRepository;
@@ -124,6 +131,36 @@ class ContentBootstrapper {
     // 5) Seed ректоров — дефолтный список, идемпотентно.
     await recitersRepository.ensureSeeded();
 
+    // 6) Word timings demo-датасет — Al-Fatiha + ar.alafasy.
+    //    Полные данные по всем 114 сурам — отдельная итерация.
+    await _seedAlFatihaWords();
+
     return true;
+  }
+
+  /// Хардкод-сюр Al-Fatiha: слова + тайминги.
+  /// Idempotent: no-op, если words уже есть.
+  Future<void> _seedAlFatihaWords() async {
+    if (await wordsDao.count() > 0) return;
+
+    // Al-Fatiha — сура 1, ayah_id глобальные 1..7 (alquran.cloud numbering).
+    const baseAyahId = 1;
+    await wordsDao.insertAll(AlFatihaSeed.wordsCompanions(baseAyahId));
+
+    // После вставки слов у них autoIncrement id. Запросим первый и
+    // посчитаем смещение.
+    final firstWord = await db.customSelect(
+      'SELECT id FROM words WHERE ayah_id = ? ORDER BY id ASC LIMIT 1',
+      variables: [Variable.withInt(baseAyahId)],
+      readsFrom: {db.words},
+    ).getSingleOrNull();
+    if (firstWord == null) return;
+    final wordsBaseId = firstWord.read<int>('id');
+
+    final built = AlFatihaSeed.buildTimings(
+      baseAyahId: baseAyahId,
+      wordsBaseId: wordsBaseId,
+    );
+    await wordTimingsDao.insertAll(built.timings);
   }
 }
