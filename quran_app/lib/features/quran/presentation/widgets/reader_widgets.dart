@@ -5,7 +5,6 @@ import '../../../../app/providers.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/ornaments.dart';
-import '../../../audio/data/audio_player_controller.dart';
 import '../../../audio/presentation/word_timing_provider.dart';
 
 class AyahTile extends ConsumerStatefulWidget {

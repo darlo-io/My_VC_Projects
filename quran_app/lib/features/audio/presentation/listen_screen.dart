@@ -11,7 +11,6 @@ import '../../../shared/widgets/common_widgets.dart';
 import '../../../shared/widgets/ornaments.dart';
 import '../../../shared/widgets/screen_header.dart';
 import '../data/audio_player_controller.dart';
-import '../data/reciters_repository.dart';
 
 class ListenScreen extends ConsumerStatefulWidget {
   const ListenScreen({super.key});

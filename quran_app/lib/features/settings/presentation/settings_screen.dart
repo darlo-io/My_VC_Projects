@@ -321,7 +321,7 @@ class _CacheUsageTile extends ConsumerWidget {
             return t.settingsStorageUsed(usedMb, '$limitMb');
           },
           loading: () => '—',
-          error: (_, __) => '—',
+          error: (_, _) => '—',
         ),
         style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
       ),
@@ -368,7 +368,7 @@ class _CacheLimitTile extends ConsumerWidget {
     final t = AppLocalizations.of(context);
     final prefs = ref.read(appPreferencesProvider);
     final current = prefs.cacheLimitMb;
-    final options = const [256, 512, 1024, 2048, 4096, 8192];
+    const options = [256, 512, 1024, 2048, 4096, 8192];
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.surface,

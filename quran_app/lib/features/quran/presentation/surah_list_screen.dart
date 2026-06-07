@@ -59,7 +59,7 @@ class _SurahListScreenState extends ConsumerState<SurahListScreen> {
                 hintText: t.searchByNameOrNumber,
                 prefixIcon: const Icon(Icons.search, color: AppColors.gold),
                 suffixIcon: IconButton(
-                  onPressed: () => _searchCtrl.clear(),
+                  onPressed: _searchCtrl.clear,
                   icon: const Icon(Icons.tune, color: AppColors.gold),
                 ),
               ),
@@ -122,7 +122,7 @@ class _SurahListScreenState extends ConsumerState<SurahListScreen> {
                       return ListView.separated(
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) =>
+                        separatorBuilder: (_, _) =>
                             const SizedBox(height: 10),
                         itemBuilder: (_, i) => SurahRow(surah: filtered[i]),
                       );

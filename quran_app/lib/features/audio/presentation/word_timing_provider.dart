@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/database/daos/word_timings_dao.dart';
-import '../data/audio_player_controller.dart';
 
 /// Тайминги слов текущей проигрываемой суры для текущего ректора + O(1)
 /// wordId → startMs-карта для seekToWord().

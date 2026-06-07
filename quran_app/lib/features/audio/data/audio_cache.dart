@@ -82,7 +82,7 @@ class AudioCache {
     try {
       return await future;
     } finally {
-      _inFlight.remove(key);
+      unawaited(_inFlight.remove(key));
     }
   }
 

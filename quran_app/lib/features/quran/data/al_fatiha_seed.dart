@@ -1,6 +1,4 @@
 import '../../../core/database/app_database.dart';
-import '../../../core/database/daos/word_timings_dao.dart';
-import '../../../core/database/daos/words_dao.dart';
 
 /// Хардкод-сид Al-Fatiha (сура 1) + тайминги для `ar.alafasy`.
 ///

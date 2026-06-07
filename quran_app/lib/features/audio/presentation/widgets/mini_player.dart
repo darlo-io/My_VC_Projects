@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/ornaments.dart';
-import '../../data/audio_player_controller.dart';
 
 /// Компактный плеер поверх экрана, когда идёт воспроизведение.
 class MiniPlayer extends ConsumerWidget {

@@ -8,7 +8,7 @@ class AppTheme {
   AppTheme._();
 
   static ThemeData dark() {
-    final scheme = const ColorScheme.dark(
+    const scheme = ColorScheme.dark(
       primary: AppColors.gold,
       onPrimary: AppColors.textOnGold,
       secondary: AppColors.primary,

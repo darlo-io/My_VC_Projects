@@ -17,7 +17,7 @@ class ArabicNormalizer {
     // Удалить диакритики
     final buf = StringBuffer();
     for (final r in s.runes) {
-      if (_diacritics.indexOf(String.fromCharCode(r)) == -1) {
+      if (!_diacritics.contains(String.fromCharCode(r))) {
         buf.writeCharCode(r);
       }
     }
