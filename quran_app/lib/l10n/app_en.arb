@@ -112,6 +112,11 @@
   "bootstrapSeeding": "Preparing database…",
   "bootstrapReady": "Ready",
   "bootstrapFailed": "Could not load content. Check your connection.",
+  "bootstrapLocalLoading": "Loading Quran (offline)…",
+  "bootstrapLocalReady": "Ready (offline)",
+  "bootstrapNetworkChecking": "Checking for updates…",
+  "bootstrapNetworkFailed": "Offline mode (updates skipped)",
+  "bootstrapNetworkDone": "Up to date",
 
   "firstLaunchTitle": "Choose your language",
   "firstLaunchSubtitle": "You can change this later in Settings",

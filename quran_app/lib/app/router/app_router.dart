@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/audio/presentation/listen_screen.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../features/audio/presentation/reciter_picker_screen.dart';
 import '../../features/bookmarks/presentation/bookmarks_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
@@ -125,6 +126,7 @@ class _BootstrapScreen extends ConsumerStatefulWidget {
 
 class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
   String _statusKey = 'bootstrapChecking';
+  bool _failed = false;
 
   @override
   void initState() {
@@ -133,7 +135,10 @@ class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
   }
 
   Future<void> _run() async {
-    setState(() => _statusKey = 'bootstrapDownloading');
+    setState(() {
+      _statusKey = 'bootstrapLocalLoading';
+      _failed = false;
+    });
     try {
       await ref.read(contentReadyProvider.notifier).bootstrap();
       if (!mounted) return;
@@ -147,34 +152,61 @@ class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
       }
     } catch (_) {
       if (!mounted) return;
-      setState(() => _statusKey = 'bootstrapFailed');
+      setState(() {
+        _statusKey = 'bootstrapFailed';
+        _failed = true;
+      });
+    }
+  }
+
+  String _label(String key) {
+    final t = AppLocalizations.of(context);
+    switch (key) {
+      case 'bootstrapLocalLoading':
+        return t.bootstrapLocalLoading;
+      case 'bootstrapLocalReady':
+        return t.bootstrapLocalReady;
+      case 'bootstrapNetworkChecking':
+        return t.bootstrapNetworkChecking;
+      case 'bootstrapNetworkFailed':
+        return t.bootstrapNetworkFailed;
+      case 'bootstrapNetworkDone':
+        return t.bootstrapNetworkDone;
+      case 'bootstrapFailed':
+        return t.bootstrapFailed;
+      default:
+        return t.loading;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final t = _statusKey;
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator(strokeWidth: 2.5),
+              SizedBox(
+                width: 56,
+                height: 56,
+                child: _failed
+                    ? const Icon(
+                        Icons.error_outline,
+                        color: Color(0xFFD05A4F),
+                        size: 48,
+                      )
+                    : const CircularProgressIndicator(strokeWidth: 2.5),
+              ),
               const SizedBox(height: 24),
               Text(
-                t == 'bootstrapFailed' ? '⚠' : '',
-                style: const TextStyle(fontSize: 28),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                t,
+                _label(_statusKey),
                 style: const TextStyle(
                   color: Color(0xFFB7A98F),
                   fontSize: 14,
                 ),
               ),
-              if (t == 'bootstrapFailed') ...[
+              if (_failed) ...[
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: _run,

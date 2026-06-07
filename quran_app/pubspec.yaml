@@ -61,3 +61,4 @@ flutter:
     - assets/images/
     - assets/ornaments/
     - assets/translations/
+    - assets/quran_seed/quran_full.json

@@ -266,6 +266,21 @@ class AppLocalizationsAr extends AppLocalizations {
   String get bootstrapFailed => 'تعذّر تحميل المحتوى. تحقق من الاتصال.';
 
   @override
+  String get bootstrapLocalLoading => 'جاري تحميل القرآن (دون اتصال)…';
+
+  @override
+  String get bootstrapLocalReady => 'جاهز (دون اتصال)';
+
+  @override
+  String get bootstrapNetworkChecking => 'جاري التحقق من التحديثات…';
+
+  @override
+  String get bootstrapNetworkFailed => 'وضع عدم الاتصال (تم تخطي التحديثات)';
+
+  @override
+  String get bootstrapNetworkDone => 'محدّث';
+
+  @override
   String get firstLaunchTitle => 'اختر لغتك';
 
   @override

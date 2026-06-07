@@ -88,6 +88,11 @@
   "bootstrapSeeding": "تجهيز قاعدة البيانات…",
   "bootstrapReady": "جاهز",
   "bootstrapFailed": "تعذّر تحميل المحتوى. تحقق من الاتصال.",
+  "bootstrapLocalLoading": "جاري تحميل القرآن (دون اتصال)…",
+  "bootstrapLocalReady": "جاهز (دون اتصال)",
+  "bootstrapNetworkChecking": "جاري التحقق من التحديثات…",
+  "bootstrapNetworkFailed": "وضع عدم الاتصال (تم تخطي التحديثات)",
+  "bootstrapNetworkDone": "محدّث",
 
   "firstLaunchTitle": "اختر لغتك",
   "firstLaunchSubtitle": "يمكنك التغيير لاحقاً من الإعدادات",

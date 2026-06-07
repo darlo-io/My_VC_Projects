@@ -562,6 +562,36 @@ abstract class AppLocalizations {
   /// **'Could not load content. Check your connection.'**
   String get bootstrapFailed;
 
+  /// No description provided for @bootstrapLocalLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading Quran (offline)…'**
+  String get bootstrapLocalLoading;
+
+  /// No description provided for @bootstrapLocalReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready (offline)'**
+  String get bootstrapLocalReady;
+
+  /// No description provided for @bootstrapNetworkChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for updates…'**
+  String get bootstrapNetworkChecking;
+
+  /// No description provided for @bootstrapNetworkFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline mode (updates skipped)'**
+  String get bootstrapNetworkFailed;
+
+  /// No description provided for @bootstrapNetworkDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get bootstrapNetworkDone;
+
   /// No description provided for @firstLaunchTitle.
   ///
   /// In en, this message translates to:

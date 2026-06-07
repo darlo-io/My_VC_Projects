@@ -264,6 +264,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not load content. Check your connection.';
 
   @override
+  String get bootstrapLocalLoading => 'Loading Quran (offline)…';
+
+  @override
+  String get bootstrapLocalReady => 'Ready (offline)';
+
+  @override
+  String get bootstrapNetworkChecking => 'Checking for updates…';
+
+  @override
+  String get bootstrapNetworkFailed => 'Offline mode (updates skipped)';
+
+  @override
+  String get bootstrapNetworkDone => 'Up to date';
+
+  @override
   String get firstLaunchTitle => 'Choose your language';
 
   @override

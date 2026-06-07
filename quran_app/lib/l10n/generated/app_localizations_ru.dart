@@ -266,6 +266,21 @@ class AppLocalizationsRu extends AppLocalizations {
       'Не удалось загрузить контент. Проверьте подключение.';
 
   @override
+  String get bootstrapLocalLoading => 'Загрузка Корана (оффлайн)…';
+
+  @override
+  String get bootstrapLocalReady => 'Готово (оффлайн)';
+
+  @override
+  String get bootstrapNetworkChecking => 'Проверка обновлений…';
+
+  @override
+  String get bootstrapNetworkFailed => 'Оффлайн-режим (обновления пропущены)';
+
+  @override
+  String get bootstrapNetworkDone => 'Обновлено';
+
+  @override
   String get firstLaunchTitle => 'Выберите язык';
 
   @override

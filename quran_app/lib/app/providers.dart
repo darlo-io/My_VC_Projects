@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/content/content_bootstrapper.dart';
 import '../core/content/content_manifest.dart';
+import '../core/content/local_seed_service.dart';
 import '../core/content/quran_api.dart';
 import '../core/database/app_database.dart';
 import '../core/database/daos/audio_cache_dao.dart';
@@ -123,6 +124,7 @@ final contentBootstrapperProvider = Provider<ContentBootstrapper>(
     downloader: ref.watch(contentDownloaderProvider),
     manifestRepository: ref.watch(contentManifestRepositoryProvider),
     recitersRepository: ref.watch(recitersRepositoryProvider),
+    localSeed: LocalSeedService(),
   ),
 );
 

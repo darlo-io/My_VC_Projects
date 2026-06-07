@@ -16,17 +16,16 @@ import 'widgets/reader_widgets.dart';
 /// (surahId, translationLang), поэтому FutureBuilder в build не нужен.
 final _readerDataProvider = FutureProvider.autoDispose
     .family<ReaderData, ReaderKey>((ref, key) async {
-  final surah = await ref.read(surahDaoProvider).getById(key.surahId);
-  if (surah == null) {
-    return const ReaderData(surah: null, translations: {});
-  }
-  final rows = await ref.read(translationDaoProvider).getForSurah(
-        surahId: key.surahId,
-        languageCode: key.translationLang,
-      );
-  final map = <int, String>{for (final r in rows) r.ayahId: r.text};
-  return ReaderData(surah: surah, translations: map);
-});
+      final surah = await ref.read(surahDaoProvider).getById(key.surahId);
+      if (surah == null) {
+        return const ReaderData(surah: null, translations: {});
+      }
+      final rows = await ref
+          .read(translationDaoProvider)
+          .getForSurah(surahId: key.surahId, languageCode: key.translationLang);
+      final map = <int, String>{for (final r in rows) r.ayahId: r.text};
+      return ReaderData(surah: surah, translations: map);
+    });
 
 class ReaderKey {
   const ReaderKey({required this.surahId, required this.translationLang});
@@ -82,7 +81,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
     final dataAsync = ref.watch(_readerDataProvider(readerKey));
     final ayahsAsync = ref.watch(_ayahsStreamProvider(widget.surahId));
-    final bookmarkedIds = ref.watch(bookmarkedAyahIdsProvider).value ?? const <int>{};
+    final bookmarkedIds =
+        ref.watch(bookmarkedAyahIdsProvider).value ?? const <int>{};
 
     return Scaffold(
       body: SafeArea(
@@ -115,10 +115,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   ),
                 ),
               ),
-              error: (e, _) => SizedBox(
-                height: 80,
-                child: Center(child: Text('$e')),
-              ),
+              error: (e, _) =>
+                  SizedBox(height: 80, child: Center(child: Text('$e'))),
               data: (data) {
                 final surah = data.surah;
                 if (surah == null) return const SizedBox(height: 80);
@@ -132,17 +130,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             const SizedBox(height: 8),
             Expanded(
               child: ayahsAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(child: Text('$e')),
                 data: (ayahs) {
                   if (ayahs.isEmpty) {
                     return Center(
                       child: Text(
                         t.searchResultsEmpty,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                        ),
+                        style: const TextStyle(color: AppColors.textSecondary),
                       ),
                     );
                   }
@@ -178,7 +173,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
 /// Поток аятов одной суры. Не смотрит всю таблицу `ayahs`, только
 /// нужные строки (Drift сам эмитит при изменениях).
-final _ayahsStreamProvider = StreamProvider.autoDispose
-    .family<List<Ayah>, int>((ref, surahId) {
-  return ref.watch(ayahDaoProvider).watchBySurah(surahId);
-});
+final _ayahsStreamProvider = StreamProvider.autoDispose.family<List<Ayah>, int>(
+  (ref, surahId) {
+    return ref.watch(ayahDaoProvider).watchBySurah(surahId);
+  },
+);

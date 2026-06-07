@@ -88,6 +88,11 @@
   "bootstrapSeeding": "Подготовка базы данных…",
   "bootstrapReady": "Готово",
   "bootstrapFailed": "Не удалось загрузить контент. Проверьте подключение.",
+  "bootstrapLocalLoading": "Загрузка Корана (оффлайн)…",
+  "bootstrapLocalReady": "Готово (оффлайн)",
+  "bootstrapNetworkChecking": "Проверка обновлений…",
+  "bootstrapNetworkFailed": "Оффлайн-режим (обновления пропущены)",
+  "bootstrapNetworkDone": "Обновлено",
 
   "firstLaunchTitle": "Выберите язык",
   "firstLaunchSubtitle": "Изменить можно в настройках",

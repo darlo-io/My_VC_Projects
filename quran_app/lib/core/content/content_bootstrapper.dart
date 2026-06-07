@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show ValueNotifier;
 
 import '../../features/audio/data/reciters_repository.dart';
 import '../../features/quran/data/al_fatiha_seed.dart';
@@ -12,6 +13,7 @@ import '../database/daos/word_timings_dao.dart';
 import '../database/daos/words_dao.dart';
 import '../search/arabic_normalizer.dart';
 import 'content_manifest.dart';
+import 'local_seed_service.dart';
 
 class ContentBootstrapper {
   ContentBootstrapper({
@@ -24,6 +26,7 @@ class ContentBootstrapper {
     required this.downloader,
     required this.manifestRepository,
     required this.recitersRepository,
+    required this.localSeed,
   });
 
   final AppDatabase db;
@@ -35,6 +38,15 @@ class ContentBootstrapper {
   final ContentDownloader downloader;
   final ContentManifestRepository manifestRepository;
   final RecitersRepository recitersRepository;
+  final LocalSeedService localSeed;
+
+  /// Состояние прогресса для UI.
+  final ValueNotifier<BootstrapProgress> progress =
+      ValueNotifier(const BootstrapProgress.idle());
+
+  /// Прогресс сетевой загрузки остальных сур (опционально).
+  final ValueNotifier<NetworkFetchProgress> networkProgress =
+      ValueNotifier(const NetworkFetchProgress.idle());
 
   /// Возвращает true, если контент уже загружен.
   Future<bool> isReady() async {
@@ -43,25 +55,37 @@ class ContentBootstrapper {
     return s >= 114 && a >= 6236;
   }
 
-  /// Скачать и записать контент в БД. No-op, если уже загружено.
+  /// Загрузить контент. Offline-first: начинает с local seed (5 MB bundle),
+  /// затем (опционально) пробует сеть для проверки обновлений.
   /// Возвращает true, если контент применён.
   Future<bool> bootstrap() async {
     if (await isReady()) {
-      // Контент уже залит — пропускаем дорогую сетевую фазу.
+      progress.value = const BootstrapProgress.complete(offline: true);
       return true;
     }
 
-    final result = await downloader.downloadAll();
-    final manifest = defaultManifest();
+    // 1) Локальный seed — гарантированно, без сети.
+    progress.value = const BootstrapProgress.loadingLocal();
+    final result = await localSeed.load();
+    await _applyLocalSeed(result);
 
-    // 1) Сурs — одна короткая транзакция, освобождающая reader-стримы.
+    progress.value = const BootstrapProgress.complete(offline: true);
+
+    // 2) Сетевой fetch — best-effort, не блокирует UI. Если не получится —
+    //    приложение работает на local seed.
+    unawaited(_fetchFromNetworkInBackground());
+
+    return true;
+  }
+
+  Future<void> _applyLocalSeed(ContentDownloadResult result) async {
     await db.transaction(() async {
       await surahDao.insertAll(
         result.surahs
             .map(
               (s) => SurahsCompanion.insert(
                 id: Value(s['number'] as int),
-                nameAr: s['name'] as String,
+                nameAr: (s['name'] as String?) ?? '',
                 nameEn: (s['englishName'] as String?) ?? '',
                 nameTransliteration:
                     (s['englishNameTranslation'] as String?) ?? '',
@@ -74,28 +98,27 @@ class ContentBootstrapper {
       );
     });
 
-    // 2) Аяты — отдельная транзакция, чтобы не держать lock на всё.
     await db.transaction(() async {
       await ayahDao.insertAyahs(
         result.ayahs
             .map(
-              (a) => AyahsCompanion.insert(
+              (a) =>               AyahsCompanion.insert(
                 id: Value(a['id'] as int),
                 surahId: a['surah_id'] as int,
                 ayahNumber: a['ayah_number'] as int,
                 textUthmani: a['text_uthmani'] as String,
-                textNormalized:
-                    ArabicNormalizer.normalize(a['text_uthmani'] as String),
-                page: Value(a['page'] as int?),
-                juz: Value(a['juz'] as int?),
-                hizb: Value(a['hizb'] as int?),
+                textNormalized: ArabicNormalizer.normalize(
+                  a['text_uthmani'] as String,
+                ),
+                page: const Value(null),
+                juz: const Value(null),
+                hizb: const Value(null),
               ),
             )
             .toList(),
       );
     });
 
-    // 3) Переводчики + переводы — финальная транзакция.
     await db.transaction(() async {
       await translationDao.insertTranslators(
         result.translators
@@ -104,7 +127,7 @@ class ContentBootstrapper {
                 id: t['id'] as int,
                 name: t['name'] as String,
                 languageCode: t['language_code'] as String,
-                source: t['source'] as String,
+                source: (t['source'] as String?) ?? '',
               ),
             )
             .toList(),
@@ -124,31 +147,16 @@ class ContentBootstrapper {
       );
     });
 
-    // 4) Сохраняем манифест, чтобы последующие запуски могли свериться
-    //    (в будущем — verify hash / min_app_version).
-    await manifestRepository.apply(manifest);
-
-    // 5) Seed ректоров — дефолтный список, идемпотентно.
+    await manifestRepository.apply(defaultManifest());
     await recitersRepository.ensureSeeded();
-
-    // 6) Word timings demo-датасет — Al-Fatiha + ar.alafasy.
-    //    Полные данные по всем 114 сурам — отдельная итерация.
     await _seedAlFatihaWords();
-
-    return true;
   }
 
   /// Хардкод-сюр Al-Fatiha: слова + тайминги.
-  /// Idempotent: no-op, если words уже есть.
   Future<void> _seedAlFatihaWords() async {
     if (await wordsDao.count() > 0) return;
-
-    // Al-Fatiha — сура 1, ayah_id глобальные 1..7 (alquran.cloud numbering).
     const baseAyahId = 1;
     await wordsDao.insertAll(AlFatihaSeed.wordsCompanions(baseAyahId));
-
-    // После вставки слов у них autoIncrement id. Запросим первый и
-    // посчитаем смещение.
     final firstWord = await db.customSelect(
       'SELECT id FROM words WHERE ayah_id = ? ORDER BY id ASC LIMIT 1',
       variables: [Variable.withInt(baseAyahId)],
@@ -156,11 +164,56 @@ class ContentBootstrapper {
     ).getSingleOrNull();
     if (firstWord == null) return;
     final wordsBaseId = firstWord.read<int>('id');
-
     final timings = AlFatihaSeed.buildTimings(
       baseAyahId: baseAyahId,
       wordsBaseId: wordsBaseId,
     );
     await wordTimingsDao.insertAll(timings);
   }
+
+  /// В фоне: проверка обновлений через сеть. Не критично.
+  Future<void> _fetchFromNetworkInBackground() async {
+    try {
+      networkProgress.value = const NetworkFetchProgress.started();
+      await downloader.downloadAll();
+      networkProgress.value = const NetworkFetchProgress.completed();
+    } catch (_) {
+      networkProgress.value = const NetworkFetchProgress.failed();
+    }
+  }
+}
+
+class BootstrapProgress {
+  const BootstrapProgress._({
+    required this.stage,
+    required this.message,
+    this.progress,
+  });
+
+  final String stage;
+  final String message;
+  final double? progress;
+
+  const BootstrapProgress.idle()
+      : this._(stage: 'idle', message: '', progress: null);
+
+  const BootstrapProgress.loadingLocal()
+      : this._(stage: 'loadingLocal', message: 'bootstrapDownloading', progress: null);
+
+  const BootstrapProgress.complete({required bool offline})
+      : this._(
+          stage: 'complete',
+          message: offline ? 'localReady' : 'complete',
+          progress: 1.0,
+        );
+}
+
+class NetworkFetchProgress {
+  const NetworkFetchProgress._({required this.stage});
+
+  final String stage;
+  const NetworkFetchProgress.idle() : this._(stage: 'idle');
+  const NetworkFetchProgress.started() : this._(stage: 'started');
+  const NetworkFetchProgress.completed() : this._(stage: 'completed');
+  const NetworkFetchProgress.failed() : this._(stage: 'failed');
 }
