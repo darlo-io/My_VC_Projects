@@ -125,7 +125,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 return SurahTitleFrame(
                   arabicName: surah.nameAr,
                   transliteration: surah.nameTransliteration,
-                  subtitle: '${surah.ayahCount} ${t.ayahsCount(1).split(' ').last}',
+                  subtitle: t.ayahsCount(surah.ayahCount),
                 );
               },
             ),

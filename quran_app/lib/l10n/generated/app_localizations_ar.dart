@@ -44,6 +44,12 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get homeFallbackSurahName => 'الفاتحة';
+
+  @override
+  String get homeFallbackDate => '';
+
+  @override
   String get continueReading => 'متابعة القراءة';
 
   @override

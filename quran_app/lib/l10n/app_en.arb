@@ -12,6 +12,8 @@
 
   "greetingAssalamu": "Assalamu Alaikum!",
   "hijriDateFallback": "{date} AH",
+  "homeFallbackSurahName": "Al-Fatiha",
+  "homeFallbackDate": "",
   "@hijriDateFallback": {
     "placeholders": { "date": { "type": "String" } }
   },

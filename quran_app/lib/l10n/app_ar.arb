@@ -12,6 +12,8 @@
 
   "greetingAssalamu": "السلام عليكم!",
   "hijriDateFallback": "{date} هـ",
+  "homeFallbackSurahName": "الفاتحة",
+  "homeFallbackDate": "",
   "continueReading": "متابعة القراءة",
   "continueAction": "متابعة",
   "surahAndAyah": "سورة {surah}، آية {ayah}",

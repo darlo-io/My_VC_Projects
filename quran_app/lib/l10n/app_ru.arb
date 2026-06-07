@@ -12,6 +12,8 @@
 
   "greetingAssalamu": "Ассаляму алейкум!",
   "hijriDateFallback": "{date} г. х.",
+  "homeFallbackSurahName": "Аль-Фатиха",
+  "homeFallbackDate": "",
   "continueReading": "Продолжить чтение",
   "continueAction": "Продолжить",
   "surahAndAyah": "Сура {surah}, аят {ayah}",

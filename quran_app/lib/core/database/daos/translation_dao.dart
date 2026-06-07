@@ -27,7 +27,7 @@ class TranslationDao extends DatabaseAccessor<AppDatabase>
   }) async {
     final rows = await customSelect(
       '''
-      SELECT t.ayah_id AS ayah_id, t.text_value AS text
+      SELECT t.ayah_id AS ayah_id, t.text AS text
       FROM translations t
       INNER JOIN translators tr ON tr.id = t.translator_id
       INNER JOIN ayahs a ON a.id = t.ayah_id

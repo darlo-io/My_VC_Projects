@@ -15,6 +15,9 @@ class AyahDao extends DatabaseAccessor<AppDatabase> with _$AyahDaoMixin {
             ..orderBy([(a) => OrderingTerm.asc(a.ayahNumber)]))
           .watch();
 
+  Future<Ayah?> getById(int id) =>
+      (select(ayahs)..where((a) => a.id.equals(id))).getSingleOrNull();
+
   Future<List<Word>> getWordsForAyah(int ayahId) =>
       (select(words)
             ..where((w) => w.ayahId.equals(ayahId))

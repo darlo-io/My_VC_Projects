@@ -43,8 +43,8 @@ class BookmarksScreen extends ConsumerWidget {
                     hint: t.bookmarksEmptyHint,
                   );
                 }
-                return FutureBuilder<List<Surah>>(
-                  future: surahDao.getAll(),
+                return StreamBuilder<List<Surah>>(
+                  stream: surahDao.watchAll(),
                   builder: (context, surahSnap) {
                     final surahs = {
                       for (final s in surahSnap.data ?? const <Surah>[])

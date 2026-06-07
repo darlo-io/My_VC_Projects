@@ -15,13 +15,10 @@ class HomeScreen extends ConsumerWidget {
     final t = AppLocalizations.of(context);
     final loc = Localizations.localeOf(context);
     final isArabicUI = loc.languageCode == 'ar';
-    final last = ref.watch(positionStreamProvider).value ??
-        const _LastPosition(
-          surahId: 1,
-          surahName: 'Аль-Фатиха',
-          ayahNumber: 1,
-          progress: 0.0,
-        );
+    final last = ref.watch(positionStreamProvider).value ?? const _LastPosition.empty();
+    final isEmpty = last.surahId == 0;
+    final displaySurah = isEmpty ? t.homeFallbackSurahName : last.surahName;
+    final displayAyah = isEmpty ? 1 : last.ayahNumber;
 
     return SafeArea(
       bottom: false,
@@ -32,18 +29,15 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: 24),
           _Greeting(
             greeting: t.greetingAssalamu,
-            dateLine: greetingDateLine(),
+            dateLine: t.homeFallbackDate,
           ),
           const SizedBox(height: 24),
           _ContinueCard(
-            surahName: last.surahName,
-            ayahLabel: t.surahAndAyah(
-              last.surahName,
-              last.ayahNumber,
-            ),
+            surahName: displaySurah,
+            ayahLabel: t.surahAndAyah(displaySurah, displayAyah),
             progress: last.progress,
             onContinue: () => context.go(
-              '/reader/${last.surahId}?ayah=${last.ayahNumber}',
+              '/reader/${isEmpty ? 1 : last.surahId}?ayah=${isEmpty ? 1 : last.ayahNumber}',
             ),
             ctaLabel: t.continueAction,
           ),
@@ -94,20 +88,12 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  String greetingDateLine() {
-    // В будущем — реальный расчёт Hijri-даты (intl/HijriChronology).
-    // Сейчас фиксированный текст, чтобы не врать о Hijri-конверсии.
-    return _kGreetingDate;
-  }
-
   void _comingSoon(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
   }
 }
-
-const _kGreetingDate = '23 Зуль-каада 1445 г. х.';
 
 class _Header extends StatelessWidget {
   @override
@@ -427,6 +413,14 @@ class _LastPosition {
     required this.progress,
   });
 
+  /// Пустой снимок (нет сохранённой позиции). UI подставляет
+  /// локализованный fallback через `t.homeFallbackSurahName`.
+  const _LastPosition.empty()
+      : surahId = 0,
+        surahName = '',
+        ayahNumber = 0,
+        progress = 0.0;
+
   final int surahId;
   final String surahName;
   final int ayahNumber;
@@ -436,24 +430,25 @@ class _LastPosition {
 final positionStreamProvider = StreamProvider<_LastPosition>((ref) async* {
   final dao = ref.watch(positionDaoProvider);
   final surahDao = ref.watch(surahDaoProvider);
+  final ayahDao = ref.watch(ayahDaoProvider);
   await for (final last in dao.watchLast()) {
     if (last == null) {
-      yield const _LastPosition(
-        surahId: 1,
-        surahName: 'Аль-Фатиха',
-        ayahNumber: 1,
-        progress: 0.0,
-      );
+      // Нет последней позиции — пустой снимок. UI подставит локализованный
+      // fallback через t.homeFallbackSurahName.
+      yield const _LastPosition.empty();
       continue;
     }
     final surah = await surahDao.getById(last.surahId);
+    final ayah = await ayahDao.getById(last.ayahId);
     final ayahCount = surah?.ayahCount ?? 0;
-    final progress =
-        ayahCount > 0 ? (last.ayahId / ayahCount).clamp(0.0, 1.0) : 0.0;
+    final inSurahAyah = ayah?.ayahNumber ?? last.ayahId;
+    final progress = ayahCount > 0
+        ? (inSurahAyah / ayahCount).clamp(0.0, 1.0)
+        : 0.0;
     yield _LastPosition(
       surahId: last.surahId,
       surahName: surah?.nameTransliteration ?? '',
-      ayahNumber: last.ayahId,
+      ayahNumber: inSurahAyah,
       progress: progress,
     );
   }

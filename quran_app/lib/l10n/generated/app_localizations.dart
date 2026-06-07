@@ -166,6 +166,18 @@ abstract class AppLocalizations {
   /// **'{date} AH'**
   String hijriDateFallback(String date);
 
+  /// No description provided for @homeFallbackSurahName.
+  ///
+  /// In en, this message translates to:
+  /// **'Al-Fatiha'**
+  String get homeFallbackSurahName;
+
+  /// No description provided for @homeFallbackDate.
+  ///
+  /// In en, this message translates to:
+  /// **''**
+  String get homeFallbackDate;
+
   /// No description provided for @continueReading.
   ///
   /// In en, this message translates to:
