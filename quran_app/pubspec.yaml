@@ -38,9 +38,6 @@ dependencies:
   # Typography
   google_fonts: ^6.2.1
 
-  # SVG support (for ornaments)
-  flutter_svg: ^2.0.10+1
-
   # Audio (stub for MVP v0.2)
   just_audio: ^0.9.42
 
@@ -58,7 +55,4 @@ flutter:
   uses-material-design: true
   generate: true
   assets:
-    - assets/images/
-    - assets/ornaments/
-    - assets/translations/
     - assets/quran_seed/quran_full.json
