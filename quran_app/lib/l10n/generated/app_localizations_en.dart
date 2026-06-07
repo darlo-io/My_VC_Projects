@@ -172,6 +172,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsCacheLimit => 'Cache size limit';
 
   @override
+  String settingsCacheLimitValue(Object mb) {
+    return '$mb MB';
+  }
+
+  @override
+  String get settingsCacheClearConfirm => 'Delete all downloaded audio?';
+
+  @override
+  String get settingsCacheCleared => 'Cache cleared';
+
+  @override
+  String settingsCacheEvicted(Object count) {
+    return 'Removed $count files';
+  }
+
+  @override
   String get settingsClearCache => 'Clear audio cache';
 
   @override

@@ -394,6 +394,30 @@ abstract class AppLocalizations {
   /// **'Cache size limit'**
   String get settingsCacheLimit;
 
+  /// No description provided for @settingsCacheLimitValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{mb} MB'**
+  String settingsCacheLimitValue(Object mb);
+
+  /// No description provided for @settingsCacheClearConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all downloaded audio?'**
+  String get settingsCacheClearConfirm;
+
+  /// No description provided for @settingsCacheCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache cleared'**
+  String get settingsCacheCleared;
+
+  /// No description provided for @settingsCacheEvicted.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {count} files'**
+  String settingsCacheEvicted(Object count);
+
   /// No description provided for @settingsClearCache.
   ///
   /// In en, this message translates to:

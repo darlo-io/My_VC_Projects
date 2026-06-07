@@ -93,6 +93,16 @@ final recitersStreamProvider = StreamProvider(
   (ref) => ref.watch(recitersRepositoryProvider).watchAll(),
 );
 
+/// Поток общего размера аудио-кеша в байтах (для UI).
+final cacheTotalBytesProvider = StreamProvider<int>((ref) {
+  return ref.watch(audioCacheProvider).watchTotalBytes();
+});
+
+/// Текущий лимит кеша в мегабайтах.
+final cacheLimitMbProvider = StateProvider<int>((ref) {
+  return ref.watch(appPreferencesProvider).cacheLimitMb;
+});
+
 final contentDownloaderProvider = Provider<ContentDownloader>(
   (ref) => ContentDownloader(ref.watch(quranApiProvider)),
 );

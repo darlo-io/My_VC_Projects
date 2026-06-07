@@ -83,27 +83,11 @@ class SettingsScreen extends ConsumerWidget {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                const SettingsTile(
-                  icon: Icons.sd_storage_outlined,
-                  title: '2048 MB',
-                  trailing: Text(
-                    'Лимит',
-                    style: TextStyle(
-                      color: AppColors.gold,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                _CacheUsageTile(),
                 const Divider(height: 1),
-                SettingsTile(
-                  icon: Icons.delete_sweep_outlined,
-                  title: t.settingsClearCache,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(t.comingSoon)),
-                    );
-                  },
-                ),
+                _CacheLimitTile(),
+                const Divider(height: 1),
+                _ClearCacheTile(),
               ],
             ),
           ),
@@ -314,6 +298,173 @@ class SettingsTile extends StatelessWidget {
                   color: AppColors.textTertiary,
                 )),
       onTap: onTap,
+    );
+  }
+}
+
+/// Реальное использование аудио-кеша: X MB / Y MB.
+class _CacheUsageTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = AppLocalizations.of(context);
+    final totalAsync = ref.watch(cacheTotalBytesProvider);
+    final limitMb = ref.watch(cacheLimitMbProvider);
+    return ListTile(
+      leading: const Icon(
+        Icons.sd_storage_outlined,
+        color: AppColors.gold,
+      ),
+      title: Text(
+        totalAsync.when(
+          data: (bytes) {
+            final usedMb = (bytes / (1024 * 1024)).toStringAsFixed(1);
+            return t.settingsStorageUsed(usedMb, '$limitMb');
+          },
+          loading: () => '—',
+          error: (_, __) => '—',
+        ),
+        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+      ),
+      subtitle: LinearProgressIndicator(
+        value: totalAsync.maybeWhen(
+          data: (bytes) {
+            final max = limitMb * 1024 * 1024;
+            return max <= 0 ? 0 : (bytes / max).clamp(0.0, 1.0);
+          },
+          orElse: () => 0,
+        ),
+        minHeight: 4,
+        backgroundColor: AppColors.borderSubtle,
+        valueColor: const AlwaysStoppedAnimation(AppColors.gold),
+      ),
+    );
+  }
+}
+
+/// Tile со слайдером для выбора лимита кеша (256 MB..8 GB).
+class _CacheLimitTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = AppLocalizations.of(context);
+    final limitMb = ref.watch(cacheLimitMbProvider);
+    return ListTile(
+      leading: const Icon(Icons.tune, color: AppColors.gold),
+      title: Text(
+        t.settingsCacheLimit,
+        style: const TextStyle(color: AppColors.textPrimary),
+      ),
+      trailing: Text(
+        t.settingsCacheLimitValue(limitMb),
+        style: const TextStyle(
+          color: AppColors.gold,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      onTap: () => _showLimitSheet(context, ref),
+    );
+  }
+
+  void _showLimitSheet(BuildContext context, WidgetRef ref) {
+    final t = AppLocalizations.of(context);
+    final prefs = ref.read(appPreferencesProvider);
+    final current = prefs.cacheLimitMb;
+    final options = const [256, 512, 1024, 2048, 4096, 8192];
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Text(
+                  t.settingsCacheLimit,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              for (final mb in options)
+                ListTile(
+                  title: Text(
+                    t.settingsCacheLimitValue(mb),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  trailing: mb == current
+                      ? const Icon(Icons.check, color: AppColors.gold)
+                      : null,
+                  onTap: () async {
+                    await prefs.setCacheLimitMb(mb);
+                    ref.read(cacheLimitMbProvider.notifier).state = mb;
+                    // Запустить eviction под новый лимит, не дожидаясь
+                    // следующей загрузки.
+                    final evicted = await ref
+                        .read(audioCacheProvider)
+                        .evictIfNeeded(maxBytes: mb * 1024 * 1024);
+                    if (!sheetCtx.mounted) return;
+                    Navigator.pop(sheetCtx);
+                    if (evicted > 0) {
+                      ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                        SnackBar(
+                          content: Text(t.settingsCacheEvicted(evicted)),
+                        ),
+                      );
+                    }
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Кнопка полной очистки кеша с подтверждением.
+class _ClearCacheTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = AppLocalizations.of(context);
+    return ListTile(
+      leading: const Icon(
+        Icons.delete_sweep_outlined,
+        color: AppColors.gold,
+      ),
+      title: Text(
+        t.settingsClearCache,
+        style: const TextStyle(color: AppColors.textPrimary),
+      ),
+      onTap: () async {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogCtx) => AlertDialog(
+            title: Text(t.settingsClearCache),
+            content: Text(t.settingsCacheClearConfirm),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx, false),
+                child: Text(t.cancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogCtx, true),
+                child: Text(t.ok),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true) return;
+        await ref.read(audioCacheProvider).clearAll();
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t.settingsCacheCleared)),
+        );
+      },
     );
   }
 }

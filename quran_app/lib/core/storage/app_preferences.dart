@@ -13,6 +13,7 @@ class AppPreferences {
   static const _kReciterId = 'audio.reciterId';
   static const _kTranslationLang = 'reader.translationLang';
   static const _kThemeMode = 'app.themeMode';
+  static const _kCacheLimitMb = 'audio.cacheLimitMb';
 
   String? get languageCode => _prefs.getString(_kLanguageCode);
 
@@ -40,6 +41,10 @@ class AppPreferences {
 
   String get themeMode => _prefs.getString(_kThemeMode) ?? 'dark';
   Future<void> setThemeMode(String v) => _prefs.setString(_kThemeMode, v);
+
+  /// Лимит аудио-кеша в мегабайтах. По умолчанию 2 GB, как в ARCHITECTURE §14.
+  int get cacheLimitMb => _prefs.getInt(_kCacheLimitMb) ?? 2048;
+  Future<void> setCacheLimitMb(int mb) => _prefs.setInt(_kCacheLimitMb, mb);
 
   String? getString(String key) => _prefs.getString(key);
   Future<void> setString(String key, String value) =>
