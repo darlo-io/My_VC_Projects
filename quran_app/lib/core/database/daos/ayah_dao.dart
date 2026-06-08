@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../search/fts_query.dart';
 import '../app_database.dart';
 import '../tables.dart';
 
@@ -72,7 +73,7 @@ class AyahDao extends DatabaseAccessor<AppDatabase> with _$AyahDaoMixin {
     String query, {
     int limit = 50,
   }) async {
-    final ftsQuery = _toFtsPrefixQuery(query);
+    final ftsQuery = buildFtsPrefixQuery(query);
     if (ftsQuery.isEmpty) return const [];
     final rows = await customSelect(
       '''
@@ -105,31 +106,4 @@ class AyahDao extends DatabaseAccessor<AppDatabase> with _$AyahDaoMixin {
         )
         .toList();
   }
-}
-
-/// Normalize a free-form user query into a safe FTS5 prefix-MATCH
-/// expression: split on whitespace, drop FTS5 reserved characters,
-/// emit each remaining token as `token*`.
-///
-/// FTS5's default `unicode61` tokenizer with `remove_diacritics 2` (the
-/// configuration used in [AppDatabase._createFts]) already strips
-/// Arabic diacritics at index time, so we don't need to normalize the
-/// user input beyond character filtering.
-///
-/// Returns the empty string if the query has no searchable tokens —
-/// callers should treat this as "no results" rather than passing an
-/// empty MATCH to SQLite (which would error).
-String _toFtsPrefixQuery(String raw) {
-  // FTS5 operators/quotes that, if left in user input, would change
-  // the meaning of the query. We strip them rather than escape, since
-  // the user doesn't need boolean operators for an MVP search box.
-  const banned = {'"', '\'', '(', ')', '*', ':', '^', '-', '+', '.', ',', ';'};
-  final tokens = raw
-      .split(RegExp(r'\s+'))
-      .where((t) => t.isNotEmpty)
-      .map((t) => t.split('').where((c) => !banned.contains(c)).join())
-      .where((t) => t.isNotEmpty)
-      .toList();
-  if (tokens.isEmpty) return '';
-  return tokens.map((t) => '$t*').join(' ');
 }

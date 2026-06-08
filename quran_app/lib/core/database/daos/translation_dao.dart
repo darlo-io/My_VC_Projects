@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../search/fts_query.dart';
 import '../app_database.dart';
 import '../tables.dart';
 
@@ -81,7 +82,7 @@ class TranslationDao extends DatabaseAccessor<AppDatabase>
     required String languageCode,
     int limit = 50,
   }) async {
-    final ftsQuery = _toTranslationFtsQuery(query);
+    final ftsQuery = buildFtsPrefixQuery(query);
     if (ftsQuery.isEmpty) return const [];
     final rows = await customSelect(
       '''
@@ -129,21 +130,4 @@ class TranslationDao extends DatabaseAccessor<AppDatabase>
   Future<void> insertTranslations(List<TranslationsCompanion> items) async {
     await batch((b) => b.insertAllOnConflictUpdate(translations, items));
   }
-}
-
-/// Same normalization as [AyahDao._toFtsPrefixQuery] but kept private
-/// here to avoid leaking the helper into the public API of
-/// [AyahDao]. The implementation is intentionally identical so that
-/// search behaviour is consistent across the Arabic and translation
-/// corpora.
-String _toTranslationFtsQuery(String raw) {
-  const banned = {'"', '\'', '(', ')', '*', ':', '^', '-', '+', '.', ',', ';'};
-  final tokens = raw
-      .split(RegExp(r'\s+'))
-      .where((t) => t.isNotEmpty)
-      .map((t) => t.split('').where((c) => !banned.contains(c)).join())
-      .where((t) => t.isNotEmpty)
-      .toList();
-  if (tokens.isEmpty) return '';
-  return tokens.map((t) => '$t*').join(' ');
 }

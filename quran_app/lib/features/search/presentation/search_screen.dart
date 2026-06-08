@@ -1,11 +1,11 @@
-import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
-import '../../../core/database/app_database.dart';
-import '../../../core/search/arabic_normalizer.dart';
+import '../../../core/database/daos/ayah_dao.dart';
+import '../../../core/database/daos/surah_dao.dart';
+import '../../../core/database/daos/translation_dao.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/common_widgets.dart';
@@ -99,7 +99,82 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 }
 
-/// Поиск с debounce 250 мс и кешем по ключу (query, lang, surahOnly).
+/// Sealed hit model. Exactly one of the three payload fields is set
+/// per scope:
+///   - surah scope   -> [SurahSearchHit]
+///   - all + ar UI   -> [AyahSearchHit]
+///   - all + other   -> deduped mix of [TranslationSearchHit] and
+///                       [AyahSearchHit] (translation wins)
+sealed class _SearchHit {
+  const _SearchHit();
+
+  int get surahId;
+  int get ayahNumber;
+  String get headerLabel;
+  void openReader(BuildContext context);
+}
+
+class _SurahHit extends _SearchHit {
+  const _SurahHit(this.data);
+  final SurahSearchHit data;
+
+  @override
+  int get surahId => data.surahId;
+
+  @override
+  int get ayahNumber => 1;
+
+  @override
+  String get headerLabel => 'Surah ${data.surahId}';
+
+  @override
+  void openReader(BuildContext context) =>
+      context.go('/reader/${data.surahId}?ayah=1');
+}
+
+class _AyahHit extends _SearchHit {
+  const _AyahHit(this.data);
+  final AyahSearchHit data;
+
+  @override
+  int get surahId => data.surahId;
+
+  @override
+  int get ayahNumber => data.ayahNumber;
+
+  @override
+  String get headerLabel =>
+      '${data.surahNameAr} • ${data.surahId} • ${data.ayahNumber}';
+
+  @override
+  void openReader(BuildContext context) =>
+      context.go('/reader/${data.surahId}?ayah=${data.ayahNumber}');
+}
+
+class _TranslationHit extends _SearchHit {
+  const _TranslationHit(this.data);
+  final TranslationSearchHit data;
+
+  @override
+  int get surahId => data.surahId;
+
+  @override
+  int get ayahNumber => data.ayahNumber;
+
+  @override
+  String get headerLabel =>
+      '${data.surahNameAr} • ${data.surahId} • ${data.ayahNumber}';
+
+  @override
+  void openReader(BuildContext context) =>
+      context.go('/reader/${data.surahId}?ayah=${data.ayahNumber}');
+}
+
+/// Поиск с debounce 250 мс. Routes through the FTS5-backed DAO
+/// methods; no inline SQL. Normalization is delegated to
+/// `buildFtsPrefixQuery` in `core/search/fts_query.dart` so this
+/// screen and the FTS DAOs stay in lock-step on what characters
+/// are safe in a user-typed query.
 class _SearchResults extends ConsumerStatefulWidget {
   const _SearchResults({required this.query, required this.surahOnly});
 
@@ -111,7 +186,7 @@ class _SearchResults extends ConsumerStatefulWidget {
 }
 
 class _SearchResultsState extends ConsumerState<_SearchResults> {
-  Future<List<SearchHit>>? _future;
+  Future<List<_SearchHit>>? _future;
 
   @override
   void initState() {
@@ -130,17 +205,47 @@ class _SearchResultsState extends ConsumerState<_SearchResults> {
   void _scheduleSearch() {
     final q = widget.query;
     final surahOnly = widget.surahOnly;
-    // Debounce: откладываем запуск на 250 мс, чтобы не спамить запросами
-    // на каждом keystroke.
     Future<void>.delayed(const Duration(milliseconds: 250), () {
       if (!mounted) return;
       if (widget.query != q || widget.surahOnly != surahOnly) return;
-      final db = ref.read(appDatabaseProvider);
-      final lang = ref.read(appPreferencesProvider).translationLang;
       setState(() {
-        _future = _runSearch(db, q, lang, surahOnly);
+        _future = _runSearch(q, surahOnly);
       });
     });
+  }
+
+  Future<List<_SearchHit>> _runSearch(String query, bool surahOnly) async {
+    if (surahOnly) {
+      final hits = await ref.read(surahDaoProvider).searchByText(query);
+      return hits.map(_SurahHit.new).toList();
+    }
+    final ayahDao = ref.read(ayahDaoProvider);
+    final translationDao = ref.read(translationDaoProvider);
+    final lang = ref.read(appPreferencesProvider).translationLang;
+    final includeTranslation = lang != 'ar';
+    final results = await Future.wait<Object>([
+      ayahDao.searchByText(query),
+      if (includeTranslation)
+        translationDao.search(query: query, languageCode: lang),
+    ]);
+    final ayahs = results[0] as List<AyahSearchHit>;
+    final translations = includeTranslation
+        ? results[1] as List<TranslationSearchHit>
+        : const <TranslationSearchHit>[];
+    final byAyah = <int, _SearchHit>{};
+    for (final t in translations) {
+      byAyah[t.ayahId] = _TranslationHit(t);
+    }
+    for (final a in ayahs) {
+      byAyah.putIfAbsent(a.ayahId, () => _AyahHit(a));
+    }
+    final merged = byAyah.values.toList()
+      ..sort((a, b) {
+        final s = a.surahId.compareTo(b.surahId);
+        if (s != 0) return s;
+        return a.ayahNumber.compareTo(b.ayahNumber);
+      });
+    return merged;
   }
 
   @override
@@ -148,10 +253,10 @@ class _SearchResultsState extends ConsumerState<_SearchResults> {
     final t = AppLocalizations.of(context);
     final future = _future;
     if (future == null) return const SizedBox.shrink();
-    return FutureBuilder<List<SearchHit>>(
+    return FutureBuilder<List<_SearchHit>>(
       future: future,
       builder: (context, snap) {
-        final hits = snap.data ?? const <SearchHit>[];
+        final hits = snap.data ?? const <_SearchHit>[];
         if (hits.isEmpty) {
           return _EmptyState(
             title: t.searchResultsEmpty,
@@ -166,9 +271,7 @@ class _SearchResultsState extends ConsumerState<_SearchResults> {
             final h = hits[i];
             return _HitTile(
               hit: h,
-              onTap: () => context.go(
-                '/reader/${h.surahId}?ayah=${h.ayahNumber}',
-              ),
+              onTap: () => h.openReader(context),
             );
           },
         );
@@ -177,92 +280,14 @@ class _SearchResultsState extends ConsumerState<_SearchResults> {
   }
 }
 
-Future<List<SearchHit>> _runSearch(
-  AppDatabase db,
-  String query,
-  String lang,
-  bool surahOnly,
-) async {
-  final q = query.trim();
-  if (q.isEmpty) return const [];
-  final qNorm = ArabicNormalizer.normalize(q);
-
-  if (surahOnly) {
-    final rows = await db.customSelect(
-      '''
-      SELECT id, name_ar, name_transliteration, name_en
-      FROM surahs
-      WHERE LOWER(name_transliteration) LIKE ? OR LOWER(name_en) LIKE ? OR name_ar LIKE ?
-      LIMIT 30
-      ''',
-      variables: [
-        Variable.withString('${q.toLowerCase()}%'),
-        Variable.withString('${q.toLowerCase()}%'),
-        Variable.withString('$q%'),
-      ],
-      readsFrom: {db.surahs},
-    ).get();
-    return rows
-        .map(
-          (r) => SearchHit(
-            surahId: r.read<int>('id'),
-            ayahNumber: 1,
-            surahName: (r.readNullable<String>('name_transliteration')) ?? '',
-            arabic: r.read<String>('name_ar'),
-            translation: (r.readNullable<String>('name_en')) ?? '',
-          ),
-        )
-        .toList();
-  }
-
-  final ayahRows = await db.customSelect(
-    '''
-    SELECT a.id, a.surah_id, a.ayah_number, a.text_uthmani, s.name_transliteration
-    FROM ayahs_fts f
-    JOIN ayahs a ON a.id = f.rowid
-    JOIN surahs s ON s.id = a.surah_id
-    WHERE ayahs_fts MATCH ?
-    LIMIT 50
-    ''',
-    variables: [Variable.withString('$qNorm*')],
-    readsFrom: {db.ayahs, db.surahs},
-  ).get();
-  return ayahRows
-      .map(
-        (r) => SearchHit(
-          surahId: r.read<int>('surah_id'),
-          ayahNumber: r.read<int>('ayah_number'),
-          surahName: (r.readNullable<String>('name_transliteration')) ?? '',
-          arabic: r.read<String>('text_uthmani'),
-          translation: '',
-        ),
-      )
-      .toList();
-}
-
-class SearchHit {
-  const SearchHit({
-    required this.surahId,
-    required this.ayahNumber,
-    required this.surahName,
-    required this.arabic,
-    required this.translation,
-  });
-
-  final int surahId;
-  final int ayahNumber;
-  final String surahName;
-  final String arabic;
-  final String translation;
-}
-
 class _HitTile extends StatelessWidget {
   const _HitTile({required this.hit, required this.onTap});
-  final SearchHit hit;
+  final _SearchHit hit;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -278,38 +303,17 @@ class _HitTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${hit.surahName} • ${hit.ayahNumber}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.gold,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              _header(context, t),
               const SizedBox(height: 8),
-              Text(
-                hit.arabic,
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  fontSize: 20,
-                  height: 1.6,
-                  fontFamily: 'Amiri',
-                  color: AppColors.textPrimary,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (hit.translation.isNotEmpty) ...[
+              _body(context, t),
+              if (hit case _TranslationHit(:final data)) ...[
                 const SizedBox(height: 6),
                 Text(
-                  hit.translation,
+                  data.translatorName,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: AppColors.textTertiary,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ],
@@ -317,6 +321,80 @@ class _HitTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _header(BuildContext context, AppLocalizations t) {
+    return switch (hit) {
+      _SurahHit() => Text(
+          '${t.surahLabel} ${hit.surahId}',
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.gold,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      _AyahHit() || _TranslationHit() => Text(
+          hit.headerLabel,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.gold,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+    };
+  }
+
+  Widget _body(BuildContext context, AppLocalizations t) {
+    return switch (hit) {
+      _SurahHit(:final data) => Row(
+          children: [
+            Expanded(
+              child: Text(
+                data.nameTransliteration,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              data.nameAr,
+              textDirection: TextDirection.rtl,
+              style: const TextStyle(
+                fontSize: 22,
+                color: AppColors.gold,
+                fontFamily: 'Amiri',
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      _AyahHit(:final data) => Text(
+          data.textUthmani,
+          textDirection: TextDirection.rtl,
+          textAlign: TextAlign.right,
+          style: const TextStyle(
+            fontSize: 20,
+            height: 1.6,
+            fontFamily: 'Amiri',
+            color: AppColors.textPrimary,
+          ),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+      _TranslationHit(:final data) => Text(
+          data.text,
+          style: const TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: AppColors.textPrimary,
+          ),
+          maxLines: 4,
+          overflow: TextOverflow.ellipsis,
+        ),
+    };
   }
 }
 
@@ -330,7 +408,7 @@ class _EmptyState extends StatelessWidget {
     final t = AppLocalizations.of(context);
     return Center(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.search, color: AppColors.textTertiary, size: 56),
           const SizedBox(height: 16),

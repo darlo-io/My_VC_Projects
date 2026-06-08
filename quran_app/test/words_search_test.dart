@@ -57,7 +57,7 @@ void main() {
         );
     await db.into(db.words).insert(
           WordsCompanion.insert(
-            id: Value(1),
+            id: const Value(1),
             ayahId: 1,
             position: 1,
             arabic: 'ٱلرَّحْمَٰنِ',
@@ -69,7 +69,7 @@ void main() {
         );
     await db.into(db.words).insert(
           WordsCompanion.insert(
-            id: Value(2),
+            id: const Value(2),
             ayahId: 1,
             position: 2,
             arabic: 'ٱلرَّحِيمِ',
@@ -81,7 +81,7 @@ void main() {
         );
     await db.into(db.words).insert(
           WordsCompanion.insert(
-            id: Value(3),
+            id: const Value(3),
             ayahId: 1,
             position: 3,
             arabic: 'ٱللَّهِ',
@@ -93,7 +93,7 @@ void main() {
         );
     await db.into(db.words).insert(
           WordsCompanion.insert(
-            id: Value(4),
+            id: const Value(4),
             ayahId: 1,
             position: 4,
             arabic: 'بِسْمِ',

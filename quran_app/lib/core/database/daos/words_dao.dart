@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../search/fts_query.dart';
 import '../app_database.dart';
 import '../tables.dart';
 
@@ -65,7 +66,7 @@ class WordsDao extends DatabaseAccessor<AppDatabase> with _$WordsDaoMixin {
   /// partial Arabic roots still match (e.g. `رحم` finds `الرحمن`).
   /// FTS5 reserved characters are stripped, see [_toFtsPrefixQuery].
   Future<List<WordSearchHit>> search(String query, {int limit = 30}) async {
-    final ftsQuery = _toFtsPrefixQuery(query);
+    final ftsQuery = buildFtsPrefixQuery(query);
     if (ftsQuery.isEmpty) return const [];
     final rows = await customSelect(
       '''
@@ -146,20 +147,4 @@ class WordsDao extends DatabaseAccessor<AppDatabase> with _$WordsDaoMixin {
         lemma: r.read<String?>('lemma'),
         root: r.read<String?>('root'),
       );
-}
-
-/// Normalize a free-form user query into a safe FTS5 prefix-MATCH
-/// expression. Same rules as
-/// [AyahDao._toFtsPrefixQuery] — strip FTS5 operators, emit each
-/// remaining token as `token*` so partial words still match.
-String _toFtsPrefixQuery(String raw) {
-  const banned = {'"', '\'', '(', ')', '*', ':', '^', '-', '+', '.', ',', ';'};
-  final tokens = raw
-      .split(RegExp(r'\s+'))
-      .where((t) => t.isNotEmpty)
-      .map((t) => t.split('').where((c) => !banned.contains(c)).join())
-      .where((t) => t.isNotEmpty)
-      .toList();
-  if (tokens.isEmpty) return '';
-  return tokens.map((t) => '$t*').join(' ');
 }
