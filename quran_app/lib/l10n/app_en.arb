@@ -133,7 +133,7 @@
   "firstLaunchTitle": "Choose your language",
   "firstLaunchSubtitle": "You can change this later in Settings",
   "firstLaunchAction": "Continue",
-  "statsTitle": "Your progress",
+  "statsTitle": "Statistics",
   "statsWeek": "Week",
   "statsMonth": "Month",
   "statsYear": "Year",
@@ -318,5 +318,12 @@
   "readerNextSurah": "Next surah",
   "readerFirstSurah": "First surah",
   "readerLastSurah": "Last surah",
-  "juzOpenError": "Could not open Juz {number}"
+  "juzOpenError": "Could not open Juz {number}",
+  "statsToday": "Today",
+  "statsThisWeek": "This week",
+  "statsStreak": "Day streak",
+  "statsLast7Days": "Last 7 days",
+  "statsNoData": "No reading history yet. Open any surah to start tracking.",
+  "statsDaysUnit": "days",
+  "statsStreakHint": "Open the app daily to grow your streak."
 }

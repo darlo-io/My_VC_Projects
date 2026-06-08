@@ -288,7 +288,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get firstLaunchAction => 'Continue';
 
   @override
-  String get statsTitle => 'Your progress';
+  String get statsTitle => 'Statistics';
 
   @override
   String get statsWeek => 'Week';
@@ -856,4 +856,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String juzOpenError(Object number) {
     return 'Could not open Juz $number';
   }
+
+  @override
+  String get statsToday => 'Today';
+
+  @override
+  String get statsThisWeek => 'This week';
+
+  @override
+  String get statsStreak => 'Day streak';
+
+  @override
+  String get statsLast7Days => 'Last 7 days';
+
+  @override
+  String get statsNoData =>
+      'No reading history yet. Open any surah to start tracking.';
+
+  @override
+  String get statsDaysUnit => 'days';
+
+  @override
+  String get statsStreakHint => 'Open the app daily to grow your streak.';
 }

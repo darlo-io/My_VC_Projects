@@ -290,7 +290,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get firstLaunchAction => 'Продолжить';
 
   @override
-  String get statsTitle => 'Ваш прогресс';
+  String get statsTitle => 'Статистика';
 
   @override
   String get statsWeek => 'Неделя';
@@ -302,10 +302,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get statsYear => 'Год';
 
   @override
-  String get statsAllTime => 'Всё время';
+  String get statsAllTime => 'Всего';
 
   @override
-  String get statsAyahsRead => 'Прочитано аятов';
+  String get statsAyahsRead => 'Аятов прочитано';
 
   @override
   String get statsSurahsRead => 'Прочитано сур';
@@ -858,4 +858,27 @@ class AppLocalizationsRu extends AppLocalizations {
   String juzOpenError(Object number) {
     return 'Не удалось открыть Джуз $number';
   }
+
+  @override
+  String get statsToday => 'Сегодня';
+
+  @override
+  String get statsThisWeek => 'Эта неделя';
+
+  @override
+  String get statsStreak => 'Дней подряд';
+
+  @override
+  String get statsLast7Days => 'Последние 7 дней';
+
+  @override
+  String get statsNoData =>
+      'Пока нет истории. Откройте любую суру, чтобы начать.';
+
+  @override
+  String get statsDaysUnit => 'дн.';
+
+  @override
+  String get statsStreakHint =>
+      'Открывайте приложение каждый день, чтобы увеличить серию.';
 }

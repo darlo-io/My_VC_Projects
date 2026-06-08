@@ -290,7 +290,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get firstLaunchAction => 'متابعة';
 
   @override
-  String get statsTitle => 'تقدّمك';
+  String get statsTitle => 'الإحصاءات';
 
   @override
   String get statsWeek => 'الأسبوع';
@@ -302,10 +302,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get statsYear => 'السنة';
 
   @override
-  String get statsAllTime => 'كل الوقت';
+  String get statsAllTime => 'الإجمالي';
 
   @override
-  String get statsAyahsRead => 'الآيات المقروءة';
+  String get statsAyahsRead => 'آيات مقروءة';
 
   @override
   String get statsSurahsRead => 'السور المقروءة';
@@ -856,4 +856,25 @@ class AppLocalizationsAr extends AppLocalizations {
   String juzOpenError(Object number) {
     return 'تعذّر فتح الجزء $number';
   }
+
+  @override
+  String get statsToday => 'اليوم';
+
+  @override
+  String get statsThisWeek => 'هذا الأسبوع';
+
+  @override
+  String get statsStreak => 'أيام متتالية';
+
+  @override
+  String get statsLast7Days => 'آخر 7 أيام';
+
+  @override
+  String get statsNoData => 'لا يوجد سجل قراءة بعد. افتح أي سورة للبدء.';
+
+  @override
+  String get statsDaysUnit => 'يوم';
+
+  @override
+  String get statsStreakHint => 'افتح التطبيق يوميًا لزيادة سلسلتك.';
 }

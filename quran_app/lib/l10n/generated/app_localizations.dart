@@ -613,7 +613,7 @@ abstract class AppLocalizations {
   /// No description provided for @statsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Your progress'**
+  /// **'Statistics'**
   String get statsTitle;
 
   /// No description provided for @statsWeek.
@@ -1725,6 +1725,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not open Juz {number}'**
   String juzOpenError(Object number);
+
+  /// No description provided for @statsToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get statsToday;
+
+  /// No description provided for @statsThisWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get statsThisWeek;
+
+  /// No description provided for @statsStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Day streak'**
+  String get statsStreak;
+
+  /// No description provided for @statsLast7Days.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 7 days'**
+  String get statsLast7Days;
+
+  /// No description provided for @statsNoData.
+  ///
+  /// In en, this message translates to:
+  /// **'No reading history yet. Open any surah to start tracking.'**
+  String get statsNoData;
+
+  /// No description provided for @statsDaysUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'days'**
+  String get statsDaysUnit;
+
+  /// No description provided for @statsStreakHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the app daily to grow your streak.'**
+  String get statsStreakHint;
 }
 
 class _AppLocalizationsDelegate

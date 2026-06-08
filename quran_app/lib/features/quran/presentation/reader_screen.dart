@@ -66,6 +66,26 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   final _scrollCtrl = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+    // Record the opening of this ayah for the daily reading
+    // history. Fires once per screen-mount (not per build), and
+    // only after the first frame so we don't block the initial
+    // paint. The UPSERT in [PositionDao.recordReading] coalesces
+    // rapid re-entries to the same (date, surah) into a single
+    // row, so a user who reopens the same ayah in the same
+    // session won't double-count.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(positionDaoProvider).recordReading(
+            date: DateTime.now(),
+            surahId: widget.surahId,
+            ayahsRead: 1,
+          );
+    });
+  }
+
+  @override
   void dispose() {
     _scrollCtrl.dispose();
     super.dispose();
