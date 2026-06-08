@@ -1521,6 +1521,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Surah'**
   String get surahLabel;
+
+  /// No description provided for @tabAyahs.
+  ///
+  /// In en, this message translates to:
+  /// **'Ayahs'**
+  String get tabAyahs;
+
+  /// No description provided for @searchAyahHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type to search the Quran text'**
+  String get searchAyahHint;
 }
 
 class _AppLocalizationsDelegate

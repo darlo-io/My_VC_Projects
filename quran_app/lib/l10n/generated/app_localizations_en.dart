@@ -742,4 +742,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get surahLabel => 'Surah';
+
+  @override
+  String get tabAyahs => 'Ayahs';
+
+  @override
+  String get searchAyahHint => 'Type to search the Quran text';
 }

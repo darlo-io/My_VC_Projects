@@ -284,5 +284,7 @@
   "reciterNameAhmedajamy": "Ahmed Al-Ajamy",
   "nowPlaying": "Now playing",
   "selectSurahAndPlay": "Pick a surah and press play",
-  "surahLabel": "Surah"
+  "surahLabel": "Surah",
+  "tabAyahs": "Ayahs",
+  "searchAyahHint": "Type to search the Quran text"
 }

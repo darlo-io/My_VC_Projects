@@ -236,5 +236,7 @@
   "reciterNameAhmedajamy": "Ахмад аль-Аджми",
   "nowPlaying": "Идёт",
   "selectSurahAndPlay": "Выберите суру и нажмите play",
-  "surahLabel": "Сура"
+  "surahLabel": "Сура",
+  "tabAyahs": "Аяты",
+  "searchAyahHint": "Введите запрос для поиска по тексту Корана"
 }

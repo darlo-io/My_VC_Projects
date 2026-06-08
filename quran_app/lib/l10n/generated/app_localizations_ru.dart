@@ -744,4 +744,10 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get surahLabel => 'Сура';
+
+  @override
+  String get tabAyahs => 'Аяты';
+
+  @override
+  String get searchAyahHint => 'Введите запрос для поиска по тексту Корана';
 }

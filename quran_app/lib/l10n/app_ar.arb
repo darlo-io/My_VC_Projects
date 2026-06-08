@@ -236,5 +236,7 @@
   "reciterNameAhmedajamy": "أحمد العجمي",
   "nowPlaying": "يُشغَّل الآن",
   "selectSurahAndPlay": "اختر سورة واضغط تشغيل",
-  "surahLabel": "السورة"
+  "surahLabel": "السورة",
+  "tabAyahs": "آيات",
+  "searchAyahHint": "اكتب للبحث في نص القرآن"
 }

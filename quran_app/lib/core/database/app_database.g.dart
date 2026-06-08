@@ -490,9 +490,6 @@ class $AyahsTable extends Ayahs with TableInfo<$AyahsTable, Ayah> {
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES surahs (id)',
-    ),
   );
   static const VerificationMeta _ayahNumberMeta = const VerificationMeta(
     'ayahNumber',
@@ -995,9 +992,6 @@ class $WordsTable extends Words with TableInfo<$WordsTable, Word> {
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES ayahs (id)',
-    ),
   );
   static const VerificationMeta _positionMeta = const VerificationMeta(
     'position',
@@ -1504,9 +1498,6 @@ class $WordTimingsTable extends WordTimings
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES words (id)',
-    ),
   );
   static const VerificationMeta _reciterIdMeta = const VerificationMeta(
     'reciterId',
@@ -2553,9 +2544,6 @@ class $TranslationsTable extends Translations
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES ayahs (id)',
-    ),
   );
   static const VerificationMeta _translatorIdMeta = const VerificationMeta(
     'translatorId',
@@ -2567,9 +2555,6 @@ class $TranslationsTable extends Translations
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES translators (id)',
-    ),
   );
   static const VerificationMeta _languageCodeMeta = const VerificationMeta(
     'languageCode',
@@ -3270,9 +3255,6 @@ class $TafsirsTable extends Tafsirs with TableInfo<$TafsirsTable, Tafsir> {
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES ayahs (id)',
-    ),
   );
   static const VerificationMeta _tafsirSourceIdMeta = const VerificationMeta(
     'tafsirSourceId',
@@ -3284,9 +3266,6 @@ class $TafsirsTable extends Tafsirs with TableInfo<$TafsirsTable, Tafsir> {
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES tafsir_sources (id)',
-    ),
   );
   static const VerificationMeta _textValueMeta = const VerificationMeta(
     'textValue',
@@ -3581,9 +3560,6 @@ class $BookmarksTable extends Bookmarks
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES surahs (id)',
-    ),
   );
   static const VerificationMeta _ayahIdMeta = const VerificationMeta('ayahId');
   @override
@@ -3593,9 +3569,6 @@ class $BookmarksTable extends Bookmarks
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES ayahs (id)',
-    ),
   );
   static const VerificationMeta _ayahNumberMeta = const VerificationMeta(
     'ayahNumber',
@@ -4031,9 +4004,6 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES ayahs (id)',
-    ),
   );
   static const VerificationMeta _textValueMeta = const VerificationMeta(
     'textValue',
@@ -5018,9 +4988,6 @@ class $LearningWordsTable extends LearningWords
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES words (id)',
-    ),
   );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
@@ -6272,48 +6239,6 @@ typedef $$SurahsTableUpdateCompanionBuilder =
       Value<int> orderInMushaf,
     });
 
-final class $$SurahsTableReferences
-    extends BaseReferences<_$AppDatabase, $SurahsTable, Surah> {
-  $$SurahsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static MultiTypedResultKey<$AyahsTable, List<Ayah>> _ayahsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.ayahs,
-    aliasName: $_aliasNameGenerator(db.surahs.id, db.ayahs.surahId),
-  );
-
-  $$AyahsTableProcessedTableManager get ayahsRefs {
-    final manager = $$AyahsTableTableManager(
-      $_db,
-      $_db.ayahs,
-    ).filter((f) => f.surahId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_ayahsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<$BookmarksTable, List<Bookmark>>
-  _bookmarksRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.bookmarks,
-    aliasName: $_aliasNameGenerator(db.surahs.id, db.bookmarks.surahId),
-  );
-
-  $$BookmarksTableProcessedTableManager get bookmarksRefs {
-    final manager = $$BookmarksTableTableManager(
-      $_db,
-      $_db.bookmarks,
-    ).filter((f) => f.surahId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_bookmarksRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
 class $$SurahsTableFilterComposer
     extends Composer<_$AppDatabase, $SurahsTable> {
   $$SurahsTableFilterComposer({
@@ -6357,56 +6282,6 @@ class $$SurahsTableFilterComposer
     column: $table.orderInMushaf,
     builder: (column) => ColumnFilters(column),
   );
-
-  Expression<bool> ayahsRefs(
-    Expression<bool> Function($$AyahsTableFilterComposer f) f,
-  ) {
-    final $$AyahsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.surahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableFilterComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> bookmarksRefs(
-    Expression<bool> Function($$BookmarksTableFilterComposer f) f,
-  ) {
-    final $$BookmarksTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.bookmarks,
-      getReferencedColumn: (t) => t.surahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BookmarksTableFilterComposer(
-            $db: $db,
-            $table: $db.bookmarks,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$SurahsTableOrderingComposer
@@ -6489,56 +6364,6 @@ class $$SurahsTableAnnotationComposer
     column: $table.orderInMushaf,
     builder: (column) => column,
   );
-
-  Expression<T> ayahsRefs<T extends Object>(
-    Expression<T> Function($$AyahsTableAnnotationComposer a) f,
-  ) {
-    final $$AyahsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.surahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<T> bookmarksRefs<T extends Object>(
-    Expression<T> Function($$BookmarksTableAnnotationComposer a) f,
-  ) {
-    final $$BookmarksTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.bookmarks,
-      getReferencedColumn: (t) => t.surahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BookmarksTableAnnotationComposer(
-            $db: $db,
-            $table: $db.bookmarks,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$SurahsTableTableManager
@@ -6552,9 +6377,9 @@ class $$SurahsTableTableManager
           $$SurahsTableAnnotationComposer,
           $$SurahsTableCreateCompanionBuilder,
           $$SurahsTableUpdateCompanionBuilder,
-          (Surah, $$SurahsTableReferences),
+          (Surah, BaseReferences<_$AppDatabase, $SurahsTable, Surah>),
           Surah,
-          PrefetchHooks Function({bool ayahsRefs, bool bookmarksRefs})
+          PrefetchHooks Function()
         > {
   $$SurahsTableTableManager(_$AppDatabase db, $SurahsTable table)
     : super(
@@ -6604,48 +6429,9 @@ class $$SurahsTableTableManager
                 orderInMushaf: orderInMushaf,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) =>
-                    (e.readTable(table), $$SurahsTableReferences(db, table, e)),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({ayahsRefs = false, bookmarksRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (ayahsRefs) db.ayahs,
-                if (bookmarksRefs) db.bookmarks,
-              ],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (ayahsRefs)
-                    await $_getPrefetchedData<Surah, $SurahsTable, Ayah>(
-                      currentTable: table,
-                      referencedTable: $$SurahsTableReferences._ayahsRefsTable(
-                        db,
-                      ),
-                      managerFromTypedResult: (p0) =>
-                          $$SurahsTableReferences(db, table, p0).ayahsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.surahId == item.id),
-                      typedResults: items,
-                    ),
-                  if (bookmarksRefs)
-                    await $_getPrefetchedData<Surah, $SurahsTable, Bookmark>(
-                      currentTable: table,
-                      referencedTable: $$SurahsTableReferences
-                          ._bookmarksRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$SurahsTableReferences(db, table, p0).bookmarksRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.surahId == item.id),
-                      typedResults: items,
-                    ),
-                ];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -6660,9 +6446,9 @@ typedef $$SurahsTableProcessedTableManager =
       $$SurahsTableAnnotationComposer,
       $$SurahsTableCreateCompanionBuilder,
       $$SurahsTableUpdateCompanionBuilder,
-      (Surah, $$SurahsTableReferences),
+      (Surah, BaseReferences<_$AppDatabase, $SurahsTable, Surah>),
       Surah,
-      PrefetchHooks Function({bool ayahsRefs, bool bookmarksRefs})
+      PrefetchHooks Function()
     >;
 typedef $$AyahsTableCreateCompanionBuilder =
     AyahsCompanion Function({
@@ -6687,122 +6473,6 @@ typedef $$AyahsTableUpdateCompanionBuilder =
       Value<String> textNormalized,
     });
 
-final class $$AyahsTableReferences
-    extends BaseReferences<_$AppDatabase, $AyahsTable, Ayah> {
-  $$AyahsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $SurahsTable _surahIdTable(_$AppDatabase db) => db.surahs.createAlias(
-    $_aliasNameGenerator(db.ayahs.surahId, db.surahs.id),
-  );
-
-  $$SurahsTableProcessedTableManager get surahId {
-    final $_column = $_itemColumn<int>('surah_id')!;
-
-    final manager = $$SurahsTableTableManager(
-      $_db,
-      $_db.surahs,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_surahIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static MultiTypedResultKey<$WordsTable, List<Word>> _wordsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.words,
-    aliasName: $_aliasNameGenerator(db.ayahs.id, db.words.ayahId),
-  );
-
-  $$WordsTableProcessedTableManager get wordsRefs {
-    final manager = $$WordsTableTableManager(
-      $_db,
-      $_db.words,
-    ).filter((f) => f.ayahId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_wordsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<$TranslationsTable, List<Translation>>
-  _translationsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.translations,
-    aliasName: $_aliasNameGenerator(db.ayahs.id, db.translations.ayahId),
-  );
-
-  $$TranslationsTableProcessedTableManager get translationsRefs {
-    final manager = $$TranslationsTableTableManager(
-      $_db,
-      $_db.translations,
-    ).filter((f) => f.ayahId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_translationsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<$TafsirsTable, List<Tafsir>> _tafsirsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.tafsirs,
-    aliasName: $_aliasNameGenerator(db.ayahs.id, db.tafsirs.ayahId),
-  );
-
-  $$TafsirsTableProcessedTableManager get tafsirsRefs {
-    final manager = $$TafsirsTableTableManager(
-      $_db,
-      $_db.tafsirs,
-    ).filter((f) => f.ayahId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_tafsirsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<$BookmarksTable, List<Bookmark>>
-  _bookmarksRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.bookmarks,
-    aliasName: $_aliasNameGenerator(db.ayahs.id, db.bookmarks.ayahId),
-  );
-
-  $$BookmarksTableProcessedTableManager get bookmarksRefs {
-    final manager = $$BookmarksTableTableManager(
-      $_db,
-      $_db.bookmarks,
-    ).filter((f) => f.ayahId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_bookmarksRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<$NotesTable, List<Note>> _notesRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.notes,
-    aliasName: $_aliasNameGenerator(db.ayahs.id, db.notes.ayahId),
-  );
-
-  $$NotesTableProcessedTableManager get notesRefs {
-    final manager = $$NotesTableTableManager(
-      $_db,
-      $_db.notes,
-    ).filter((f) => f.ayahId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_notesRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
 class $$AyahsTableFilterComposer extends Composer<_$AppDatabase, $AyahsTable> {
   $$AyahsTableFilterComposer({
     required super.$db,
@@ -6813,6 +6483,11 @@ class $$AyahsTableFilterComposer extends Composer<_$AppDatabase, $AyahsTable> {
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get surahId => $composableBuilder(
+    column: $table.surahId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6845,154 +6520,6 @@ class $$AyahsTableFilterComposer extends Composer<_$AppDatabase, $AyahsTable> {
     column: $table.textNormalized,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$SurahsTableFilterComposer get surahId {
-    final $$SurahsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.surahId,
-      referencedTable: $db.surahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SurahsTableFilterComposer(
-            $db: $db,
-            $table: $db.surahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  Expression<bool> wordsRefs(
-    Expression<bool> Function($$WordsTableFilterComposer f) f,
-  ) {
-    final $$WordsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.words,
-      getReferencedColumn: (t) => t.ayahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$WordsTableFilterComposer(
-            $db: $db,
-            $table: $db.words,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> translationsRefs(
-    Expression<bool> Function($$TranslationsTableFilterComposer f) f,
-  ) {
-    final $$TranslationsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.translations,
-      getReferencedColumn: (t) => t.ayahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TranslationsTableFilterComposer(
-            $db: $db,
-            $table: $db.translations,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> tafsirsRefs(
-    Expression<bool> Function($$TafsirsTableFilterComposer f) f,
-  ) {
-    final $$TafsirsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.tafsirs,
-      getReferencedColumn: (t) => t.ayahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TafsirsTableFilterComposer(
-            $db: $db,
-            $table: $db.tafsirs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> bookmarksRefs(
-    Expression<bool> Function($$BookmarksTableFilterComposer f) f,
-  ) {
-    final $$BookmarksTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.bookmarks,
-      getReferencedColumn: (t) => t.ayahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BookmarksTableFilterComposer(
-            $db: $db,
-            $table: $db.bookmarks,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> notesRefs(
-    Expression<bool> Function($$NotesTableFilterComposer f) f,
-  ) {
-    final $$NotesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.notes,
-      getReferencedColumn: (t) => t.ayahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$NotesTableFilterComposer(
-            $db: $db,
-            $table: $db.notes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$AyahsTableOrderingComposer
@@ -7006,6 +6533,11 @@ class $$AyahsTableOrderingComposer
   });
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get surahId => $composableBuilder(
+    column: $table.surahId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -7038,29 +6570,6 @@ class $$AyahsTableOrderingComposer
     column: $table.textNormalized,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$SurahsTableOrderingComposer get surahId {
-    final $$SurahsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.surahId,
-      referencedTable: $db.surahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SurahsTableOrderingComposer(
-            $db: $db,
-            $table: $db.surahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$AyahsTableAnnotationComposer
@@ -7074,6 +6583,9 @@ class $$AyahsTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get surahId =>
+      $composableBuilder(column: $table.surahId, builder: (column) => column);
 
   GeneratedColumn<int> get ayahNumber => $composableBuilder(
     column: $table.ayahNumber,
@@ -7098,154 +6610,6 @@ class $$AyahsTableAnnotationComposer
     column: $table.textNormalized,
     builder: (column) => column,
   );
-
-  $$SurahsTableAnnotationComposer get surahId {
-    final $$SurahsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.surahId,
-      referencedTable: $db.surahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SurahsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.surahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  Expression<T> wordsRefs<T extends Object>(
-    Expression<T> Function($$WordsTableAnnotationComposer a) f,
-  ) {
-    final $$WordsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.words,
-      getReferencedColumn: (t) => t.ayahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$WordsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.words,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<T> translationsRefs<T extends Object>(
-    Expression<T> Function($$TranslationsTableAnnotationComposer a) f,
-  ) {
-    final $$TranslationsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.translations,
-      getReferencedColumn: (t) => t.ayahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TranslationsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.translations,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<T> tafsirsRefs<T extends Object>(
-    Expression<T> Function($$TafsirsTableAnnotationComposer a) f,
-  ) {
-    final $$TafsirsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.tafsirs,
-      getReferencedColumn: (t) => t.ayahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TafsirsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.tafsirs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<T> bookmarksRefs<T extends Object>(
-    Expression<T> Function($$BookmarksTableAnnotationComposer a) f,
-  ) {
-    final $$BookmarksTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.bookmarks,
-      getReferencedColumn: (t) => t.ayahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$BookmarksTableAnnotationComposer(
-            $db: $db,
-            $table: $db.bookmarks,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<T> notesRefs<T extends Object>(
-    Expression<T> Function($$NotesTableAnnotationComposer a) f,
-  ) {
-    final $$NotesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.notes,
-      getReferencedColumn: (t) => t.ayahId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$NotesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.notes,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$AyahsTableTableManager
@@ -7259,16 +6623,9 @@ class $$AyahsTableTableManager
           $$AyahsTableAnnotationComposer,
           $$AyahsTableCreateCompanionBuilder,
           $$AyahsTableUpdateCompanionBuilder,
-          (Ayah, $$AyahsTableReferences),
+          (Ayah, BaseReferences<_$AppDatabase, $AyahsTable, Ayah>),
           Ayah,
-          PrefetchHooks Function({
-            bool surahId,
-            bool wordsRefs,
-            bool translationsRefs,
-            bool tafsirsRefs,
-            bool bookmarksRefs,
-            bool notesRefs,
-          })
+          PrefetchHooks Function()
         > {
   $$AyahsTableTableManager(_$AppDatabase db, $AyahsTable table)
     : super(
@@ -7322,144 +6679,9 @@ class $$AyahsTableTableManager
                 textNormalized: textNormalized,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) =>
-                    (e.readTable(table), $$AyahsTableReferences(db, table, e)),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback:
-              ({
-                surahId = false,
-                wordsRefs = false,
-                translationsRefs = false,
-                tafsirsRefs = false,
-                bookmarksRefs = false,
-                notesRefs = false,
-              }) {
-                return PrefetchHooks(
-                  db: db,
-                  explicitlyWatchedTables: [
-                    if (wordsRefs) db.words,
-                    if (translationsRefs) db.translations,
-                    if (tafsirsRefs) db.tafsirs,
-                    if (bookmarksRefs) db.bookmarks,
-                    if (notesRefs) db.notes,
-                  ],
-                  addJoins:
-                      <
-                        T extends TableManagerState<
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic
-                        >
-                      >(state) {
-                        if (surahId) {
-                          state =
-                              state.withJoin(
-                                    currentTable: table,
-                                    currentColumn: table.surahId,
-                                    referencedTable: $$AyahsTableReferences
-                                        ._surahIdTable(db),
-                                    referencedColumn: $$AyahsTableReferences
-                                        ._surahIdTable(db)
-                                        .id,
-                                  )
-                                  as T;
-                        }
-
-                        return state;
-                      },
-                  getPrefetchedDataCallback: (items) async {
-                    return [
-                      if (wordsRefs)
-                        await $_getPrefetchedData<Ayah, $AyahsTable, Word>(
-                          currentTable: table,
-                          referencedTable: $$AyahsTableReferences
-                              ._wordsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$AyahsTableReferences(db, table, p0).wordsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.ayahId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (translationsRefs)
-                        await $_getPrefetchedData<
-                          Ayah,
-                          $AyahsTable,
-                          Translation
-                        >(
-                          currentTable: table,
-                          referencedTable: $$AyahsTableReferences
-                              ._translationsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$AyahsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).translationsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.ayahId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (tafsirsRefs)
-                        await $_getPrefetchedData<Ayah, $AyahsTable, Tafsir>(
-                          currentTable: table,
-                          referencedTable: $$AyahsTableReferences
-                              ._tafsirsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$AyahsTableReferences(db, table, p0).tafsirsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.ayahId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (bookmarksRefs)
-                        await $_getPrefetchedData<Ayah, $AyahsTable, Bookmark>(
-                          currentTable: table,
-                          referencedTable: $$AyahsTableReferences
-                              ._bookmarksRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$AyahsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).bookmarksRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.ayahId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (notesRefs)
-                        await $_getPrefetchedData<Ayah, $AyahsTable, Note>(
-                          currentTable: table,
-                          referencedTable: $$AyahsTableReferences
-                              ._notesRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$AyahsTableReferences(db, table, p0).notesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.ayahId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                    ];
-                  },
-                );
-              },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -7474,16 +6696,9 @@ typedef $$AyahsTableProcessedTableManager =
       $$AyahsTableAnnotationComposer,
       $$AyahsTableCreateCompanionBuilder,
       $$AyahsTableUpdateCompanionBuilder,
-      (Ayah, $$AyahsTableReferences),
+      (Ayah, BaseReferences<_$AppDatabase, $AyahsTable, Ayah>),
       Ayah,
-      PrefetchHooks Function({
-        bool surahId,
-        bool wordsRefs,
-        bool translationsRefs,
-        bool tafsirsRefs,
-        bool bookmarksRefs,
-        bool notesRefs,
-      })
+      PrefetchHooks Function()
     >;
 typedef $$WordsTableCreateCompanionBuilder =
     WordsCompanion Function({
@@ -7508,64 +6723,6 @@ typedef $$WordsTableUpdateCompanionBuilder =
       Value<String?> root,
     });
 
-final class $$WordsTableReferences
-    extends BaseReferences<_$AppDatabase, $WordsTable, Word> {
-  $$WordsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $AyahsTable _ayahIdTable(_$AppDatabase db) =>
-      db.ayahs.createAlias($_aliasNameGenerator(db.words.ayahId, db.ayahs.id));
-
-  $$AyahsTableProcessedTableManager get ayahId {
-    final $_column = $_itemColumn<int>('ayah_id')!;
-
-    final manager = $$AyahsTableTableManager(
-      $_db,
-      $_db.ayahs,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_ayahIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static MultiTypedResultKey<$WordTimingsTable, List<WordTiming>>
-  _wordTimingsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.wordTimings,
-    aliasName: $_aliasNameGenerator(db.words.id, db.wordTimings.wordId),
-  );
-
-  $$WordTimingsTableProcessedTableManager get wordTimingsRefs {
-    final manager = $$WordTimingsTableTableManager(
-      $_db,
-      $_db.wordTimings,
-    ).filter((f) => f.wordId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_wordTimingsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<$LearningWordsTable, List<LearningWord>>
-  _learningWordsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.learningWords,
-    aliasName: $_aliasNameGenerator(db.words.id, db.learningWords.wordId),
-  );
-
-  $$LearningWordsTableProcessedTableManager get learningWordsRefs {
-    final manager = $$LearningWordsTableTableManager(
-      $_db,
-      $_db.learningWords,
-    ).filter((f) => f.wordId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_learningWordsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
 class $$WordsTableFilterComposer extends Composer<_$AppDatabase, $WordsTable> {
   $$WordsTableFilterComposer({
     required super.$db,
@@ -7576,6 +6733,11 @@ class $$WordsTableFilterComposer extends Composer<_$AppDatabase, $WordsTable> {
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ayahId => $composableBuilder(
+    column: $table.ayahId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7608,79 +6770,6 @@ class $$WordsTableFilterComposer extends Composer<_$AppDatabase, $WordsTable> {
     column: $table.root,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$AyahsTableFilterComposer get ayahId {
-    final $$AyahsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableFilterComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  Expression<bool> wordTimingsRefs(
-    Expression<bool> Function($$WordTimingsTableFilterComposer f) f,
-  ) {
-    final $$WordTimingsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.wordTimings,
-      getReferencedColumn: (t) => t.wordId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$WordTimingsTableFilterComposer(
-            $db: $db,
-            $table: $db.wordTimings,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<bool> learningWordsRefs(
-    Expression<bool> Function($$LearningWordsTableFilterComposer f) f,
-  ) {
-    final $$LearningWordsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.learningWords,
-      getReferencedColumn: (t) => t.wordId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$LearningWordsTableFilterComposer(
-            $db: $db,
-            $table: $db.learningWords,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$WordsTableOrderingComposer
@@ -7694,6 +6783,11 @@ class $$WordsTableOrderingComposer
   });
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ayahId => $composableBuilder(
+    column: $table.ayahId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -7726,29 +6820,6 @@ class $$WordsTableOrderingComposer
     column: $table.root,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$AyahsTableOrderingComposer get ayahId {
-    final $$AyahsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableOrderingComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$WordsTableAnnotationComposer
@@ -7762,6 +6833,9 @@ class $$WordsTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get ayahId =>
+      $composableBuilder(column: $table.ayahId, builder: (column) => column);
 
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
@@ -7784,79 +6858,6 @@ class $$WordsTableAnnotationComposer
 
   GeneratedColumn<String> get root =>
       $composableBuilder(column: $table.root, builder: (column) => column);
-
-  $$AyahsTableAnnotationComposer get ayahId {
-    final $$AyahsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  Expression<T> wordTimingsRefs<T extends Object>(
-    Expression<T> Function($$WordTimingsTableAnnotationComposer a) f,
-  ) {
-    final $$WordTimingsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.wordTimings,
-      getReferencedColumn: (t) => t.wordId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$WordTimingsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.wordTimings,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
-  Expression<T> learningWordsRefs<T extends Object>(
-    Expression<T> Function($$LearningWordsTableAnnotationComposer a) f,
-  ) {
-    final $$LearningWordsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.learningWords,
-      getReferencedColumn: (t) => t.wordId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$LearningWordsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.learningWords,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$WordsTableTableManager
@@ -7870,13 +6871,9 @@ class $$WordsTableTableManager
           $$WordsTableAnnotationComposer,
           $$WordsTableCreateCompanionBuilder,
           $$WordsTableUpdateCompanionBuilder,
-          (Word, $$WordsTableReferences),
+          (Word, BaseReferences<_$AppDatabase, $WordsTable, Word>),
           Word,
-          PrefetchHooks Function({
-            bool ayahId,
-            bool wordTimingsRefs,
-            bool learningWordsRefs,
-          })
+          PrefetchHooks Function()
         > {
   $$WordsTableTableManager(_$AppDatabase db, $WordsTable table)
     : super(
@@ -7930,103 +6927,9 @@ class $$WordsTableTableManager
                 root: root,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) =>
-                    (e.readTable(table), $$WordsTableReferences(db, table, e)),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback:
-              ({
-                ayahId = false,
-                wordTimingsRefs = false,
-                learningWordsRefs = false,
-              }) {
-                return PrefetchHooks(
-                  db: db,
-                  explicitlyWatchedTables: [
-                    if (wordTimingsRefs) db.wordTimings,
-                    if (learningWordsRefs) db.learningWords,
-                  ],
-                  addJoins:
-                      <
-                        T extends TableManagerState<
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic
-                        >
-                      >(state) {
-                        if (ayahId) {
-                          state =
-                              state.withJoin(
-                                    currentTable: table,
-                                    currentColumn: table.ayahId,
-                                    referencedTable: $$WordsTableReferences
-                                        ._ayahIdTable(db),
-                                    referencedColumn: $$WordsTableReferences
-                                        ._ayahIdTable(db)
-                                        .id,
-                                  )
-                                  as T;
-                        }
-
-                        return state;
-                      },
-                  getPrefetchedDataCallback: (items) async {
-                    return [
-                      if (wordTimingsRefs)
-                        await $_getPrefetchedData<
-                          Word,
-                          $WordsTable,
-                          WordTiming
-                        >(
-                          currentTable: table,
-                          referencedTable: $$WordsTableReferences
-                              ._wordTimingsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$WordsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).wordTimingsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.wordId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (learningWordsRefs)
-                        await $_getPrefetchedData<
-                          Word,
-                          $WordsTable,
-                          LearningWord
-                        >(
-                          currentTable: table,
-                          referencedTable: $$WordsTableReferences
-                              ._learningWordsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$WordsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).learningWordsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.wordId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                    ];
-                  },
-                );
-              },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -8041,13 +6944,9 @@ typedef $$WordsTableProcessedTableManager =
       $$WordsTableAnnotationComposer,
       $$WordsTableCreateCompanionBuilder,
       $$WordsTableUpdateCompanionBuilder,
-      (Word, $$WordsTableReferences),
+      (Word, BaseReferences<_$AppDatabase, $WordsTable, Word>),
       Word,
-      PrefetchHooks Function({
-        bool ayahId,
-        bool wordTimingsRefs,
-        bool learningWordsRefs,
-      })
+      PrefetchHooks Function()
     >;
 typedef $$WordTimingsTableCreateCompanionBuilder =
     WordTimingsCompanion Function({
@@ -8066,29 +6965,6 @@ typedef $$WordTimingsTableUpdateCompanionBuilder =
       Value<int> endMs,
     });
 
-final class $$WordTimingsTableReferences
-    extends BaseReferences<_$AppDatabase, $WordTimingsTable, WordTiming> {
-  $$WordTimingsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $WordsTable _wordIdTable(_$AppDatabase db) => db.words.createAlias(
-    $_aliasNameGenerator(db.wordTimings.wordId, db.words.id),
-  );
-
-  $$WordsTableProcessedTableManager get wordId {
-    final $_column = $_itemColumn<int>('word_id')!;
-
-    final manager = $$WordsTableTableManager(
-      $_db,
-      $_db.words,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_wordIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
 class $$WordTimingsTableFilterComposer
     extends Composer<_$AppDatabase, $WordTimingsTable> {
   $$WordTimingsTableFilterComposer({
@@ -8100,6 +6976,11 @@ class $$WordTimingsTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get wordId => $composableBuilder(
+    column: $table.wordId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8117,29 +6998,6 @@ class $$WordTimingsTableFilterComposer
     column: $table.endMs,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$WordsTableFilterComposer get wordId {
-    final $$WordsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.wordId,
-      referencedTable: $db.words,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$WordsTableFilterComposer(
-            $db: $db,
-            $table: $db.words,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$WordTimingsTableOrderingComposer
@@ -8153,6 +7011,11 @@ class $$WordTimingsTableOrderingComposer
   });
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get wordId => $composableBuilder(
+    column: $table.wordId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -8170,29 +7033,6 @@ class $$WordTimingsTableOrderingComposer
     column: $table.endMs,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$WordsTableOrderingComposer get wordId {
-    final $$WordsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.wordId,
-      referencedTable: $db.words,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$WordsTableOrderingComposer(
-            $db: $db,
-            $table: $db.words,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$WordTimingsTableAnnotationComposer
@@ -8207,6 +7047,9 @@ class $$WordTimingsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<int> get wordId =>
+      $composableBuilder(column: $table.wordId, builder: (column) => column);
+
   GeneratedColumn<String> get reciterId =>
       $composableBuilder(column: $table.reciterId, builder: (column) => column);
 
@@ -8215,29 +7058,6 @@ class $$WordTimingsTableAnnotationComposer
 
   GeneratedColumn<int> get endMs =>
       $composableBuilder(column: $table.endMs, builder: (column) => column);
-
-  $$WordsTableAnnotationComposer get wordId {
-    final $$WordsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.wordId,
-      referencedTable: $db.words,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$WordsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.words,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$WordTimingsTableTableManager
@@ -8251,9 +7071,12 @@ class $$WordTimingsTableTableManager
           $$WordTimingsTableAnnotationComposer,
           $$WordTimingsTableCreateCompanionBuilder,
           $$WordTimingsTableUpdateCompanionBuilder,
-          (WordTiming, $$WordTimingsTableReferences),
+          (
+            WordTiming,
+            BaseReferences<_$AppDatabase, $WordTimingsTable, WordTiming>,
+          ),
           WordTiming,
-          PrefetchHooks Function({bool wordId})
+          PrefetchHooks Function()
         > {
   $$WordTimingsTableTableManager(_$AppDatabase db, $WordTimingsTable table)
     : super(
@@ -8295,54 +7118,9 @@ class $$WordTimingsTableTableManager
                 endMs: endMs,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$WordTimingsTableReferences(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({wordId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (wordId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.wordId,
-                                referencedTable: $$WordTimingsTableReferences
-                                    ._wordIdTable(db),
-                                referencedColumn: $$WordTimingsTableReferences
-                                    ._wordIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -8357,9 +7135,12 @@ typedef $$WordTimingsTableProcessedTableManager =
       $$WordTimingsTableAnnotationComposer,
       $$WordTimingsTableCreateCompanionBuilder,
       $$WordTimingsTableUpdateCompanionBuilder,
-      (WordTiming, $$WordTimingsTableReferences),
+      (
+        WordTiming,
+        BaseReferences<_$AppDatabase, $WordTimingsTable, WordTiming>,
+      ),
       WordTiming,
-      PrefetchHooks Function({bool wordId})
+      PrefetchHooks Function()
     >;
 typedef $$RecitersTableCreateCompanionBuilder =
     RecitersCompanion Function({
@@ -8591,32 +7372,6 @@ typedef $$TranslatorsTableUpdateCompanionBuilder =
       Value<String> source,
     });
 
-final class $$TranslatorsTableReferences
-    extends BaseReferences<_$AppDatabase, $TranslatorsTable, Translator> {
-  $$TranslatorsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static MultiTypedResultKey<$TranslationsTable, List<Translation>>
-  _translationsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.translations,
-    aliasName: $_aliasNameGenerator(
-      db.translators.id,
-      db.translations.translatorId,
-    ),
-  );
-
-  $$TranslationsTableProcessedTableManager get translationsRefs {
-    final manager = $$TranslationsTableTableManager(
-      $_db,
-      $_db.translations,
-    ).filter((f) => f.translatorId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_translationsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
 class $$TranslatorsTableFilterComposer
     extends Composer<_$AppDatabase, $TranslatorsTable> {
   $$TranslatorsTableFilterComposer({
@@ -8645,31 +7400,6 @@ class $$TranslatorsTableFilterComposer
     column: $table.source,
     builder: (column) => ColumnFilters(column),
   );
-
-  Expression<bool> translationsRefs(
-    Expression<bool> Function($$TranslationsTableFilterComposer f) f,
-  ) {
-    final $$TranslationsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.translations,
-      getReferencedColumn: (t) => t.translatorId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TranslationsTableFilterComposer(
-            $db: $db,
-            $table: $db.translations,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$TranslatorsTableOrderingComposer
@@ -8724,31 +7454,6 @@ class $$TranslatorsTableAnnotationComposer
 
   GeneratedColumn<String> get source =>
       $composableBuilder(column: $table.source, builder: (column) => column);
-
-  Expression<T> translationsRefs<T extends Object>(
-    Expression<T> Function($$TranslationsTableAnnotationComposer a) f,
-  ) {
-    final $$TranslationsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.translations,
-      getReferencedColumn: (t) => t.translatorId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TranslationsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.translations,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$TranslatorsTableTableManager
@@ -8762,9 +7467,12 @@ class $$TranslatorsTableTableManager
           $$TranslatorsTableAnnotationComposer,
           $$TranslatorsTableCreateCompanionBuilder,
           $$TranslatorsTableUpdateCompanionBuilder,
-          (Translator, $$TranslatorsTableReferences),
+          (
+            Translator,
+            BaseReferences<_$AppDatabase, $TranslatorsTable, Translator>,
+          ),
           Translator,
-          PrefetchHooks Function({bool translationsRefs})
+          PrefetchHooks Function()
         > {
   $$TranslatorsTableTableManager(_$AppDatabase db, $TranslatorsTable table)
     : super(
@@ -8802,45 +7510,9 @@ class $$TranslatorsTableTableManager
                 source: source,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$TranslatorsTableReferences(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({translationsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (translationsRefs) db.translations],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (translationsRefs)
-                    await $_getPrefetchedData<
-                      Translator,
-                      $TranslatorsTable,
-                      Translation
-                    >(
-                      currentTable: table,
-                      referencedTable: $$TranslatorsTableReferences
-                          ._translationsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$TranslatorsTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).translationsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where(
-                            (e) => e.translatorId == item.id,
-                          ),
-                      typedResults: items,
-                    ),
-                ];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -8855,9 +7527,12 @@ typedef $$TranslatorsTableProcessedTableManager =
       $$TranslatorsTableAnnotationComposer,
       $$TranslatorsTableCreateCompanionBuilder,
       $$TranslatorsTableUpdateCompanionBuilder,
-      (Translator, $$TranslatorsTableReferences),
+      (
+        Translator,
+        BaseReferences<_$AppDatabase, $TranslatorsTable, Translator>,
+      ),
       Translator,
-      PrefetchHooks Function({bool translationsRefs})
+      PrefetchHooks Function()
     >;
 typedef $$TranslationsTableCreateCompanionBuilder =
     TranslationsCompanion Function({
@@ -8876,48 +7551,6 @@ typedef $$TranslationsTableUpdateCompanionBuilder =
       Value<String> textValue,
     });
 
-final class $$TranslationsTableReferences
-    extends BaseReferences<_$AppDatabase, $TranslationsTable, Translation> {
-  $$TranslationsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $AyahsTable _ayahIdTable(_$AppDatabase db) => db.ayahs.createAlias(
-    $_aliasNameGenerator(db.translations.ayahId, db.ayahs.id),
-  );
-
-  $$AyahsTableProcessedTableManager get ayahId {
-    final $_column = $_itemColumn<int>('ayah_id')!;
-
-    final manager = $$AyahsTableTableManager(
-      $_db,
-      $_db.ayahs,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_ayahIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static $TranslatorsTable _translatorIdTable(_$AppDatabase db) =>
-      db.translators.createAlias(
-        $_aliasNameGenerator(db.translations.translatorId, db.translators.id),
-      );
-
-  $$TranslatorsTableProcessedTableManager get translatorId {
-    final $_column = $_itemColumn<int>('translator_id')!;
-
-    final manager = $$TranslatorsTableTableManager(
-      $_db,
-      $_db.translators,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_translatorIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
 class $$TranslationsTableFilterComposer
     extends Composer<_$AppDatabase, $TranslationsTable> {
   $$TranslationsTableFilterComposer({
@@ -8932,6 +7565,16 @@ class $$TranslationsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get ayahId => $composableBuilder(
+    column: $table.ayahId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get translatorId => $composableBuilder(
+    column: $table.translatorId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get languageCode => $composableBuilder(
     column: $table.languageCode,
     builder: (column) => ColumnFilters(column),
@@ -8941,52 +7584,6 @@ class $$TranslationsTableFilterComposer
     column: $table.textValue,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$AyahsTableFilterComposer get ayahId {
-    final $$AyahsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableFilterComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$TranslatorsTableFilterComposer get translatorId {
-    final $$TranslatorsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.translatorId,
-      referencedTable: $db.translators,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TranslatorsTableFilterComposer(
-            $db: $db,
-            $table: $db.translators,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$TranslationsTableOrderingComposer
@@ -9003,6 +7600,16 @@ class $$TranslationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get ayahId => $composableBuilder(
+    column: $table.ayahId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get translatorId => $composableBuilder(
+    column: $table.translatorId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get languageCode => $composableBuilder(
     column: $table.languageCode,
     builder: (column) => ColumnOrderings(column),
@@ -9012,52 +7619,6 @@ class $$TranslationsTableOrderingComposer
     column: $table.textValue,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$AyahsTableOrderingComposer get ayahId {
-    final $$AyahsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableOrderingComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$TranslatorsTableOrderingComposer get translatorId {
-    final $$TranslatorsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.translatorId,
-      referencedTable: $db.translators,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TranslatorsTableOrderingComposer(
-            $db: $db,
-            $table: $db.translators,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$TranslationsTableAnnotationComposer
@@ -9072,6 +7633,14 @@ class $$TranslationsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<int> get ayahId =>
+      $composableBuilder(column: $table.ayahId, builder: (column) => column);
+
+  GeneratedColumn<int> get translatorId => $composableBuilder(
+    column: $table.translatorId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get languageCode => $composableBuilder(
     column: $table.languageCode,
     builder: (column) => column,
@@ -9079,52 +7648,6 @@ class $$TranslationsTableAnnotationComposer
 
   GeneratedColumn<String> get textValue =>
       $composableBuilder(column: $table.textValue, builder: (column) => column);
-
-  $$AyahsTableAnnotationComposer get ayahId {
-    final $$AyahsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$TranslatorsTableAnnotationComposer get translatorId {
-    final $$TranslatorsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.translatorId,
-      referencedTable: $db.translators,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TranslatorsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.translators,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$TranslationsTableTableManager
@@ -9138,9 +7661,12 @@ class $$TranslationsTableTableManager
           $$TranslationsTableAnnotationComposer,
           $$TranslationsTableCreateCompanionBuilder,
           $$TranslationsTableUpdateCompanionBuilder,
-          (Translation, $$TranslationsTableReferences),
+          (
+            Translation,
+            BaseReferences<_$AppDatabase, $TranslationsTable, Translation>,
+          ),
           Translation,
-          PrefetchHooks Function({bool ayahId, bool translatorId})
+          PrefetchHooks Function()
         > {
   $$TranslationsTableTableManager(_$AppDatabase db, $TranslationsTable table)
     : super(
@@ -9182,67 +7708,9 @@ class $$TranslationsTableTableManager
                 textValue: textValue,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$TranslationsTableReferences(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({ayahId = false, translatorId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (ayahId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.ayahId,
-                                referencedTable: $$TranslationsTableReferences
-                                    ._ayahIdTable(db),
-                                referencedColumn: $$TranslationsTableReferences
-                                    ._ayahIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-                    if (translatorId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.translatorId,
-                                referencedTable: $$TranslationsTableReferences
-                                    ._translatorIdTable(db),
-                                referencedColumn: $$TranslationsTableReferences
-                                    ._translatorIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -9257,9 +7725,12 @@ typedef $$TranslationsTableProcessedTableManager =
       $$TranslationsTableAnnotationComposer,
       $$TranslationsTableCreateCompanionBuilder,
       $$TranslationsTableUpdateCompanionBuilder,
-      (Translation, $$TranslationsTableReferences),
+      (
+        Translation,
+        BaseReferences<_$AppDatabase, $TranslationsTable, Translation>,
+      ),
       Translation,
-      PrefetchHooks Function({bool ayahId, bool translatorId})
+      PrefetchHooks Function()
     >;
 typedef $$TafsirSourcesTableCreateCompanionBuilder =
     TafsirSourcesCompanion Function({
@@ -9277,37 +7748,6 @@ typedef $$TafsirSourcesTableUpdateCompanionBuilder =
       Value<String> nameEn,
       Value<String> languageCode,
     });
-
-final class $$TafsirSourcesTableReferences
-    extends BaseReferences<_$AppDatabase, $TafsirSourcesTable, TafsirSource> {
-  $$TafsirSourcesTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static MultiTypedResultKey<$TafsirsTable, List<Tafsir>> _tafsirsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.tafsirs,
-    aliasName: $_aliasNameGenerator(
-      db.tafsirSources.id,
-      db.tafsirs.tafsirSourceId,
-    ),
-  );
-
-  $$TafsirsTableProcessedTableManager get tafsirsRefs {
-    final manager = $$TafsirsTableTableManager(
-      $_db,
-      $_db.tafsirs,
-    ).filter((f) => f.tafsirSourceId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_tafsirsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
 
 class $$TafsirSourcesTableFilterComposer
     extends Composer<_$AppDatabase, $TafsirSourcesTable> {
@@ -9342,31 +7782,6 @@ class $$TafsirSourcesTableFilterComposer
     column: $table.languageCode,
     builder: (column) => ColumnFilters(column),
   );
-
-  Expression<bool> tafsirsRefs(
-    Expression<bool> Function($$TafsirsTableFilterComposer f) f,
-  ) {
-    final $$TafsirsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.tafsirs,
-      getReferencedColumn: (t) => t.tafsirSourceId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TafsirsTableFilterComposer(
-            $db: $db,
-            $table: $db.tafsirs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$TafsirSourcesTableOrderingComposer
@@ -9429,31 +7844,6 @@ class $$TafsirSourcesTableAnnotationComposer
     column: $table.languageCode,
     builder: (column) => column,
   );
-
-  Expression<T> tafsirsRefs<T extends Object>(
-    Expression<T> Function($$TafsirsTableAnnotationComposer a) f,
-  ) {
-    final $$TafsirsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.tafsirs,
-      getReferencedColumn: (t) => t.tafsirSourceId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TafsirsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.tafsirs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$TafsirSourcesTableTableManager
@@ -9467,9 +7857,12 @@ class $$TafsirSourcesTableTableManager
           $$TafsirSourcesTableAnnotationComposer,
           $$TafsirSourcesTableCreateCompanionBuilder,
           $$TafsirSourcesTableUpdateCompanionBuilder,
-          (TafsirSource, $$TafsirSourcesTableReferences),
+          (
+            TafsirSource,
+            BaseReferences<_$AppDatabase, $TafsirSourcesTable, TafsirSource>,
+          ),
           TafsirSource,
-          PrefetchHooks Function({bool tafsirsRefs})
+          PrefetchHooks Function()
         > {
   $$TafsirSourcesTableTableManager(_$AppDatabase db, $TafsirSourcesTable table)
     : super(
@@ -9511,45 +7904,9 @@ class $$TafsirSourcesTableTableManager
                 languageCode: languageCode,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$TafsirSourcesTableReferences(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({tafsirsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (tafsirsRefs) db.tafsirs],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (tafsirsRefs)
-                    await $_getPrefetchedData<
-                      TafsirSource,
-                      $TafsirSourcesTable,
-                      Tafsir
-                    >(
-                      currentTable: table,
-                      referencedTable: $$TafsirSourcesTableReferences
-                          ._tafsirsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$TafsirSourcesTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).tafsirsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where(
-                            (e) => e.tafsirSourceId == item.id,
-                          ),
-                      typedResults: items,
-                    ),
-                ];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -9564,9 +7921,12 @@ typedef $$TafsirSourcesTableProcessedTableManager =
       $$TafsirSourcesTableAnnotationComposer,
       $$TafsirSourcesTableCreateCompanionBuilder,
       $$TafsirSourcesTableUpdateCompanionBuilder,
-      (TafsirSource, $$TafsirSourcesTableReferences),
+      (
+        TafsirSource,
+        BaseReferences<_$AppDatabase, $TafsirSourcesTable, TafsirSource>,
+      ),
       TafsirSource,
-      PrefetchHooks Function({bool tafsirsRefs})
+      PrefetchHooks Function()
     >;
 typedef $$TafsirsTableCreateCompanionBuilder =
     TafsirsCompanion Function({
@@ -9583,48 +7943,6 @@ typedef $$TafsirsTableUpdateCompanionBuilder =
       Value<String> textValue,
     });
 
-final class $$TafsirsTableReferences
-    extends BaseReferences<_$AppDatabase, $TafsirsTable, Tafsir> {
-  $$TafsirsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $AyahsTable _ayahIdTable(_$AppDatabase db) => db.ayahs.createAlias(
-    $_aliasNameGenerator(db.tafsirs.ayahId, db.ayahs.id),
-  );
-
-  $$AyahsTableProcessedTableManager get ayahId {
-    final $_column = $_itemColumn<int>('ayah_id')!;
-
-    final manager = $$AyahsTableTableManager(
-      $_db,
-      $_db.ayahs,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_ayahIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static $TafsirSourcesTable _tafsirSourceIdTable(_$AppDatabase db) =>
-      db.tafsirSources.createAlias(
-        $_aliasNameGenerator(db.tafsirs.tafsirSourceId, db.tafsirSources.id),
-      );
-
-  $$TafsirSourcesTableProcessedTableManager get tafsirSourceId {
-    final $_column = $_itemColumn<int>('tafsir_source_id')!;
-
-    final manager = $$TafsirSourcesTableTableManager(
-      $_db,
-      $_db.tafsirSources,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_tafsirSourceIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
 class $$TafsirsTableFilterComposer
     extends Composer<_$AppDatabase, $TafsirsTable> {
   $$TafsirsTableFilterComposer({
@@ -9639,56 +7957,20 @@ class $$TafsirsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get ayahId => $composableBuilder(
+    column: $table.ayahId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tafsirSourceId => $composableBuilder(
+    column: $table.tafsirSourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get textValue => $composableBuilder(
     column: $table.textValue,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$AyahsTableFilterComposer get ayahId {
-    final $$AyahsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableFilterComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$TafsirSourcesTableFilterComposer get tafsirSourceId {
-    final $$TafsirSourcesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.tafsirSourceId,
-      referencedTable: $db.tafsirSources,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TafsirSourcesTableFilterComposer(
-            $db: $db,
-            $table: $db.tafsirSources,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$TafsirsTableOrderingComposer
@@ -9705,56 +7987,20 @@ class $$TafsirsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get ayahId => $composableBuilder(
+    column: $table.ayahId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tafsirSourceId => $composableBuilder(
+    column: $table.tafsirSourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get textValue => $composableBuilder(
     column: $table.textValue,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$AyahsTableOrderingComposer get ayahId {
-    final $$AyahsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableOrderingComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$TafsirSourcesTableOrderingComposer get tafsirSourceId {
-    final $$TafsirSourcesTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.tafsirSourceId,
-      referencedTable: $db.tafsirSources,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TafsirSourcesTableOrderingComposer(
-            $db: $db,
-            $table: $db.tafsirSources,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$TafsirsTableAnnotationComposer
@@ -9769,54 +8015,16 @@ class $$TafsirsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<int> get ayahId =>
+      $composableBuilder(column: $table.ayahId, builder: (column) => column);
+
+  GeneratedColumn<int> get tafsirSourceId => $composableBuilder(
+    column: $table.tafsirSourceId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get textValue =>
       $composableBuilder(column: $table.textValue, builder: (column) => column);
-
-  $$AyahsTableAnnotationComposer get ayahId {
-    final $$AyahsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$TafsirSourcesTableAnnotationComposer get tafsirSourceId {
-    final $$TafsirSourcesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.tafsirSourceId,
-      referencedTable: $db.tafsirSources,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$TafsirSourcesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.tafsirSources,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$TafsirsTableTableManager
@@ -9830,9 +8038,9 @@ class $$TafsirsTableTableManager
           $$TafsirsTableAnnotationComposer,
           $$TafsirsTableCreateCompanionBuilder,
           $$TafsirsTableUpdateCompanionBuilder,
-          (Tafsir, $$TafsirsTableReferences),
+          (Tafsir, BaseReferences<_$AppDatabase, $TafsirsTable, Tafsir>),
           Tafsir,
-          PrefetchHooks Function({bool ayahId, bool tafsirSourceId})
+          PrefetchHooks Function()
         > {
   $$TafsirsTableTableManager(_$AppDatabase db, $TafsirsTable table)
     : super(
@@ -9870,67 +8078,9 @@ class $$TafsirsTableTableManager
                 textValue: textValue,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$TafsirsTableReferences(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({ayahId = false, tafsirSourceId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (ayahId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.ayahId,
-                                referencedTable: $$TafsirsTableReferences
-                                    ._ayahIdTable(db),
-                                referencedColumn: $$TafsirsTableReferences
-                                    ._ayahIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-                    if (tafsirSourceId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.tafsirSourceId,
-                                referencedTable: $$TafsirsTableReferences
-                                    ._tafsirSourceIdTable(db),
-                                referencedColumn: $$TafsirsTableReferences
-                                    ._tafsirSourceIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -9945,9 +8095,9 @@ typedef $$TafsirsTableProcessedTableManager =
       $$TafsirsTableAnnotationComposer,
       $$TafsirsTableCreateCompanionBuilder,
       $$TafsirsTableUpdateCompanionBuilder,
-      (Tafsir, $$TafsirsTableReferences),
+      (Tafsir, BaseReferences<_$AppDatabase, $TafsirsTable, Tafsir>),
       Tafsir,
-      PrefetchHooks Function({bool ayahId, bool tafsirSourceId})
+      PrefetchHooks Function()
     >;
 typedef $$BookmarksTableCreateCompanionBuilder =
     BookmarksCompanion Function({
@@ -9970,47 +8120,6 @@ typedef $$BookmarksTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
     });
 
-final class $$BookmarksTableReferences
-    extends BaseReferences<_$AppDatabase, $BookmarksTable, Bookmark> {
-  $$BookmarksTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $SurahsTable _surahIdTable(_$AppDatabase db) => db.surahs.createAlias(
-    $_aliasNameGenerator(db.bookmarks.surahId, db.surahs.id),
-  );
-
-  $$SurahsTableProcessedTableManager get surahId {
-    final $_column = $_itemColumn<int>('surah_id')!;
-
-    final manager = $$SurahsTableTableManager(
-      $_db,
-      $_db.surahs,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_surahIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
-  static $AyahsTable _ayahIdTable(_$AppDatabase db) => db.ayahs.createAlias(
-    $_aliasNameGenerator(db.bookmarks.ayahId, db.ayahs.id),
-  );
-
-  $$AyahsTableProcessedTableManager get ayahId {
-    final $_column = $_itemColumn<int>('ayah_id')!;
-
-    final manager = $$AyahsTableTableManager(
-      $_db,
-      $_db.ayahs,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_ayahIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
 class $$BookmarksTableFilterComposer
     extends Composer<_$AppDatabase, $BookmarksTable> {
   $$BookmarksTableFilterComposer({
@@ -10022,6 +8131,16 @@ class $$BookmarksTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get surahId => $composableBuilder(
+    column: $table.surahId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ayahId => $composableBuilder(
+    column: $table.ayahId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10044,52 +8163,6 @@ class $$BookmarksTableFilterComposer
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$SurahsTableFilterComposer get surahId {
-    final $$SurahsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.surahId,
-      referencedTable: $db.surahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SurahsTableFilterComposer(
-            $db: $db,
-            $table: $db.surahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$AyahsTableFilterComposer get ayahId {
-    final $$AyahsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableFilterComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$BookmarksTableOrderingComposer
@@ -10103,6 +8176,16 @@ class $$BookmarksTableOrderingComposer
   });
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get surahId => $composableBuilder(
+    column: $table.surahId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ayahId => $composableBuilder(
+    column: $table.ayahId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -10125,52 +8208,6 @@ class $$BookmarksTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$SurahsTableOrderingComposer get surahId {
-    final $$SurahsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.surahId,
-      referencedTable: $db.surahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SurahsTableOrderingComposer(
-            $db: $db,
-            $table: $db.surahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$AyahsTableOrderingComposer get ayahId {
-    final $$AyahsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableOrderingComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$BookmarksTableAnnotationComposer
@@ -10185,6 +8222,12 @@ class $$BookmarksTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<int> get surahId =>
+      $composableBuilder(column: $table.surahId, builder: (column) => column);
+
+  GeneratedColumn<int> get ayahId =>
+      $composableBuilder(column: $table.ayahId, builder: (column) => column);
+
   GeneratedColumn<int> get ayahNumber => $composableBuilder(
     column: $table.ayahNumber,
     builder: (column) => column,
@@ -10198,52 +8241,6 @@ class $$BookmarksTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  $$SurahsTableAnnotationComposer get surahId {
-    final $$SurahsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.surahId,
-      referencedTable: $db.surahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$SurahsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.surahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $$AyahsTableAnnotationComposer get ayahId {
-    final $$AyahsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$BookmarksTableTableManager
@@ -10257,9 +8254,9 @@ class $$BookmarksTableTableManager
           $$BookmarksTableAnnotationComposer,
           $$BookmarksTableCreateCompanionBuilder,
           $$BookmarksTableUpdateCompanionBuilder,
-          (Bookmark, $$BookmarksTableReferences),
+          (Bookmark, BaseReferences<_$AppDatabase, $BookmarksTable, Bookmark>),
           Bookmark,
-          PrefetchHooks Function({bool surahId, bool ayahId})
+          PrefetchHooks Function()
         > {
   $$BookmarksTableTableManager(_$AppDatabase db, $BookmarksTable table)
     : super(
@@ -10309,67 +8306,9 @@ class $$BookmarksTableTableManager
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$BookmarksTableReferences(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({surahId = false, ayahId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (surahId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.surahId,
-                                referencedTable: $$BookmarksTableReferences
-                                    ._surahIdTable(db),
-                                referencedColumn: $$BookmarksTableReferences
-                                    ._surahIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-                    if (ayahId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.ayahId,
-                                referencedTable: $$BookmarksTableReferences
-                                    ._ayahIdTable(db),
-                                referencedColumn: $$BookmarksTableReferences
-                                    ._ayahIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -10384,9 +8323,9 @@ typedef $$BookmarksTableProcessedTableManager =
       $$BookmarksTableAnnotationComposer,
       $$BookmarksTableCreateCompanionBuilder,
       $$BookmarksTableUpdateCompanionBuilder,
-      (Bookmark, $$BookmarksTableReferences),
+      (Bookmark, BaseReferences<_$AppDatabase, $BookmarksTable, Bookmark>),
       Bookmark,
-      PrefetchHooks Function({bool surahId, bool ayahId})
+      PrefetchHooks Function()
     >;
 typedef $$NotesTableCreateCompanionBuilder =
     NotesCompanion Function({
@@ -10405,28 +8344,6 @@ typedef $$NotesTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
     });
 
-final class $$NotesTableReferences
-    extends BaseReferences<_$AppDatabase, $NotesTable, Note> {
-  $$NotesTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $AyahsTable _ayahIdTable(_$AppDatabase db) =>
-      db.ayahs.createAlias($_aliasNameGenerator(db.notes.ayahId, db.ayahs.id));
-
-  $$AyahsTableProcessedTableManager get ayahId {
-    final $_column = $_itemColumn<int>('ayah_id')!;
-
-    final manager = $$AyahsTableTableManager(
-      $_db,
-      $_db.ayahs,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_ayahIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
 class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
   $$NotesTableFilterComposer({
     required super.$db,
@@ -10437,6 +8354,11 @@ class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ayahId => $composableBuilder(
+    column: $table.ayahId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10454,29 +8376,6 @@ class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$AyahsTableFilterComposer get ayahId {
-    final $$AyahsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableFilterComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$NotesTableOrderingComposer
@@ -10490,6 +8389,11 @@ class $$NotesTableOrderingComposer
   });
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ayahId => $composableBuilder(
+    column: $table.ayahId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -10507,29 +8411,6 @@ class $$NotesTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$AyahsTableOrderingComposer get ayahId {
-    final $$AyahsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableOrderingComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$NotesTableAnnotationComposer
@@ -10544,6 +8425,9 @@ class $$NotesTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<int> get ayahId =>
+      $composableBuilder(column: $table.ayahId, builder: (column) => column);
+
   GeneratedColumn<String> get textValue =>
       $composableBuilder(column: $table.textValue, builder: (column) => column);
 
@@ -10552,29 +8436,6 @@ class $$NotesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-
-  $$AyahsTableAnnotationComposer get ayahId {
-    final $$AyahsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.ayahId,
-      referencedTable: $db.ayahs,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$AyahsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.ayahs,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$NotesTableTableManager
@@ -10588,9 +8449,9 @@ class $$NotesTableTableManager
           $$NotesTableAnnotationComposer,
           $$NotesTableCreateCompanionBuilder,
           $$NotesTableUpdateCompanionBuilder,
-          (Note, $$NotesTableReferences),
+          (Note, BaseReferences<_$AppDatabase, $NotesTable, Note>),
           Note,
-          PrefetchHooks Function({bool ayahId})
+          PrefetchHooks Function()
         > {
   $$NotesTableTableManager(_$AppDatabase db, $NotesTable table)
     : super(
@@ -10632,52 +8493,9 @@ class $$NotesTableTableManager
                 updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) =>
-                    (e.readTable(table), $$NotesTableReferences(db, table, e)),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({ayahId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (ayahId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.ayahId,
-                                referencedTable: $$NotesTableReferences
-                                    ._ayahIdTable(db),
-                                referencedColumn: $$NotesTableReferences
-                                    ._ayahIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -10692,9 +8510,9 @@ typedef $$NotesTableProcessedTableManager =
       $$NotesTableAnnotationComposer,
       $$NotesTableCreateCompanionBuilder,
       $$NotesTableUpdateCompanionBuilder,
-      (Note, $$NotesTableReferences),
+      (Note, BaseReferences<_$AppDatabase, $NotesTable, Note>),
       Note,
-      PrefetchHooks Function({bool ayahId})
+      PrefetchHooks Function()
     >;
 typedef $$LastPositionTableCreateCompanionBuilder =
     LastPositionCompanion Function({
@@ -11094,33 +8912,6 @@ typedef $$LearningWordsTableUpdateCompanionBuilder =
       Value<DateTime?> lastReviewAt,
     });
 
-final class $$LearningWordsTableReferences
-    extends BaseReferences<_$AppDatabase, $LearningWordsTable, LearningWord> {
-  $$LearningWordsTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static $WordsTable _wordIdTable(_$AppDatabase db) => db.words.createAlias(
-    $_aliasNameGenerator(db.learningWords.wordId, db.words.id),
-  );
-
-  $$WordsTableProcessedTableManager get wordId {
-    final $_column = $_itemColumn<int>('word_id')!;
-
-    final manager = $$WordsTableTableManager(
-      $_db,
-      $_db.words,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_wordIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
 class $$LearningWordsTableFilterComposer
     extends Composer<_$AppDatabase, $LearningWordsTable> {
   $$LearningWordsTableFilterComposer({
@@ -11132,6 +8923,11 @@ class $$LearningWordsTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get wordId => $composableBuilder(
+    column: $table.wordId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11164,29 +8960,6 @@ class $$LearningWordsTableFilterComposer
     column: $table.lastReviewAt,
     builder: (column) => ColumnFilters(column),
   );
-
-  $$WordsTableFilterComposer get wordId {
-    final $$WordsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.wordId,
-      referencedTable: $db.words,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$WordsTableFilterComposer(
-            $db: $db,
-            $table: $db.words,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$LearningWordsTableOrderingComposer
@@ -11200,6 +8973,11 @@ class $$LearningWordsTableOrderingComposer
   });
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get wordId => $composableBuilder(
+    column: $table.wordId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -11232,29 +9010,6 @@ class $$LearningWordsTableOrderingComposer
     column: $table.lastReviewAt,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$WordsTableOrderingComposer get wordId {
-    final $$WordsTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.wordId,
-      referencedTable: $db.words,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$WordsTableOrderingComposer(
-            $db: $db,
-            $table: $db.words,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$LearningWordsTableAnnotationComposer
@@ -11268,6 +9023,9 @@ class $$LearningWordsTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get wordId =>
+      $composableBuilder(column: $table.wordId, builder: (column) => column);
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
@@ -11296,29 +9054,6 @@ class $$LearningWordsTableAnnotationComposer
     column: $table.lastReviewAt,
     builder: (column) => column,
   );
-
-  $$WordsTableAnnotationComposer get wordId {
-    final $$WordsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.wordId,
-      referencedTable: $db.words,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$WordsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.words,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$LearningWordsTableTableManager
@@ -11332,9 +9067,12 @@ class $$LearningWordsTableTableManager
           $$LearningWordsTableAnnotationComposer,
           $$LearningWordsTableCreateCompanionBuilder,
           $$LearningWordsTableUpdateCompanionBuilder,
-          (LearningWord, $$LearningWordsTableReferences),
+          (
+            LearningWord,
+            BaseReferences<_$AppDatabase, $LearningWordsTable, LearningWord>,
+          ),
           LearningWord,
-          PrefetchHooks Function({bool wordId})
+          PrefetchHooks Function()
         > {
   $$LearningWordsTableTableManager(_$AppDatabase db, $LearningWordsTable table)
     : super(
@@ -11388,54 +9126,9 @@ class $$LearningWordsTableTableManager
                 lastReviewAt: lastReviewAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$LearningWordsTableReferences(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({wordId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (wordId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.wordId,
-                                referencedTable: $$LearningWordsTableReferences
-                                    ._wordIdTable(db),
-                                referencedColumn: $$LearningWordsTableReferences
-                                    ._wordIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ),
       );
 }
@@ -11450,9 +9143,12 @@ typedef $$LearningWordsTableProcessedTableManager =
       $$LearningWordsTableAnnotationComposer,
       $$LearningWordsTableCreateCompanionBuilder,
       $$LearningWordsTableUpdateCompanionBuilder,
-      (LearningWord, $$LearningWordsTableReferences),
+      (
+        LearningWord,
+        BaseReferences<_$AppDatabase, $LearningWordsTable, LearningWord>,
+      ),
       LearningWord,
-      PrefetchHooks Function({bool wordId})
+      PrefetchHooks Function()
     >;
 typedef $$AudioCacheMetadataTableCreateCompanionBuilder =
     AudioCacheMetadataCompanion Function({

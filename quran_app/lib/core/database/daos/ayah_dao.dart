@@ -5,6 +5,27 @@ import '../tables.dart';
 
 part 'ayah_dao.g.dart';
 
+/// Lightweight projection used by [AyahDao.searchByText]. Carries the
+/// minimum data the search-result UI needs to render a row and deep-link
+/// into the reader (without a second round-trip to load the full Ayah).
+class AyahSearchHit {
+  const AyahSearchHit({
+    required this.ayahId,
+    required this.surahId,
+    required this.ayahNumber,
+    required this.surahNameAr,
+    required this.textUthmani,
+    required this.textNormalized,
+  });
+
+  final int ayahId;
+  final int surahId;
+  final int ayahNumber;
+  final String surahNameAr;
+  final String textUthmani;
+  final String textNormalized;
+}
+
 @DriftAccessor(tables: [Ayahs, Words])
 class AyahDao extends DatabaseAccessor<AppDatabase> with _$AyahDaoMixin {
   AyahDao(super.db);
@@ -35,4 +56,80 @@ class AyahDao extends DatabaseAccessor<AppDatabase> with _$AyahDaoMixin {
   Future<void> insertAyahs(List<AyahsCompanion> items) async {
     await batch((b) => b.insertAllOnConflictUpdate(ayahs, items));
   }
+
+  /// Full-text search over Arabic ayah text using the FTS5 shadow table
+  /// `ayahs_fts` (created in [AppDatabase._createFts]).
+  ///
+  /// The query is normalized into a `token* token*` prefix-MATCH
+  /// expression so partial words still match (e.g. "رح" finds
+  /// "الرحمن"). FTS5 special characters are stripped to keep the
+  /// MATCH expression well-formed even with arbitrary user input.
+  ///
+  /// Returns up to [limit] hits, ordered by `rank()` (FTS5 bm25-like
+  /// relevance) with surah/ayah order as the tie-breaker so the result
+  /// is stable across calls.
+  Future<List<AyahSearchHit>> searchByText(
+    String query, {
+    int limit = 50,
+  }) async {
+    final ftsQuery = _toFtsPrefixQuery(query);
+    if (ftsQuery.isEmpty) return const [];
+    final rows = await customSelect(
+      '''
+      SELECT a.id AS ayah_id,
+             a.surah_id AS surah_id,
+             a.ayah_number AS ayah_number,
+             s.name_ar AS surah_name_ar,
+             a.text_uthmani AS text_uthmani,
+             a.text_normalized AS text_normalized
+      FROM ayahs_fts
+      INNER JOIN ayahs a ON a.id = ayahs_fts.rowid
+      INNER JOIN surahs s ON s.id = a.surah_id
+      WHERE ayahs_fts MATCH ?
+      ORDER BY rank, a.surah_id, a.ayah_number
+      LIMIT ?
+      ''',
+      variables: [Variable.withString(ftsQuery), Variable.withInt(limit)],
+      readsFrom: {ayahs},
+    ).get();
+    return rows
+        .map(
+          (r) => AyahSearchHit(
+            ayahId: r.read<int>('ayah_id'),
+            surahId: r.read<int>('surah_id'),
+            ayahNumber: r.read<int>('ayah_number'),
+            surahNameAr: r.read<String>('surah_name_ar'),
+            textUthmani: r.read<String>('text_uthmani'),
+            textNormalized: r.read<String>('text_normalized'),
+          ),
+        )
+        .toList();
+  }
+}
+
+/// Normalize a free-form user query into a safe FTS5 prefix-MATCH
+/// expression: split on whitespace, drop FTS5 reserved characters,
+/// emit each remaining token as `token*`.
+///
+/// FTS5's default `unicode61` tokenizer with `remove_diacritics 2` (the
+/// configuration used in [AppDatabase._createFts]) already strips
+/// Arabic diacritics at index time, so we don't need to normalize the
+/// user input beyond character filtering.
+///
+/// Returns the empty string if the query has no searchable tokens —
+/// callers should treat this as "no results" rather than passing an
+/// empty MATCH to SQLite (which would error).
+String _toFtsPrefixQuery(String raw) {
+  // FTS5 operators/quotes that, if left in user input, would change
+  // the meaning of the query. We strip them rather than escape, since
+  // the user doesn't need boolean operators for an MVP search box.
+  const banned = {'"', '\'', '(', ')', '*', ':', '^', '-', '+', '.', ',', ';'};
+  final tokens = raw
+      .split(RegExp(r'\s+'))
+      .where((t) => t.isNotEmpty)
+      .map((t) => t.split('').where((c) => !banned.contains(c)).join())
+      .where((t) => t.isNotEmpty)
+      .toList();
+  if (tokens.isEmpty) return '';
+  return tokens.map((t) => '$t*').join(' ');
 }
