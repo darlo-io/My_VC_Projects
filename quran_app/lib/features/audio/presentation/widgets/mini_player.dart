@@ -79,8 +79,8 @@ class MiniPlayer extends ConsumerWidget {
                 ),
                 IconButton(
                   onPressed: () => ref
-                      .read(audioPlayerControllerProvider.notifier)
-                      .togglePlay(),
+                      .read(quranAudioHandlerProvider)
+                      .play(),
                   icon: Icon(
                     state.playing ? Icons.pause : Icons.play_arrow,
                     color: AppColors.gold,
@@ -88,7 +88,7 @@ class MiniPlayer extends ConsumerWidget {
                 ),
                 IconButton(
                   onPressed: () => ref
-                      .read(audioPlayerControllerProvider.notifier)
+                      .read(quranAudioHandlerProvider)
                       .stop(),
                   icon: const Icon(
                     Icons.close,

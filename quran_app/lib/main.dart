@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
 import 'app/providers.dart';
+import 'features/audio/data/quran_audio_handler.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,11 +34,35 @@ Future<void> main() async {
     await prefs.setString('app.languageCode', detected);
   }
 
+  // Initialize audio_service first — it constructs the handler and
+  // wires it to the OS-level media session + foreground service. The
+  // handler is a no-arg singleton at this point; we attach() it to the
+  // AudioPlayerController after Riverpod has built the controller.
+  final handler = await AudioService.init<QuranAudioHandler>(
+    builder: QuranAudioHandler.new,
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.quran.app.quran_app.channel.audio',
+      androidNotificationChannelName: 'Quran playback',
+      androidNotificationOngoing: true,
+      androidStopForegroundOnPause: true,
+    ),
+  );
+
+  final container = ProviderContainer(
+    overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+      quranAudioHandlerProvider.overrideWithValue(handler),
+    ],
+  );
+  // Connect the audio handler to the live AudioPlayerController. Must
+  // happen after the container exists (so audioPlayerControllerProvider
+  // resolves) but before runApp, so the initial PlaybackState is already
+  // broadcast by the time the first widget listens.
+  handler.attach(container.read(audioPlayerControllerProvider.notifier));
+
   runApp(
-    ProviderScope(
-      overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
-      ],
+    UncontrolledProviderScope(
+      container: container,
       child: const QuranApp(),
     ),
   );

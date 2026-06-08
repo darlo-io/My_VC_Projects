@@ -17,6 +17,7 @@ import '../core/database/daos/surah_dao.dart';
 import '../core/database/daos/translation_dao.dart';
 import '../core/database/daos/word_timings_dao.dart';
 import '../core/database/daos/words_dao.dart';
+import '../features/audio/data/quran_audio_handler.dart';
 import '../core/networking/api_client.dart';
 import '../core/storage/app_preferences.dart';
 import '../features/audio/data/audio_cache.dart';
@@ -99,6 +100,16 @@ final audioPlayerControllerProvider =
     surahDao: ref.watch(surahDaoProvider),
   ),
 );
+
+/// [QuranAudioHandler] is a singleton owned by [audio_service] (constructed
+/// in main.dart via AudioService.init). The provider exposes the same
+/// instance to the widget tree.
+final quranAudioHandlerProvider = Provider<QuranAudioHandler>((ref) {
+  throw UnimplementedError(
+    'quranAudioHandlerProvider must be overridden in main.dart '
+    'after AudioService.init() has produced the handler instance.',
+  );
+});
 
 final recitersStreamProvider = StreamProvider(
   (ref) => ref.watch(recitersRepositoryProvider).watchAll(),
