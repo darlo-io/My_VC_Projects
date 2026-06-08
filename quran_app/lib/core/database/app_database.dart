@@ -55,42 +55,85 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
           await _createFts();
+          await _createPerformanceIndexes();
         },
         onUpgrade: (m, from, to) async {
-          // На dev-сборках БД пуста — пересоздаём; на прод-миграции здесь
-          // будут точечные ALTER TABLE для каждого бампа.
-          if (from < 4) {
-            await m.deleteTable('settings_entries');
-            await m.deleteTable('audio_cache_metadata');
-            await m.deleteTable('learning_words');
-            await m.deleteTable('reading_history');
-            await m.deleteTable('last_position');
-            await m.deleteTable('notes');
-            await m.deleteTable('bookmarks');
-            await m.deleteTable('tafsirs');
-            await m.deleteTable('tafsir_sources');
-            await m.deleteTable('translations');
-            await m.deleteTable('translators');
-            await m.deleteTable('reciters');
-            await m.deleteTable('word_timings');
-            await m.deleteTable('words');
-            await m.deleteTable('ayahs');
-            await m.deleteTable('surahs');
-            await m.createAll();
-            await _createFts();
+          // MIGRATION CONTRACT — read before bumping schemaVersion.
+          //
+          // Pre-v5 installs (dev-era, never shipped): we drop and re-create.
+          //   Acceptable because the app has not been released and no users
+          //   have data worth preserving.
+          //
+          // v5 and above: ADDITIVE MIGRATIONS ONLY. Never call
+          //   `m.deleteTable` for v5+ upgrades. Use `m.addColumn`,
+          //   `m.alterTable`, `m.createTable`, or `customStatement` for
+          //   indexes/tables you genuinely need to add. User data (bookmarks,
+          //   notes, reading_history, last_position) MUST survive upgrades.
+          //
+          // Template for v5 -> v6 and onward (append a new if-branch):
+          //   if (from < 6) {
+          //     await m.addColumn(notes, notes.priority);
+          //     // ...other additive changes
+          //   }
+          if (from < 5) {
+            await _resetSchema(m);
+          }
+
+          if (from < 6) {
+            // v5 -> v6 (and pre-v5 paths via the reset above): add the
+            // LRU-eviction index. `oldestFirst()` in AudioCacheDao orders
+            // by last_played_at; without this index it's a full scan.
+            // Safe to re-run on already-migrated DBs thanks to IF NOT EXISTS.
+            await m.database.customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_audio_cache_last_played '
+              'ON audio_cache_metadata (last_played_at)',
+            );
           }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
         },
       );
+
+  /// Destructive schema reset. Used ONLY for pre-v5 installs.
+  /// Must not be reachable from a v5+ upgrade path.
+  Future<void> _resetSchema(Migrator m) async {
+    await m.deleteTable('settings_entries');
+    await m.deleteTable('audio_cache_metadata');
+    await m.deleteTable('learning_words');
+    await m.deleteTable('reading_history');
+    await m.deleteTable('last_position');
+    await m.deleteTable('notes');
+    await m.deleteTable('bookmarks');
+    await m.deleteTable('tafsirs');
+    await m.deleteTable('tafsir_sources');
+    await m.deleteTable('translations');
+    await m.deleteTable('translators');
+    await m.deleteTable('reciters');
+    await m.deleteTable('word_timings');
+    await m.deleteTable('words');
+    await m.deleteTable('ayahs');
+    await m.deleteTable('surahs');
+    await m.createAll();
+    await _createFts();
+    await _createPerformanceIndexes();
+  }
+
+  /// Performance indexes created on fresh installs and on the reset path.
+  /// Kept separate from FTS5 setup so future index additions stay grouped.
+  Future<void> _createPerformanceIndexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_audio_cache_last_played '
+      'ON audio_cache_metadata (last_played_at)',
+    );
+  }
 
   Future<void> _createFts() async {
     await customStatement('''
