@@ -6,6 +6,7 @@ import '../../../../core/database/app_database.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/ornaments.dart';
 import '../../../audio/presentation/word_timing_provider.dart';
+import '../../../learning/presentation/word_card.dart';
 
 class AyahTile extends ConsumerStatefulWidget {
   const AyahTile({
@@ -139,14 +140,23 @@ class _ArabicText extends ConsumerWidget {
       child: Wrap(
         alignment: WrapAlignment.start,
         textDirection: TextDirection.rtl,
-        crossAxisAlignment: WrapCrossAlignment.start,
+            crossAxisAlignment: WrapCrossAlignment.start,
         children: words!.map((w) {
           final isCurrent = w.id == currentWord.value && isCurrentSurah;
           return _WordSpan(
             word: w,
             fontSize: fontSize,
             highlighted: isCurrent,
-            onTap: isCurrentSurah ? () => seekToWord(ref, w.id) : null,
+            onTap: () {
+              // Если сейчас играет аудио этой суры — перематываем
+              // плеер на тапнутое слово, чтобы подсветка и озвучка
+              // шли синхронно с пользовательским фокусом.
+              if (isCurrentSurah) {
+                seekToWord(ref, w.id);
+              }
+              // В любом случае открываем WordCard (Learn feature).
+              showWordCard(context: context, ref: ref, word: w);
+            },
           );
         }).toList(),
       ),
