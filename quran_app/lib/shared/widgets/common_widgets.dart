@@ -219,7 +219,12 @@ class GlassCard extends StatelessWidget {
         ],
       ),
     );
-    if (onTap == null) return body;
+    // Material ancestor is required for descendants like [Slider],
+    // [InkWell], and [DropdownButton] even when this card itself
+    // does not have a tap handler. Always wrap in transparent Material.
+    if (onTap == null) {
+      return Material(color: Colors.transparent, child: body);
+    }
     return Material(
       color: Colors.transparent,
       child: InkWell(

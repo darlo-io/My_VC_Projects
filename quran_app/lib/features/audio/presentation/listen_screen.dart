@@ -427,29 +427,35 @@ class _SurahPickerState extends ConsumerState<_SurahPicker> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: DropdownButton<int>(
-            value: selected,
-            isExpanded: true,
-            dropdownColor: AppColors.surface,
-            underline: const SizedBox.shrink(),
-            iconEnabledColor: AppColors.gold,
-            items: _all!
-                .map(
-                  (s) => DropdownMenuItem(
-                    value: s.id,
-                    child: Text(
-                      '${s.id}. ${s.nameTransliteration}',
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14,
+          // DropdownButton requires a Material ancestor. Wrap in
+          // transparent Material so it works outside GlassCard's own
+          // Material wrapper (e.g. inside a ListView/Row chain).
+          child: Material(
+            color: Colors.transparent,
+            child: DropdownButton<int>(
+              value: selected,
+              isExpanded: true,
+              dropdownColor: AppColors.surface,
+              underline: const SizedBox.shrink(),
+              iconEnabledColor: AppColors.gold,
+              items: _all!
+                  .map(
+                    (s) => DropdownMenuItem(
+                      value: s.id,
+                      child: Text(
+                        '${s.id}. ${s.nameTransliteration}',
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
-                  ),
-                )
-                .toList(),
-            onChanged: (v) {
-              if (v != null) widget.onChanged(v);
-            },
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) widget.onChanged(v);
+              },
+            ),
           ),
         ),
       ],
