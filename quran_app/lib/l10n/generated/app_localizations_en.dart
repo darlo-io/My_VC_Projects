@@ -748,4 +748,92 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchAyahHint => 'Type to search the Quran text';
+
+  @override
+  String get learnTitle => 'Words to review';
+
+  @override
+  String get learnSkip => 'Skip';
+
+  @override
+  String learnRemaining(Object count) {
+    return 'Remaining: $count';
+  }
+
+  @override
+  String learnSession(Object reviewed) {
+    return 'Session: $reviewed';
+  }
+
+  @override
+  String get learnStatusMastered => 'Mastered';
+
+  @override
+  String get learnStatusReviewing => 'Reviewing';
+
+  @override
+  String get learnStatusLearning => 'Learning';
+
+  @override
+  String get learnStatusNew => 'New';
+
+  @override
+  String get learnQuality0 => 'Don\'t remember';
+
+  @override
+  String get learnQuality1 => 'With effort';
+
+  @override
+  String get learnQuality2 => 'Hesitated';
+
+  @override
+  String get learnQuality3 => 'Recalled';
+
+  @override
+  String get learnQuality4 => 'Good';
+
+  @override
+  String get learnQuality5 => 'Easy';
+
+  @override
+  String get learnEmptyTitle => 'All words mastered';
+
+  @override
+  String get learnEmptyHint =>
+      'Add new words from reading\nto continue reviewing.';
+
+  @override
+  String get wordTranslation => 'Translation';
+
+  @override
+  String get wordLemma => 'Lemma';
+
+  @override
+  String get wordRoot => 'Root';
+
+  @override
+  String get wordInVocab => 'In vocabulary';
+
+  @override
+  String get wordAddToVocab => 'Add to vocabulary';
+
+  @override
+  String get wordEmptyHint =>
+      'Translation and grammar will appear once the dictionary is filled in.';
+
+  @override
+  String notesForAyah(Object number) {
+    return 'Notes for ayah $number';
+  }
+
+  @override
+  String get notesEmpty => 'No notes yet.\nAdd the first one below.';
+
+  @override
+  String get notesHint => 'Note text…';
+
+  @override
+  String ayahLabel(Object number) {
+    return 'Ayah $number';
+  }
 }

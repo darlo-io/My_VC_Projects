@@ -37,7 +37,7 @@ class TranslationSearchHit {
   final String translatorName;
 }
 
-@DriftAccessor(tables: [Translations, Translators])
+@DriftAccessor(tables: [Translations, Translators, Ayahs, Surahs])
 class TranslationDao extends DatabaseAccessor<AppDatabase>
     with _$TranslationDaoMixin {
   TranslationDao(super.db);

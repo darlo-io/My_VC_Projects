@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 
 /// Показать панель заметок для конкретного аята.
 ///
@@ -66,6 +67,7 @@ class _NotesPanelState extends ConsumerState<_NotesPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final notesStream = ref.watch(notesDaoProvider).watchForAyah(widget.ayah.id);
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
 
@@ -101,7 +103,7 @@ class _NotesPanelState extends ConsumerState<_NotesPanel> {
                         color: AppColors.gold, size: 22),
                     const SizedBox(width: 8),
                     Text(
-                      'Заметки к аяту ${widget.ayah.ayahNumber}',
+                      t.notesForAyah(widget.ayah.ayahNumber),
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 16,
@@ -121,18 +123,18 @@ class _NotesPanelState extends ConsumerState<_NotesPanel> {
                     builder: (context, snapshot) {
                       final notes = snapshot.data ?? const <Note>[];
                       if (notes.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.edit_note,
+                              const Icon(Icons.edit_note,
                                   size: 40, color: AppColors.textTertiary),
-                              SizedBox(height: 8),
+                              const SizedBox(height: 8),
                               Text(
-                                'Заметок пока нет.\nДобавьте первую ниже.',
+                                t.notesEmpty,
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 13,
                                   color: AppColors.textTertiary,
                                   height: 1.4,
@@ -142,11 +144,11 @@ class _NotesPanelState extends ConsumerState<_NotesPanel> {
                           ),
                         );
                       }
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: notes.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, i) {
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: notes.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (context, i) {
                           final n = notes[i];
                           return _NoteTile(
                             note: n,
@@ -178,7 +180,7 @@ class _NotesPanelState extends ConsumerState<_NotesPanel> {
                           color: AppColors.textPrimary,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Текст заметки…',
+                          hintText: t.notesHint,
                           hintStyle: const TextStyle(
                             color: AppColors.textTertiary,
                             fontSize: 14,
@@ -246,6 +248,7 @@ class _NoteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
       decoration: BoxDecoration(
@@ -283,7 +286,7 @@ class _NoteTile extends StatelessWidget {
                 color: AppColors.textTertiary, size: 20),
             visualDensity: VisualDensity.compact,
             onPressed: onDelete,
-            tooltip: 'Удалить',
+            tooltip: t.delete,
           ),
         ],
       ),

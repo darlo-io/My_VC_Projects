@@ -750,4 +750,90 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get searchAyahHint => 'اكتب للبحث في نص القرآن';
+
+  @override
+  String get learnTitle => 'كلمات للمراجعة';
+
+  @override
+  String get learnSkip => 'تخطٍ';
+
+  @override
+  String learnRemaining(Object count) {
+    return 'المتبقي: $count';
+  }
+
+  @override
+  String learnSession(Object reviewed) {
+    return 'الجلسة: $reviewed';
+  }
+
+  @override
+  String get learnStatusMastered => 'متقن';
+
+  @override
+  String get learnStatusReviewing => 'قيد المراجعة';
+
+  @override
+  String get learnStatusLearning => 'قيد التعلم';
+
+  @override
+  String get learnStatusNew => 'جديد';
+
+  @override
+  String get learnQuality0 => 'لا أتذكر';
+
+  @override
+  String get learnQuality1 => 'بصعوبة';
+
+  @override
+  String get learnQuality2 => 'بتردد';
+
+  @override
+  String get learnQuality3 => 'تذكرت';
+
+  @override
+  String get learnQuality4 => 'جيد';
+
+  @override
+  String get learnQuality5 => 'ممتاز';
+
+  @override
+  String get learnEmptyTitle => 'تم إتقان كل الكلمات';
+
+  @override
+  String get learnEmptyHint => 'أضف كلمات جديدة من القراءة\nلمواصلة المراجعة.';
+
+  @override
+  String get wordTranslation => 'الترجمة';
+
+  @override
+  String get wordLemma => 'الجذر النحوي';
+
+  @override
+  String get wordRoot => 'الجذر';
+
+  @override
+  String get wordInVocab => 'في القاموس';
+
+  @override
+  String get wordAddToVocab => 'أضف إلى القاموس';
+
+  @override
+  String get wordEmptyHint => 'ستظهر الترجمة والقواعد عند اكتمال القاموس.';
+
+  @override
+  String notesForAyah(Object number) {
+    return 'ملاحظات الآية $number';
+  }
+
+  @override
+  String get notesEmpty => 'لا توجد ملاحظات بعد.\nأضف أول ملاحظة أدناه.';
+
+  @override
+  String get notesHint => 'نص الملاحظة…';
+
+  @override
+  String ayahLabel(Object number) {
+    return 'الآية $number';
+  }
 }

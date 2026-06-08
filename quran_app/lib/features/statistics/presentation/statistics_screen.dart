@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/coming_soon.dart';
 
 class StatisticsScreen extends StatelessWidget {
@@ -7,8 +8,8 @@ class StatisticsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ComingSoonScreen(
-      title: 'Статистика',
+    return ComingSoonScreen(
+      title: AppLocalizations.of(context).cardStats,
       icon: Icons.insights_rounded,
     );
   }

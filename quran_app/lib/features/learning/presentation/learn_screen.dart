@@ -5,6 +5,7 @@ import '../../../app/providers.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/daos/learning_dao.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 /// Экран Learn — повторение слов по алгоритму SM-2.
 ///
@@ -26,15 +27,16 @@ class _LearnScreenState extends ConsumerState<LearnScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final dueStream = ref.watch(learningDaoProvider).watchDue();
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
-        title: const Text(
-          'Слова для повторения',
-          style: TextStyle(
+        title: Text(
+          t.learnTitle,
+          style: const TextStyle(
             fontFamily: 'Inter',
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -94,6 +96,7 @@ class _ReviewView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return SafeArea(
       child: Column(
         children: [
@@ -114,9 +117,9 @@ class _ReviewView extends StatelessWidget {
           ),
           TextButton(
             onPressed: onSkip,
-            child: const Text(
-              'Пропустить',
-              style: TextStyle(color: AppColors.textTertiary, fontSize: 13),
+            child: Text(
+              t.learnSkip,
+              style: const TextStyle(color: AppColors.textTertiary, fontSize: 13),
             ),
           ),
           const SizedBox(height: 4),
@@ -134,6 +137,7 @@ class _ProgressHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final left = (total - reviewed).clamp(0, total);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
@@ -144,7 +148,7 @@ class _ProgressHeader extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Осталось: $left',
+                t.learnRemaining(left),
                 style: const TextStyle(
                   fontSize: 12,
                   color: AppColors.textTertiary,
@@ -152,7 +156,7 @@ class _ProgressHeader extends StatelessWidget {
                 ),
               ),
               Text(
-                'Сессия: $reviewed',
+                t.learnSession(reviewed),
                 style: const TextStyle(
                   fontSize: 12,
                   color: AppColors.textTertiary,
@@ -245,6 +249,7 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final color = switch (status) {
       'mastered' => AppColors.success,
       'reviewing' => AppColors.gold,
@@ -252,10 +257,10 @@ class _StatusPill extends StatelessWidget {
       _ => AppColors.textTertiary,
     };
     final label = switch (status) {
-      'mastered' => 'Освоено',
-      'reviewing' => 'Повторение',
-      'learning' => 'Изучение',
-      _ => 'Новое',
+      'mastered' => t.learnStatusMastered,
+      'reviewing' => t.learnStatusReviewing,
+      'learning' => t.learnStatusLearning,
+      _ => t.learnStatusNew,
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -285,25 +290,68 @@ class _QualityGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Column(
       children: [
         Row(
           children: [
-            Expanded(child: _QualityButton(quality: 0, label: 'Не помню', color: AppColors.error, onTap: onReview)),
+            Expanded(
+              child: _QualityButton(
+                quality: 0,
+                label: t.learnQuality0,
+                color: AppColors.error,
+                onTap: onReview,
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _QualityButton(quality: 1, label: 'С трудом', color: AppColors.error, onTap: onReview)),
+            Expanded(
+              child: _QualityButton(
+                quality: 1,
+                label: t.learnQuality1,
+                color: AppColors.error,
+                onTap: onReview,
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _QualityButton(quality: 2, label: 'С усилием', color: AppColors.warning, onTap: onReview)),
+            Expanded(
+              child: _QualityButton(
+                quality: 2,
+                label: t.learnQuality2,
+                color: AppColors.warning,
+                onTap: onReview,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _QualityButton(quality: 3, label: 'Помню', color: AppColors.gold, onTap: onReview)),
+            Expanded(
+              child: _QualityButton(
+                quality: 3,
+                label: t.learnQuality3,
+                color: AppColors.gold,
+                onTap: onReview,
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _QualityButton(quality: 4, label: 'Хорошо', color: AppColors.success, onTap: onReview)),
+            Expanded(
+              child: _QualityButton(
+                quality: 4,
+                label: t.learnQuality4,
+                color: AppColors.success,
+                onTap: onReview,
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _QualityButton(quality: 5, label: 'Отлично', color: AppColors.success, onTap: onReview)),
+            Expanded(
+              child: _QualityButton(
+                quality: 5,
+                label: t.learnQuality5,
+                color: AppColors.success,
+                onTap: onReview,
+              ),
+            ),
           ],
         ),
       ],
@@ -369,27 +417,28 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final t = AppLocalizations.of(context);
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(32),
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.school_outlined, size: 64, color: AppColors.gold),
-            SizedBox(height: 16),
+            const Icon(Icons.school_outlined, size: 64, color: AppColors.gold),
+            const SizedBox(height: 16),
             Text(
-              'Все слова выучены',
-              style: TextStyle(
+              t.learnEmptyTitle,
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              'Добавьте новые слова из чтения,\nчтобы продолжить повторение.',
+              t.learnEmptyHint,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 color: AppColors.textTertiary,
                 height: 1.4,

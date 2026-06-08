@@ -750,4 +750,92 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get searchAyahHint => 'Введите запрос для поиска по тексту Корана';
+
+  @override
+  String get learnTitle => 'Слова для повторения';
+
+  @override
+  String get learnSkip => 'Пропустить';
+
+  @override
+  String learnRemaining(Object count) {
+    return 'Осталось: $count';
+  }
+
+  @override
+  String learnSession(Object reviewed) {
+    return 'Сессия: $reviewed';
+  }
+
+  @override
+  String get learnStatusMastered => 'Освоено';
+
+  @override
+  String get learnStatusReviewing => 'Повторение';
+
+  @override
+  String get learnStatusLearning => 'Изучение';
+
+  @override
+  String get learnStatusNew => 'Новое';
+
+  @override
+  String get learnQuality0 => 'Не помню';
+
+  @override
+  String get learnQuality1 => 'С трудом';
+
+  @override
+  String get learnQuality2 => 'С усилием';
+
+  @override
+  String get learnQuality3 => 'Помню';
+
+  @override
+  String get learnQuality4 => 'Хорошо';
+
+  @override
+  String get learnQuality5 => 'Отлично';
+
+  @override
+  String get learnEmptyTitle => 'Все слова выучены';
+
+  @override
+  String get learnEmptyHint =>
+      'Добавьте новые слова из чтения,\nчтобы продолжить повторение.';
+
+  @override
+  String get wordTranslation => 'Перевод';
+
+  @override
+  String get wordLemma => 'Лемма';
+
+  @override
+  String get wordRoot => 'Корень';
+
+  @override
+  String get wordInVocab => 'В словаре';
+
+  @override
+  String get wordAddToVocab => 'Добавить в словарь';
+
+  @override
+  String get wordEmptyHint =>
+      'Перевод и грамматика появятся, когда словарь будет пополнен.';
+
+  @override
+  String notesForAyah(Object number) {
+    return 'Заметки к аяту $number';
+  }
+
+  @override
+  String get notesEmpty => 'Заметок пока нет.\nДобавьте первую ниже.';
+
+  @override
+  String get notesHint => 'Текст заметки…';
+
+  @override
+  String ayahLabel(Object number) {
+    return 'Аят $number';
+  }
 }

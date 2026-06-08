@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/providers.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 /// Показать модальную карточку слова.
 ///
@@ -52,6 +53,7 @@ class _WordCardBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
@@ -105,17 +107,17 @@ class _WordCardBody extends StatelessWidget {
             // Translation
             if (word.translation != null && word.translation!.isNotEmpty)
               _MetaRow(
-                label: 'Перевод',
+                label: t.wordTranslation,
                 value: word.translation!,
               ),
             if (word.lemma != null && word.lemma!.isNotEmpty)
               _MetaRow(
-                label: 'Лемма',
+                label: t.wordLemma,
                 value: word.lemma!,
               ),
             if (word.root != null && word.root!.isNotEmpty)
               _MetaRow(
-                label: 'Корень',
+                label: t.wordRoot,
                 value: word.root!,
               ),
 
@@ -125,12 +127,12 @@ class _WordCardBody extends StatelessWidget {
             if ((word.translation == null || word.translation!.isEmpty) &&
                 (word.lemma == null || word.lemma!.isEmpty) &&
                 (word.root == null || word.root!.isEmpty))
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Text(
-                  'Перевод и грамматика появятся, когда словарь будет пополнен.',
+                  t.wordEmptyHint,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.textTertiary,
                     fontStyle: FontStyle.italic,
@@ -201,6 +203,7 @@ class _AddToVocabButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = AppLocalizations.of(context);
     if (inVocab) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -209,14 +212,14 @@ class _AddToVocabButton extends ConsumerWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle, color: AppColors.gold, size: 20),
-            SizedBox(width: 8),
+            const Icon(Icons.check_circle, color: AppColors.gold, size: 20),
+            const SizedBox(width: 8),
             Text(
-              'В словаре',
-              style: TextStyle(
+              t.wordInVocab,
+              style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: AppColors.gold,
@@ -234,9 +237,9 @@ class _AddToVocabButton extends ConsumerWidget {
           await ref.read(learningDaoProvider).addWord(word.id);
         },
         icon: const Icon(Icons.add, size: 20),
-        label: const Text(
-          'Добавить в словарь',
-          style: TextStyle(
+        label: Text(
+          t.wordAddToVocab,
+          style: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.3,

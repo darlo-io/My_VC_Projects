@@ -1533,6 +1533,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Type to search the Quran text'**
   String get searchAyahHint;
+
+  /// No description provided for @learnTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Words to review'**
+  String get learnTitle;
+
+  /// No description provided for @learnSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get learnSkip;
+
+  /// No description provided for @learnRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining: {count}'**
+  String learnRemaining(Object count);
+
+  /// No description provided for @learnSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Session: {reviewed}'**
+  String learnSession(Object reviewed);
+
+  /// No description provided for @learnStatusMastered.
+  ///
+  /// In en, this message translates to:
+  /// **'Mastered'**
+  String get learnStatusMastered;
+
+  /// No description provided for @learnStatusReviewing.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviewing'**
+  String get learnStatusReviewing;
+
+  /// No description provided for @learnStatusLearning.
+  ///
+  /// In en, this message translates to:
+  /// **'Learning'**
+  String get learnStatusLearning;
+
+  /// No description provided for @learnStatusNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get learnStatusNew;
+
+  /// No description provided for @learnQuality0.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t remember'**
+  String get learnQuality0;
+
+  /// No description provided for @learnQuality1.
+  ///
+  /// In en, this message translates to:
+  /// **'With effort'**
+  String get learnQuality1;
+
+  /// No description provided for @learnQuality2.
+  ///
+  /// In en, this message translates to:
+  /// **'Hesitated'**
+  String get learnQuality2;
+
+  /// No description provided for @learnQuality3.
+  ///
+  /// In en, this message translates to:
+  /// **'Recalled'**
+  String get learnQuality3;
+
+  /// No description provided for @learnQuality4.
+  ///
+  /// In en, this message translates to:
+  /// **'Good'**
+  String get learnQuality4;
+
+  /// No description provided for @learnQuality5.
+  ///
+  /// In en, this message translates to:
+  /// **'Easy'**
+  String get learnQuality5;
+
+  /// No description provided for @learnEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'All words mastered'**
+  String get learnEmptyTitle;
+
+  /// No description provided for @learnEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add new words from reading\nto continue reviewing.'**
+  String get learnEmptyHint;
+
+  /// No description provided for @wordTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation'**
+  String get wordTranslation;
+
+  /// No description provided for @wordLemma.
+  ///
+  /// In en, this message translates to:
+  /// **'Lemma'**
+  String get wordLemma;
+
+  /// No description provided for @wordRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Root'**
+  String get wordRoot;
+
+  /// No description provided for @wordInVocab.
+  ///
+  /// In en, this message translates to:
+  /// **'In vocabulary'**
+  String get wordInVocab;
+
+  /// No description provided for @wordAddToVocab.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to vocabulary'**
+  String get wordAddToVocab;
+
+  /// No description provided for @wordEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation and grammar will appear once the dictionary is filled in.'**
+  String get wordEmptyHint;
+
+  /// No description provided for @notesForAyah.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes for ayah {number}'**
+  String notesForAyah(Object number);
+
+  /// No description provided for @notesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes yet.\nAdd the first one below.'**
+  String get notesEmpty;
+
+  /// No description provided for @notesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Note text…'**
+  String get notesHint;
+
+  /// No description provided for @ayahLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Ayah {number}'**
+  String ayahLabel(Object number);
 }
 
 class _AppLocalizationsDelegate

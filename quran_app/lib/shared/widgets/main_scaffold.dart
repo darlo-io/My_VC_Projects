@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../features/audio/presentation/widgets/mini_player.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../widgets/ornaments.dart';
 
 class MainScaffold extends StatelessWidget {
@@ -101,19 +102,18 @@ class MainScaffold extends StatelessWidget {
   }
 
   String _label(BuildContext context, int index) {
-    final loc = Localizations.localeOf(context);
-    final isRu = loc.languageCode == 'ru';
+    final t = AppLocalizations.of(context);
     switch (index) {
       case 0:
-        return isRu ? 'Главная' : 'Home';
+        return t.navHome;
       case 1:
-        return isRu ? 'Читать' : 'Read';
+        return t.navRead;
       case 2:
-        return isRu ? 'Поиск' : 'Search';
+        return t.navSearch;
       case 3:
-        return isRu ? 'Закладки' : 'Bookmarks';
+        return t.navBookmarks;
       case 4:
-        return isRu ? 'Профиль' : 'Profile';
+        return t.navProfile;
     }
     return '';
   }

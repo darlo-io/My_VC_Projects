@@ -6,6 +6,8 @@ part of 'translation_dao.dart';
 mixin _$TranslationDaoMixin on DatabaseAccessor<AppDatabase> {
   $TranslationsTable get translations => attachedDatabase.translations;
   $TranslatorsTable get translators => attachedDatabase.translators;
+  $AyahsTable get ayahs => attachedDatabase.ayahs;
+  $SurahsTable get surahs => attachedDatabase.surahs;
   TranslationDaoManager get managers => TranslationDaoManager(this);
 }
 
@@ -16,4 +18,8 @@ class TranslationDaoManager {
       $$TranslationsTableTableManager(_db.attachedDatabase, _db.translations);
   $$TranslatorsTableTableManager get translators =>
       $$TranslatorsTableTableManager(_db.attachedDatabase, _db.translators);
+  $$AyahsTableTableManager get ayahs =>
+      $$AyahsTableTableManager(_db.attachedDatabase, _db.ayahs);
+  $$SurahsTableTableManager get surahs =>
+      $$SurahsTableTableManager(_db.attachedDatabase, _db.surahs);
 }

@@ -131,7 +131,7 @@ class _BookmarkTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Аят ${bookmark.ayahNumber}',
+                      t.ayahLabel(bookmark.ayahNumber),
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.textTertiary,
