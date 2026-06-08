@@ -264,5 +264,6 @@
   "notesForAyah": "Заметки к аяту {number}",
   "notesEmpty": "Заметок пока нет.\nДобавьте первую ниже.",
   "notesHint": "Текст заметки…",
-  "ayahLabel": "Аят {number}"
+  "ayahLabel": "Аят {number}",
+  "wordSameRoot": "Другие слова с тем же корнем"
 }

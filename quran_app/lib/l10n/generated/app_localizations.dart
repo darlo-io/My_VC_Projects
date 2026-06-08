@@ -1689,6 +1689,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ayah {number}'**
   String ayahLabel(Object number);
+
+  /// No description provided for @wordSameRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Other words with the same root'**
+  String get wordSameRoot;
 }
 
 class _AppLocalizationsDelegate

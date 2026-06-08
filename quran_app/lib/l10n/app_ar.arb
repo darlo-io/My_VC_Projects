@@ -264,5 +264,6 @@
   "notesForAyah": "ملاحظات الآية {number}",
   "notesEmpty": "لا توجد ملاحظات بعد.\nأضف أول ملاحظة أدناه.",
   "notesHint": "نص الملاحظة…",
-  "ayahLabel": "الآية {number}"
+  "ayahLabel": "الآية {number}",
+  "wordSameRoot": "كلمات أخرى من الجذر نفسه"
 }

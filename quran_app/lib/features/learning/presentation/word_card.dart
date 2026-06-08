@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/database/daos/words_dao.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
 
@@ -121,9 +123,17 @@ class _WordCardBody extends StatelessWidget {
                 value: word.root!,
               ),
 
-            // Empty-state for Al-Fatiha words where translation/lemma/root
-            // are null (current seed has only the bare word). Future step:
-            // populate from a word dictionary JSON.
+            // "Other words with the same root" — only shown when the
+            // current word has a known root. The list is capped at
+            // 5 hits to keep the bottom sheet compact.
+            if (word.root != null && word.root!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _RelatedWordsSection(root: word.root!, excludeWordId: word.id),
+            ],
+
+            // Empty-state for words where translation/lemma/root are
+            // all null (the bare-word seed for Al-Fatiha). When the
+            // dictionary is filled in, this branch disappears.
             if ((word.translation == null || word.translation!.isEmpty) &&
                 (word.lemma == null || word.lemma!.isEmpty) &&
                 (word.root == null || word.root!.isEmpty))
@@ -149,6 +159,138 @@ class _WordCardBody extends StatelessWidget {
 
             const SizedBox(height: 8),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RelatedWordsSection extends ConsumerWidget {
+  const _RelatedWordsSection({
+    required this.root,
+    required this.excludeWordId,
+  });
+
+  final String root;
+  final int excludeWordId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = AppLocalizations.of(context);
+    final dao = ref.watch(wordsDaoProvider);
+    return FutureBuilder<List<WordSearchHit>>(
+      future: dao.searchByRoot(root, limit: 5, excludeWordId: excludeWordId),
+      builder: (context, snapshot) {
+        // Hide the section entirely while loading or when there are
+        // no related words. We don't show an empty-state here because
+        // a "no other words share this root" message is noise — the
+        // user came for the word, not a root census.
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const SizedBox.shrink();
+        }
+        final hits = snapshot.data ?? const <WordSearchHit>[];
+        if (hits.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.account_tree_outlined,
+                    size: 14, color: AppColors.textTertiary),
+                const SizedBox(width: 6),
+                Text(
+                  t.wordSameRoot,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textTertiary,
+                    letterSpacing: 0.6,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ...hits.map(
+              (h) => _RelatedWordTile(hit: h),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _RelatedWordTile extends StatelessWidget {
+  const _RelatedWordTile({required this.hit});
+  final WordSearchHit hit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          Navigator.of(context).maybePop();
+          context.go('/reader/${hit.surahId}?ayah=${hit.ayahNumber}');
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceHigh,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Text(
+                hit.arabic,
+                textDirection: TextDirection.rtl,
+                style: const TextStyle(
+                  fontFamily: 'Amiri',
+                  fontSize: 20,
+                  color: AppColors.gold,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hit.normalized,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (hit.translation != null && hit.translation!.isNotEmpty)
+                      Text(
+                        hit.translation!,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textTertiary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${hit.surahId}:${hit.ayahNumber}',
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textTertiary,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

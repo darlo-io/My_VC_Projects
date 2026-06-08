@@ -836,4 +836,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String ayahLabel(Object number) {
     return 'Ayah $number';
   }
+
+  @override
+  String get wordSameRoot => 'Other words with the same root';
 }

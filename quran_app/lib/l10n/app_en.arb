@@ -312,5 +312,6 @@
   "notesForAyah": "Notes for ayah {number}",
   "notesEmpty": "No notes yet.\nAdd the first one below.",
   "notesHint": "Note text…",
-  "ayahLabel": "Ayah {number}"
+  "ayahLabel": "Ayah {number}",
+  "wordSameRoot": "Other words with the same root"
 }

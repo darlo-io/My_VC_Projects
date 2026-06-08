@@ -836,4 +836,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String ayahLabel(Object number) {
     return 'الآية $number';
   }
+
+  @override
+  String get wordSameRoot => 'كلمات أخرى من الجذر نفسه';
 }

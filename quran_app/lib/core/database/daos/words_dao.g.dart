@@ -6,6 +6,7 @@ part of 'words_dao.dart';
 mixin _$WordsDaoMixin on DatabaseAccessor<AppDatabase> {
   $WordsTable get words => attachedDatabase.words;
   $AyahsTable get ayahs => attachedDatabase.ayahs;
+  $SurahsTable get surahs => attachedDatabase.surahs;
   WordsDaoManager get managers => WordsDaoManager(this);
 }
 
@@ -16,4 +17,6 @@ class WordsDaoManager {
       $$WordsTableTableManager(_db.attachedDatabase, _db.words);
   $$AyahsTableTableManager get ayahs =>
       $$AyahsTableTableManager(_db.attachedDatabase, _db.ayahs);
+  $$SurahsTableTableManager get surahs =>
+      $$SurahsTableTableManager(_db.attachedDatabase, _db.surahs);
 }

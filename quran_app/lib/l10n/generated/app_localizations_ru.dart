@@ -838,4 +838,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String ayahLabel(Object number) {
     return 'Аят $number';
   }
+
+  @override
+  String get wordSameRoot => 'Другие слова с тем же корнем';
 }
