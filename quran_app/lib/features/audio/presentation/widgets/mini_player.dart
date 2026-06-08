@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
+import '../../../../core/i18n/localized_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/ornaments.dart';
 
 /// Компактный плеер поверх экрана, когда идёт воспроизведение.
@@ -12,6 +14,7 @@ class MiniPlayer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = AppLocalizations.of(context);
     final state = ref.watch(audioPlayerControllerProvider);
     if (state.surah == null) return const SizedBox.shrink();
 
@@ -55,7 +58,7 @@ class MiniPlayer extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        state.surahName,
+                        t.surahName(state.surah!.id, fallback: state.surahName),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -66,7 +69,12 @@ class MiniPlayer extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        state.reciter?.nameEn ?? '',
+                        state.reciter == null
+                            ? ''
+                            : t.reciterName(
+                                state.reciter!.id,
+                                fallback: state.reciter!.nameEn,
+                              ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(

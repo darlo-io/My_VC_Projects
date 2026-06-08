@@ -102,6 +102,12 @@ class _SurahListScreenState extends ConsumerState<SurahListScreen> {
                       final filtered = _query.isEmpty
                           ? items
                           : items.where((s) {
+                              // Search by every language we ship:
+                              // transliteration (Latin), English,
+                              // Arabic, and numeric id. ARB
+                              // translation is deliberately not
+                              // searched here — it's already
+                              // derived from these three.
                               return s.nameTransliteration
                                       .toLowerCase()
                                       .contains(q) ||

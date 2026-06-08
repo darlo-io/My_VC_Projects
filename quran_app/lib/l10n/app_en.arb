@@ -9,59 +9,69 @@
   "navListen": "Listen",
   "navLearn": "Learn",
   "navTasbih": "Tasbih",
-
   "greetingAssalamu": "Assalamu Alaikum!",
   "hijriDateFallback": "{date} AH",
   "homeFallbackSurahName": "Al-Fatiha",
   "homeFallbackDate": "",
   "@hijriDateFallback": {
-    "placeholders": { "date": { "type": "String" } }
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   },
   "continueReading": "Continue reading",
   "continueAction": "Continue",
   "surahAndAyah": "Surah {surah}, ayah {ayah}",
   "@surahAndAyah": {
     "placeholders": {
-      "surah": { "type": "String" },
-      "ayah": { "type": "int" }
+      "surah": {
+        "type": "String"
+      },
+      "ayah": {
+        "type": "int"
+      }
     }
   },
-
   "cardRead": "Read",
   "cardListen": "Listen",
   "cardLearn": "Learn",
   "cardTest": "Test",
   "cardTasbih": "Tasbih",
   "cardStats": "Statistics",
-
   "chooseSurah": "Choose a surah",
   "searchByNameOrNumber": "Search by name or number",
   "tabSurahs": "Surahs",
   "tabJuz": "Juz",
   "ayahsCount": "{count, plural, =1{1 ayah} other{{count} ayahs}}",
   "@ayahsCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "revelationMeccan": "Meccan",
   "revelationMedinan": "Medinan",
   "juzNumber": "Juz {number}",
   "@juzNumber": {
-    "placeholders": { "number": { "type": "int" } }
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
   },
-
   "search": "Search",
   "searchHint": "Search surah, ayah, translation…",
   "searchResultsEmpty": "No results",
   "searchResultsEmptyHint": "Try different keywords",
   "searchSurahOnly": "Surah only",
   "searchAll": "All",
-
   "bookmarksEmpty": "No bookmarks yet",
   "bookmarksEmptyHint": "Add bookmarks from any ayah",
   "addBookmark": "Add bookmark",
   "removeBookmark": "Remove bookmark",
   "bookmarkLabel": "Label (optional)",
-
   "settings": "Settings",
   "settingsLanguage": "Interface language",
   "settingsTheme": "Theme",
@@ -76,29 +86,33 @@
   "settingsCacheEvicted": "Removed {count} files",
   "@settingsStorageUsed": {
     "placeholders": {
-      "used": { "type": "String" },
-      "limit": { "type": "String" }
+      "used": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
     }
   },
-  "settingsCacheLimit": "Cache size limit",
   "settingsClearCache": "Clear audio cache",
   "settingsAbout": "About",
   "settingsVersion": "Version {version}",
   "@settingsVersion": {
-    "placeholders": { "version": { "type": "String" } }
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
   },
   "settingsReset": "Reset all data",
   "settingsResetConfirm": "Are you sure? All data will be deleted.",
   "settingsResetConfirmAction": "Delete",
-
   "languageSystem": "System",
   "languageEnglish": "English",
   "languageRussian": "Русский",
   "languageArabic": "العربية",
-
   "comingSoon": "Coming soon",
   "comingSoonDesc": "This feature will be available in a future update.",
-
   "loading": "Loading…",
   "error": "Error",
   "retry": "Retry",
@@ -106,7 +120,6 @@
   "ok": "OK",
   "save": "Save",
   "delete": "Delete",
-
   "bootstrapChecking": "Checking content…",
   "bootstrapDownloading": "Downloading content…",
   "bootstrapSeeding": "Preparing database…",
@@ -117,11 +130,9 @@
   "bootstrapNetworkChecking": "Checking for updates…",
   "bootstrapNetworkFailed": "Offline mode (updates skipped)",
   "bootstrapNetworkDone": "Up to date",
-
   "firstLaunchTitle": "Choose your language",
   "firstLaunchSubtitle": "You can change this later in Settings",
   "firstLaunchAction": "Continue",
-
   "statsTitle": "Your progress",
   "statsWeek": "Week",
   "statsMonth": "Month",
@@ -132,24 +143,146 @@
   "statsReadingTime": "Reading time",
   "statsActivity": "Reading activity",
   "statsPerDay": "Ayahs per day",
-
   "audioChooseSurah": "Surah",
   "audioChooseAyah": "Ayah",
   "audioSpeed": "Speed",
   "audioSleepTimer": "Sleep timer",
   "audioNightMode": "Night mode",
   "audioOff": "Off",
-
   "hifzTitle": "Memorization",
   "hifzRepeat": "Repeat",
   "hifzAbRepeat": "A-B repeat",
   "hifzProgress": "Progress",
-
   "tasbihTotal": "Total",
   "tasbihTapHint": "Tap to count",
   "tasbihReset": "Reset counter",
   "tasbihSubhanAllah": "SubhanAllah",
   "tasbihAlhamdulillah": "Alhamdulillah",
   "tasbihLaIla": "La ilaha illallah",
-  "tasbihAllahuAkbar": "Allahu Akbar"
+  "tasbihAllahuAkbar": "Allahu Akbar",
+  "surahName1": "The Opening",
+  "surahName2": "The Cow",
+  "surahName3": "The Family of Imraan",
+  "surahName4": "The Women",
+  "surahName5": "The Table",
+  "surahName6": "The Cattle",
+  "surahName7": "The Heights",
+  "surahName8": "The Spoils of War",
+  "surahName9": "The Repentance",
+  "surahName10": "Jonas",
+  "surahName11": "Hud",
+  "surahName12": "Joseph",
+  "surahName13": "The Thunder",
+  "surahName14": "Abraham",
+  "surahName15": "The Rock",
+  "surahName16": "The Bee",
+  "surahName17": "The Night Journey",
+  "surahName18": "The Cave",
+  "surahName19": "Mary",
+  "surahName20": "Taa-Haa",
+  "surahName21": "The Prophets",
+  "surahName22": "The Pilgrimage",
+  "surahName23": "The Believers",
+  "surahName24": "The Light",
+  "surahName25": "The Criterion",
+  "surahName26": "The Poets",
+  "surahName27": "The Ant",
+  "surahName28": "The Stories",
+  "surahName29": "The Spider",
+  "surahName30": "The Romans",
+  "surahName31": "Luqman",
+  "surahName32": "The Prostration",
+  "surahName33": "The Clans",
+  "surahName34": "Sheba",
+  "surahName35": "The Originator",
+  "surahName36": "Yaseen",
+  "surahName37": "Those drawn up in Ranks",
+  "surahName38": "The letter Saad",
+  "surahName39": "The Groups",
+  "surahName40": "The Forgiver",
+  "surahName41": "Explained in detail",
+  "surahName42": "Consultation",
+  "surahName43": "Ornaments of gold",
+  "surahName44": "The Smoke",
+  "surahName45": "Crouching",
+  "surahName46": "The Dunes",
+  "surahName47": "Muhammad",
+  "surahName48": "The Victory",
+  "surahName49": "The Inner Apartments",
+  "surahName50": "The letter Qaaf",
+  "surahName51": "The Winnowing Winds",
+  "surahName52": "The Mount",
+  "surahName53": "The Star",
+  "surahName54": "The Moon",
+  "surahName55": "The Beneficent",
+  "surahName56": "The Inevitable",
+  "surahName57": "The Iron",
+  "surahName58": "The Pleading Woman",
+  "surahName59": "The Exile",
+  "surahName60": "She that is to be examined",
+  "surahName61": "The Ranks",
+  "surahName62": "Friday",
+  "surahName63": "The Hypocrites",
+  "surahName64": "Mutual Disillusion",
+  "surahName65": "Divorce",
+  "surahName66": "The Prohibition",
+  "surahName67": "The Sovereignty",
+  "surahName68": "The Pen",
+  "surahName69": "The Reality",
+  "surahName70": "The Ascending Stairways",
+  "surahName71": "Noah",
+  "surahName72": "The Jinn",
+  "surahName73": "The Enshrouded One",
+  "surahName74": "The Cloaked One",
+  "surahName75": "The Resurrection",
+  "surahName76": "Man",
+  "surahName77": "The Emissaries",
+  "surahName78": "The Announcement",
+  "surahName79": "Those who drag forth",
+  "surahName80": "He frowned",
+  "surahName81": "The Overthrowing",
+  "surahName82": "The Cleaving",
+  "surahName83": "Defrauding",
+  "surahName84": "The Splitting Open",
+  "surahName85": "The Constellations",
+  "surahName86": "The Morning Star",
+  "surahName87": "The Most High",
+  "surahName88": "The Overwhelming",
+  "surahName89": "The Dawn",
+  "surahName90": "The City",
+  "surahName91": "The Sun",
+  "surahName92": "The Night",
+  "surahName93": "The Morning Hours",
+  "surahName94": "The Consolation",
+  "surahName95": "The Fig",
+  "surahName96": "The Clot",
+  "surahName97": "The Power, Fate",
+  "surahName98": "The Evidence",
+  "surahName99": "The Earthquake",
+  "surahName100": "The Chargers",
+  "surahName101": "The Calamity",
+  "surahName102": "Competition",
+  "surahName103": "The Declining Day, Epoch",
+  "surahName104": "The Traducer",
+  "surahName105": "The Elephant",
+  "surahName106": "Quraysh",
+  "surahName107": "Almsgiving",
+  "surahName108": "Abundance",
+  "surahName109": "The Disbelievers",
+  "surahName110": "Divine Support",
+  "surahName111": "The Palm Fibre",
+  "surahName112": "Sincerity",
+  "surahName113": "The Dawn",
+  "surahName114": "Mankind",
+  "reciterNameAlafasy": "Mishary Rashid Alafasy",
+  "reciterNameAbdulbasitmurattal": "Abdul Basit Abdul Samad",
+  "reciterNameHusary": "Mahmud Khalil Al-Husary",
+  "reciterNameMinshawi": "Mohamed Siddiq Al-Minshawi",
+  "reciterNameAbdurrahmaansudais": "Abdul Rahman Al-Sudais",
+  "reciterNameSaaborimadina": "Saud Al-Shuraim",
+  "reciterNameHudhaify": "Ali Al-Hudhaify",
+  "reciterNameAhmedajamy": "Ahmed Al-Ajamy",
+  "nowPlaying": "Now playing",
+  "selectSurahAndPlay": "Pick a surah and press play",
+  "surahLabel": "Surah"
 }

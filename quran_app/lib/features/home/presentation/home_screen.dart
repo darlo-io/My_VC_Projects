@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
+import '../../../../core/i18n/localized_names.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/common_widgets.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -17,7 +18,14 @@ class HomeScreen extends ConsumerWidget {
     final isArabicUI = loc.languageCode == 'ar';
     final last = ref.watch(positionStreamProvider).value ?? const _LastPosition.empty();
     final isEmpty = last.surahId == 0;
-    final displaySurah = isEmpty ? t.homeFallbackSurahName : last.surahName;
+    // In Arabic UI we keep the Arabic name as the primary visible
+    // label; in any other locale we look up the ARB translation
+    // (which uses the transliteration for ru, English name for en)
+    // and only fall back to the raw transliteration if ARB is
+    // missing the entry.
+    final displaySurah = isEmpty
+        ? t.homeFallbackSurahName
+        : t.surahName(last.surahId, fallback: last.surahName);
     final displayAyah = isEmpty ? 1 : last.ayahNumber;
 
     return SafeArea(

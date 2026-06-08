@@ -771,6 +771,756 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Allahu Akbar'**
   String get tasbihAllahuAkbar;
+
+  /// No description provided for @surahName1.
+  ///
+  /// In en, this message translates to:
+  /// **'The Opening'**
+  String get surahName1;
+
+  /// No description provided for @surahName2.
+  ///
+  /// In en, this message translates to:
+  /// **'The Cow'**
+  String get surahName2;
+
+  /// No description provided for @surahName3.
+  ///
+  /// In en, this message translates to:
+  /// **'The Family of Imraan'**
+  String get surahName3;
+
+  /// No description provided for @surahName4.
+  ///
+  /// In en, this message translates to:
+  /// **'The Women'**
+  String get surahName4;
+
+  /// No description provided for @surahName5.
+  ///
+  /// In en, this message translates to:
+  /// **'The Table'**
+  String get surahName5;
+
+  /// No description provided for @surahName6.
+  ///
+  /// In en, this message translates to:
+  /// **'The Cattle'**
+  String get surahName6;
+
+  /// No description provided for @surahName7.
+  ///
+  /// In en, this message translates to:
+  /// **'The Heights'**
+  String get surahName7;
+
+  /// No description provided for @surahName8.
+  ///
+  /// In en, this message translates to:
+  /// **'The Spoils of War'**
+  String get surahName8;
+
+  /// No description provided for @surahName9.
+  ///
+  /// In en, this message translates to:
+  /// **'The Repentance'**
+  String get surahName9;
+
+  /// No description provided for @surahName10.
+  ///
+  /// In en, this message translates to:
+  /// **'Jonas'**
+  String get surahName10;
+
+  /// No description provided for @surahName11.
+  ///
+  /// In en, this message translates to:
+  /// **'Hud'**
+  String get surahName11;
+
+  /// No description provided for @surahName12.
+  ///
+  /// In en, this message translates to:
+  /// **'Joseph'**
+  String get surahName12;
+
+  /// No description provided for @surahName13.
+  ///
+  /// In en, this message translates to:
+  /// **'The Thunder'**
+  String get surahName13;
+
+  /// No description provided for @surahName14.
+  ///
+  /// In en, this message translates to:
+  /// **'Abraham'**
+  String get surahName14;
+
+  /// No description provided for @surahName15.
+  ///
+  /// In en, this message translates to:
+  /// **'The Rock'**
+  String get surahName15;
+
+  /// No description provided for @surahName16.
+  ///
+  /// In en, this message translates to:
+  /// **'The Bee'**
+  String get surahName16;
+
+  /// No description provided for @surahName17.
+  ///
+  /// In en, this message translates to:
+  /// **'The Night Journey'**
+  String get surahName17;
+
+  /// No description provided for @surahName18.
+  ///
+  /// In en, this message translates to:
+  /// **'The Cave'**
+  String get surahName18;
+
+  /// No description provided for @surahName19.
+  ///
+  /// In en, this message translates to:
+  /// **'Mary'**
+  String get surahName19;
+
+  /// No description provided for @surahName20.
+  ///
+  /// In en, this message translates to:
+  /// **'Taa-Haa'**
+  String get surahName20;
+
+  /// No description provided for @surahName21.
+  ///
+  /// In en, this message translates to:
+  /// **'The Prophets'**
+  String get surahName21;
+
+  /// No description provided for @surahName22.
+  ///
+  /// In en, this message translates to:
+  /// **'The Pilgrimage'**
+  String get surahName22;
+
+  /// No description provided for @surahName23.
+  ///
+  /// In en, this message translates to:
+  /// **'The Believers'**
+  String get surahName23;
+
+  /// No description provided for @surahName24.
+  ///
+  /// In en, this message translates to:
+  /// **'The Light'**
+  String get surahName24;
+
+  /// No description provided for @surahName25.
+  ///
+  /// In en, this message translates to:
+  /// **'The Criterion'**
+  String get surahName25;
+
+  /// No description provided for @surahName26.
+  ///
+  /// In en, this message translates to:
+  /// **'The Poets'**
+  String get surahName26;
+
+  /// No description provided for @surahName27.
+  ///
+  /// In en, this message translates to:
+  /// **'The Ant'**
+  String get surahName27;
+
+  /// No description provided for @surahName28.
+  ///
+  /// In en, this message translates to:
+  /// **'The Stories'**
+  String get surahName28;
+
+  /// No description provided for @surahName29.
+  ///
+  /// In en, this message translates to:
+  /// **'The Spider'**
+  String get surahName29;
+
+  /// No description provided for @surahName30.
+  ///
+  /// In en, this message translates to:
+  /// **'The Romans'**
+  String get surahName30;
+
+  /// No description provided for @surahName31.
+  ///
+  /// In en, this message translates to:
+  /// **'Luqman'**
+  String get surahName31;
+
+  /// No description provided for @surahName32.
+  ///
+  /// In en, this message translates to:
+  /// **'The Prostration'**
+  String get surahName32;
+
+  /// No description provided for @surahName33.
+  ///
+  /// In en, this message translates to:
+  /// **'The Clans'**
+  String get surahName33;
+
+  /// No description provided for @surahName34.
+  ///
+  /// In en, this message translates to:
+  /// **'Sheba'**
+  String get surahName34;
+
+  /// No description provided for @surahName35.
+  ///
+  /// In en, this message translates to:
+  /// **'The Originator'**
+  String get surahName35;
+
+  /// No description provided for @surahName36.
+  ///
+  /// In en, this message translates to:
+  /// **'Yaseen'**
+  String get surahName36;
+
+  /// No description provided for @surahName37.
+  ///
+  /// In en, this message translates to:
+  /// **'Those drawn up in Ranks'**
+  String get surahName37;
+
+  /// No description provided for @surahName38.
+  ///
+  /// In en, this message translates to:
+  /// **'The letter Saad'**
+  String get surahName38;
+
+  /// No description provided for @surahName39.
+  ///
+  /// In en, this message translates to:
+  /// **'The Groups'**
+  String get surahName39;
+
+  /// No description provided for @surahName40.
+  ///
+  /// In en, this message translates to:
+  /// **'The Forgiver'**
+  String get surahName40;
+
+  /// No description provided for @surahName41.
+  ///
+  /// In en, this message translates to:
+  /// **'Explained in detail'**
+  String get surahName41;
+
+  /// No description provided for @surahName42.
+  ///
+  /// In en, this message translates to:
+  /// **'Consultation'**
+  String get surahName42;
+
+  /// No description provided for @surahName43.
+  ///
+  /// In en, this message translates to:
+  /// **'Ornaments of gold'**
+  String get surahName43;
+
+  /// No description provided for @surahName44.
+  ///
+  /// In en, this message translates to:
+  /// **'The Smoke'**
+  String get surahName44;
+
+  /// No description provided for @surahName45.
+  ///
+  /// In en, this message translates to:
+  /// **'Crouching'**
+  String get surahName45;
+
+  /// No description provided for @surahName46.
+  ///
+  /// In en, this message translates to:
+  /// **'The Dunes'**
+  String get surahName46;
+
+  /// No description provided for @surahName47.
+  ///
+  /// In en, this message translates to:
+  /// **'Muhammad'**
+  String get surahName47;
+
+  /// No description provided for @surahName48.
+  ///
+  /// In en, this message translates to:
+  /// **'The Victory'**
+  String get surahName48;
+
+  /// No description provided for @surahName49.
+  ///
+  /// In en, this message translates to:
+  /// **'The Inner Apartments'**
+  String get surahName49;
+
+  /// No description provided for @surahName50.
+  ///
+  /// In en, this message translates to:
+  /// **'The letter Qaaf'**
+  String get surahName50;
+
+  /// No description provided for @surahName51.
+  ///
+  /// In en, this message translates to:
+  /// **'The Winnowing Winds'**
+  String get surahName51;
+
+  /// No description provided for @surahName52.
+  ///
+  /// In en, this message translates to:
+  /// **'The Mount'**
+  String get surahName52;
+
+  /// No description provided for @surahName53.
+  ///
+  /// In en, this message translates to:
+  /// **'The Star'**
+  String get surahName53;
+
+  /// No description provided for @surahName54.
+  ///
+  /// In en, this message translates to:
+  /// **'The Moon'**
+  String get surahName54;
+
+  /// No description provided for @surahName55.
+  ///
+  /// In en, this message translates to:
+  /// **'The Beneficent'**
+  String get surahName55;
+
+  /// No description provided for @surahName56.
+  ///
+  /// In en, this message translates to:
+  /// **'The Inevitable'**
+  String get surahName56;
+
+  /// No description provided for @surahName57.
+  ///
+  /// In en, this message translates to:
+  /// **'The Iron'**
+  String get surahName57;
+
+  /// No description provided for @surahName58.
+  ///
+  /// In en, this message translates to:
+  /// **'The Pleading Woman'**
+  String get surahName58;
+
+  /// No description provided for @surahName59.
+  ///
+  /// In en, this message translates to:
+  /// **'The Exile'**
+  String get surahName59;
+
+  /// No description provided for @surahName60.
+  ///
+  /// In en, this message translates to:
+  /// **'She that is to be examined'**
+  String get surahName60;
+
+  /// No description provided for @surahName61.
+  ///
+  /// In en, this message translates to:
+  /// **'The Ranks'**
+  String get surahName61;
+
+  /// No description provided for @surahName62.
+  ///
+  /// In en, this message translates to:
+  /// **'Friday'**
+  String get surahName62;
+
+  /// No description provided for @surahName63.
+  ///
+  /// In en, this message translates to:
+  /// **'The Hypocrites'**
+  String get surahName63;
+
+  /// No description provided for @surahName64.
+  ///
+  /// In en, this message translates to:
+  /// **'Mutual Disillusion'**
+  String get surahName64;
+
+  /// No description provided for @surahName65.
+  ///
+  /// In en, this message translates to:
+  /// **'Divorce'**
+  String get surahName65;
+
+  /// No description provided for @surahName66.
+  ///
+  /// In en, this message translates to:
+  /// **'The Prohibition'**
+  String get surahName66;
+
+  /// No description provided for @surahName67.
+  ///
+  /// In en, this message translates to:
+  /// **'The Sovereignty'**
+  String get surahName67;
+
+  /// No description provided for @surahName68.
+  ///
+  /// In en, this message translates to:
+  /// **'The Pen'**
+  String get surahName68;
+
+  /// No description provided for @surahName69.
+  ///
+  /// In en, this message translates to:
+  /// **'The Reality'**
+  String get surahName69;
+
+  /// No description provided for @surahName70.
+  ///
+  /// In en, this message translates to:
+  /// **'The Ascending Stairways'**
+  String get surahName70;
+
+  /// No description provided for @surahName71.
+  ///
+  /// In en, this message translates to:
+  /// **'Noah'**
+  String get surahName71;
+
+  /// No description provided for @surahName72.
+  ///
+  /// In en, this message translates to:
+  /// **'The Jinn'**
+  String get surahName72;
+
+  /// No description provided for @surahName73.
+  ///
+  /// In en, this message translates to:
+  /// **'The Enshrouded One'**
+  String get surahName73;
+
+  /// No description provided for @surahName74.
+  ///
+  /// In en, this message translates to:
+  /// **'The Cloaked One'**
+  String get surahName74;
+
+  /// No description provided for @surahName75.
+  ///
+  /// In en, this message translates to:
+  /// **'The Resurrection'**
+  String get surahName75;
+
+  /// No description provided for @surahName76.
+  ///
+  /// In en, this message translates to:
+  /// **'Man'**
+  String get surahName76;
+
+  /// No description provided for @surahName77.
+  ///
+  /// In en, this message translates to:
+  /// **'The Emissaries'**
+  String get surahName77;
+
+  /// No description provided for @surahName78.
+  ///
+  /// In en, this message translates to:
+  /// **'The Announcement'**
+  String get surahName78;
+
+  /// No description provided for @surahName79.
+  ///
+  /// In en, this message translates to:
+  /// **'Those who drag forth'**
+  String get surahName79;
+
+  /// No description provided for @surahName80.
+  ///
+  /// In en, this message translates to:
+  /// **'He frowned'**
+  String get surahName80;
+
+  /// No description provided for @surahName81.
+  ///
+  /// In en, this message translates to:
+  /// **'The Overthrowing'**
+  String get surahName81;
+
+  /// No description provided for @surahName82.
+  ///
+  /// In en, this message translates to:
+  /// **'The Cleaving'**
+  String get surahName82;
+
+  /// No description provided for @surahName83.
+  ///
+  /// In en, this message translates to:
+  /// **'Defrauding'**
+  String get surahName83;
+
+  /// No description provided for @surahName84.
+  ///
+  /// In en, this message translates to:
+  /// **'The Splitting Open'**
+  String get surahName84;
+
+  /// No description provided for @surahName85.
+  ///
+  /// In en, this message translates to:
+  /// **'The Constellations'**
+  String get surahName85;
+
+  /// No description provided for @surahName86.
+  ///
+  /// In en, this message translates to:
+  /// **'The Morning Star'**
+  String get surahName86;
+
+  /// No description provided for @surahName87.
+  ///
+  /// In en, this message translates to:
+  /// **'The Most High'**
+  String get surahName87;
+
+  /// No description provided for @surahName88.
+  ///
+  /// In en, this message translates to:
+  /// **'The Overwhelming'**
+  String get surahName88;
+
+  /// No description provided for @surahName89.
+  ///
+  /// In en, this message translates to:
+  /// **'The Dawn'**
+  String get surahName89;
+
+  /// No description provided for @surahName90.
+  ///
+  /// In en, this message translates to:
+  /// **'The City'**
+  String get surahName90;
+
+  /// No description provided for @surahName91.
+  ///
+  /// In en, this message translates to:
+  /// **'The Sun'**
+  String get surahName91;
+
+  /// No description provided for @surahName92.
+  ///
+  /// In en, this message translates to:
+  /// **'The Night'**
+  String get surahName92;
+
+  /// No description provided for @surahName93.
+  ///
+  /// In en, this message translates to:
+  /// **'The Morning Hours'**
+  String get surahName93;
+
+  /// No description provided for @surahName94.
+  ///
+  /// In en, this message translates to:
+  /// **'The Consolation'**
+  String get surahName94;
+
+  /// No description provided for @surahName95.
+  ///
+  /// In en, this message translates to:
+  /// **'The Fig'**
+  String get surahName95;
+
+  /// No description provided for @surahName96.
+  ///
+  /// In en, this message translates to:
+  /// **'The Clot'**
+  String get surahName96;
+
+  /// No description provided for @surahName97.
+  ///
+  /// In en, this message translates to:
+  /// **'The Power, Fate'**
+  String get surahName97;
+
+  /// No description provided for @surahName98.
+  ///
+  /// In en, this message translates to:
+  /// **'The Evidence'**
+  String get surahName98;
+
+  /// No description provided for @surahName99.
+  ///
+  /// In en, this message translates to:
+  /// **'The Earthquake'**
+  String get surahName99;
+
+  /// No description provided for @surahName100.
+  ///
+  /// In en, this message translates to:
+  /// **'The Chargers'**
+  String get surahName100;
+
+  /// No description provided for @surahName101.
+  ///
+  /// In en, this message translates to:
+  /// **'The Calamity'**
+  String get surahName101;
+
+  /// No description provided for @surahName102.
+  ///
+  /// In en, this message translates to:
+  /// **'Competition'**
+  String get surahName102;
+
+  /// No description provided for @surahName103.
+  ///
+  /// In en, this message translates to:
+  /// **'The Declining Day, Epoch'**
+  String get surahName103;
+
+  /// No description provided for @surahName104.
+  ///
+  /// In en, this message translates to:
+  /// **'The Traducer'**
+  String get surahName104;
+
+  /// No description provided for @surahName105.
+  ///
+  /// In en, this message translates to:
+  /// **'The Elephant'**
+  String get surahName105;
+
+  /// No description provided for @surahName106.
+  ///
+  /// In en, this message translates to:
+  /// **'Quraysh'**
+  String get surahName106;
+
+  /// No description provided for @surahName107.
+  ///
+  /// In en, this message translates to:
+  /// **'Almsgiving'**
+  String get surahName107;
+
+  /// No description provided for @surahName108.
+  ///
+  /// In en, this message translates to:
+  /// **'Abundance'**
+  String get surahName108;
+
+  /// No description provided for @surahName109.
+  ///
+  /// In en, this message translates to:
+  /// **'The Disbelievers'**
+  String get surahName109;
+
+  /// No description provided for @surahName110.
+  ///
+  /// In en, this message translates to:
+  /// **'Divine Support'**
+  String get surahName110;
+
+  /// No description provided for @surahName111.
+  ///
+  /// In en, this message translates to:
+  /// **'The Palm Fibre'**
+  String get surahName111;
+
+  /// No description provided for @surahName112.
+  ///
+  /// In en, this message translates to:
+  /// **'Sincerity'**
+  String get surahName112;
+
+  /// No description provided for @surahName113.
+  ///
+  /// In en, this message translates to:
+  /// **'The Dawn'**
+  String get surahName113;
+
+  /// No description provided for @surahName114.
+  ///
+  /// In en, this message translates to:
+  /// **'Mankind'**
+  String get surahName114;
+
+  /// No description provided for @reciterNameAlafasy.
+  ///
+  /// In en, this message translates to:
+  /// **'Mishary Rashid Alafasy'**
+  String get reciterNameAlafasy;
+
+  /// No description provided for @reciterNameAbdulbasitmurattal.
+  ///
+  /// In en, this message translates to:
+  /// **'Abdul Basit Abdul Samad'**
+  String get reciterNameAbdulbasitmurattal;
+
+  /// No description provided for @reciterNameHusary.
+  ///
+  /// In en, this message translates to:
+  /// **'Mahmud Khalil Al-Husary'**
+  String get reciterNameHusary;
+
+  /// No description provided for @reciterNameMinshawi.
+  ///
+  /// In en, this message translates to:
+  /// **'Mohamed Siddiq Al-Minshawi'**
+  String get reciterNameMinshawi;
+
+  /// No description provided for @reciterNameAbdurrahmaansudais.
+  ///
+  /// In en, this message translates to:
+  /// **'Abdul Rahman Al-Sudais'**
+  String get reciterNameAbdurrahmaansudais;
+
+  /// No description provided for @reciterNameSaaborimadina.
+  ///
+  /// In en, this message translates to:
+  /// **'Saud Al-Shuraim'**
+  String get reciterNameSaaborimadina;
+
+  /// No description provided for @reciterNameHudhaify.
+  ///
+  /// In en, this message translates to:
+  /// **'Ali Al-Hudhaify'**
+  String get reciterNameHudhaify;
+
+  /// No description provided for @reciterNameAhmedajamy.
+  ///
+  /// In en, this message translates to:
+  /// **'Ahmed Al-Ajamy'**
+  String get reciterNameAhmedajamy;
+
+  /// No description provided for @nowPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Now playing'**
+  String get nowPlaying;
+
+  /// No description provided for @selectSurahAndPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a surah and press play'**
+  String get selectSurahAndPlay;
+
+  /// No description provided for @surahLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Surah'**
+  String get surahLabel;
 }
 
 class _AppLocalizationsDelegate

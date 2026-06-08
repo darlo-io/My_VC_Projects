@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/database/app_database.dart';
+import '../../../../core/i18n/localized_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import 'surah_list_screen.dart';
@@ -72,7 +73,6 @@ class SurahRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final loc = Localizations.localeOf(context);
     final isMeccan = surah.revelationType.toLowerCase() == 'meccan';
     return Material(
       color: Colors.transparent,
@@ -111,7 +111,7 @@ class SurahRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _localizedName(surah, loc.languageCode),
+                      t.surahName(surah.id, fallback: surah.nameTransliteration),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -146,18 +146,6 @@ class SurahRow extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _localizedName(Surah s, String lang) {
-    switch (lang) {
-      case 'en':
-        return s.nameEn;
-      case 'ar':
-        return s.nameAr;
-      case 'ru':
-      default:
-        return s.nameTransliteration;
-    }
   }
 }
 

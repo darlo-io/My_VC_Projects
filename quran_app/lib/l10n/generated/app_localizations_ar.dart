@@ -369,4 +369,379 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get tasbihAllahuAkbar => 'الله أكبر';
+
+  @override
+  String get surahName1 => '';
+
+  @override
+  String get surahName2 => '';
+
+  @override
+  String get surahName3 => '';
+
+  @override
+  String get surahName4 => '';
+
+  @override
+  String get surahName5 => '';
+
+  @override
+  String get surahName6 => '';
+
+  @override
+  String get surahName7 => '';
+
+  @override
+  String get surahName8 => '';
+
+  @override
+  String get surahName9 => '';
+
+  @override
+  String get surahName10 => '';
+
+  @override
+  String get surahName11 => '';
+
+  @override
+  String get surahName12 => '';
+
+  @override
+  String get surahName13 => '';
+
+  @override
+  String get surahName14 => '';
+
+  @override
+  String get surahName15 => '';
+
+  @override
+  String get surahName16 => '';
+
+  @override
+  String get surahName17 => '';
+
+  @override
+  String get surahName18 => '';
+
+  @override
+  String get surahName19 => '';
+
+  @override
+  String get surahName20 => '';
+
+  @override
+  String get surahName21 => '';
+
+  @override
+  String get surahName22 => '';
+
+  @override
+  String get surahName23 => '';
+
+  @override
+  String get surahName24 => '';
+
+  @override
+  String get surahName25 => '';
+
+  @override
+  String get surahName26 => '';
+
+  @override
+  String get surahName27 => '';
+
+  @override
+  String get surahName28 => '';
+
+  @override
+  String get surahName29 => '';
+
+  @override
+  String get surahName30 => '';
+
+  @override
+  String get surahName31 => '';
+
+  @override
+  String get surahName32 => '';
+
+  @override
+  String get surahName33 => '';
+
+  @override
+  String get surahName34 => '';
+
+  @override
+  String get surahName35 => '';
+
+  @override
+  String get surahName36 => '';
+
+  @override
+  String get surahName37 => '';
+
+  @override
+  String get surahName38 => '';
+
+  @override
+  String get surahName39 => '';
+
+  @override
+  String get surahName40 => '';
+
+  @override
+  String get surahName41 => '';
+
+  @override
+  String get surahName42 => '';
+
+  @override
+  String get surahName43 => '';
+
+  @override
+  String get surahName44 => '';
+
+  @override
+  String get surahName45 => '';
+
+  @override
+  String get surahName46 => '';
+
+  @override
+  String get surahName47 => '';
+
+  @override
+  String get surahName48 => '';
+
+  @override
+  String get surahName49 => '';
+
+  @override
+  String get surahName50 => '';
+
+  @override
+  String get surahName51 => '';
+
+  @override
+  String get surahName52 => '';
+
+  @override
+  String get surahName53 => '';
+
+  @override
+  String get surahName54 => '';
+
+  @override
+  String get surahName55 => '';
+
+  @override
+  String get surahName56 => '';
+
+  @override
+  String get surahName57 => '';
+
+  @override
+  String get surahName58 => '';
+
+  @override
+  String get surahName59 => '';
+
+  @override
+  String get surahName60 => '';
+
+  @override
+  String get surahName61 => '';
+
+  @override
+  String get surahName62 => '';
+
+  @override
+  String get surahName63 => '';
+
+  @override
+  String get surahName64 => '';
+
+  @override
+  String get surahName65 => '';
+
+  @override
+  String get surahName66 => '';
+
+  @override
+  String get surahName67 => '';
+
+  @override
+  String get surahName68 => '';
+
+  @override
+  String get surahName69 => '';
+
+  @override
+  String get surahName70 => '';
+
+  @override
+  String get surahName71 => '';
+
+  @override
+  String get surahName72 => '';
+
+  @override
+  String get surahName73 => '';
+
+  @override
+  String get surahName74 => '';
+
+  @override
+  String get surahName75 => '';
+
+  @override
+  String get surahName76 => '';
+
+  @override
+  String get surahName77 => '';
+
+  @override
+  String get surahName78 => '';
+
+  @override
+  String get surahName79 => '';
+
+  @override
+  String get surahName80 => '';
+
+  @override
+  String get surahName81 => '';
+
+  @override
+  String get surahName82 => '';
+
+  @override
+  String get surahName83 => '';
+
+  @override
+  String get surahName84 => '';
+
+  @override
+  String get surahName85 => '';
+
+  @override
+  String get surahName86 => '';
+
+  @override
+  String get surahName87 => '';
+
+  @override
+  String get surahName88 => '';
+
+  @override
+  String get surahName89 => '';
+
+  @override
+  String get surahName90 => '';
+
+  @override
+  String get surahName91 => '';
+
+  @override
+  String get surahName92 => '';
+
+  @override
+  String get surahName93 => '';
+
+  @override
+  String get surahName94 => '';
+
+  @override
+  String get surahName95 => '';
+
+  @override
+  String get surahName96 => '';
+
+  @override
+  String get surahName97 => '';
+
+  @override
+  String get surahName98 => '';
+
+  @override
+  String get surahName99 => '';
+
+  @override
+  String get surahName100 => '';
+
+  @override
+  String get surahName101 => '';
+
+  @override
+  String get surahName102 => '';
+
+  @override
+  String get surahName103 => '';
+
+  @override
+  String get surahName104 => '';
+
+  @override
+  String get surahName105 => '';
+
+  @override
+  String get surahName106 => '';
+
+  @override
+  String get surahName107 => '';
+
+  @override
+  String get surahName108 => '';
+
+  @override
+  String get surahName109 => '';
+
+  @override
+  String get surahName110 => '';
+
+  @override
+  String get surahName111 => '';
+
+  @override
+  String get surahName112 => '';
+
+  @override
+  String get surahName113 => '';
+
+  @override
+  String get surahName114 => '';
+
+  @override
+  String get reciterNameAlafasy => 'مشاري راشد العفاسي';
+
+  @override
+  String get reciterNameAbdulbasitmurattal => 'عبد الباسط عبد الصمد';
+
+  @override
+  String get reciterNameHusary => 'محمود خليل الحصري';
+
+  @override
+  String get reciterNameMinshawi => 'محمد صديق المنشاوي';
+
+  @override
+  String get reciterNameAbdurrahmaansudais => 'عبد الرحمن السديس';
+
+  @override
+  String get reciterNameSaaborimadina => 'سعود الشريم';
+
+  @override
+  String get reciterNameHudhaify => 'علي عبد الله جابر';
+
+  @override
+  String get reciterNameAhmedajamy => 'أحمد العجمي';
+
+  @override
+  String get nowPlaying => 'يُشغَّل الآن';
+
+  @override
+  String get selectSurahAndPlay => 'اختر سورة واضغط تشغيل';
+
+  @override
+  String get surahLabel => 'السورة';
 }

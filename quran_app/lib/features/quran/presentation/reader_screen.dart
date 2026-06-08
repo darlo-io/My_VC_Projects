@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/providers.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/i18n/localized_names.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/common_widgets.dart';
 import '../../../shared/widgets/ornaments.dart';
@@ -121,7 +122,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 if (surah == null) return const SizedBox(height: 80);
                 return SurahTitleFrame(
                   arabicName: surah.nameAr,
-                  transliteration: surah.nameTransliteration,
+                  transliteration: t.surahName(surah.id, fallback: surah.nameTransliteration),
                   subtitle: t.ayahsCount(surah.ayahCount),
                 );
               },

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/providers.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/daos/surah_dao.dart';
+import '../../../core/i18n/localized_names.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/common_widgets.dart';
@@ -134,6 +135,7 @@ class _ListenBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       children: [
@@ -157,8 +159,9 @@ class _ListenBody extends StatelessWidget {
         const SizedBox(height: 16),
         Text(
           playerState.surah == null
-              ? 'Выберите суру и нажмите play'
-              : 'Идёт: ${playerState.surahName} • ${playerState.reciter?.nameEn ?? ''}',
+              ? t.selectSurahAndPlay
+              : '${t.nowPlaying}: ${playerState.surahName} • '
+                  '${playerState.reciter == null ? '' : t.reciterName(playerState.reciter!.id, fallback: playerState.reciter!.nameEn)}',
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: AppColors.textTertiary,
@@ -216,6 +219,7 @@ class _ReciterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -246,7 +250,7 @@ class _ReciterChip extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                reciter.nameEn,
+                t.reciterName(reciter.id, fallback: reciter.nameEn),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -278,6 +282,7 @@ class _Player extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = AppLocalizations.of(context);
     final hasTrack = state.surah != null;
     final playing = state.playing;
     final pos = state.positionMs;
@@ -336,7 +341,9 @@ class _Player extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            state.surah?.nameTransliteration ?? '—',
+            state.surah == null
+                ? '—'
+                : t.surahName(state.surah!.id, fallback: state.surah!.nameTransliteration),
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -345,7 +352,9 @@ class _Player extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            state.reciter?.nameEn ?? '',
+            state.reciter == null
+                ? ''
+                : t.reciterName(state.reciter!.id, fallback: state.reciter!.nameEn),
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,
@@ -407,6 +416,7 @@ class _SurahPickerState extends ConsumerState<_SurahPicker> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     if (_loading || _all == null) {
       return const SizedBox(
         height: 56,
@@ -418,9 +428,9 @@ class _SurahPickerState extends ConsumerState<_SurahPicker> {
       children: [
         const Icon(Icons.menu_book, color: AppColors.gold, size: 22),
         const SizedBox(width: 12),
-        const Text(
-          'Сура:',
-          style: TextStyle(
+        Text(
+          '${t.surahLabel}:',
+          style: const TextStyle(
             fontSize: 14,
             color: AppColors.textSecondary,
           ),
@@ -443,7 +453,7 @@ class _SurahPickerState extends ConsumerState<_SurahPicker> {
                     (s) => DropdownMenuItem(
                       value: s.id,
                       child: Text(
-                        '${s.id}. ${s.nameTransliteration}',
+                        '${s.id}. ${t.surahName(s.id, fallback: s.nameTransliteration)}',
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 14,

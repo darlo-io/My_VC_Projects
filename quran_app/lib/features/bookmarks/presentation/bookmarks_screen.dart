@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/i18n/localized_names.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
 
@@ -59,6 +60,7 @@ class BookmarksScreen extends ConsumerWidget {
                         final surah = surahs[bm.surahId];
                         return _BookmarkTile(
                           bookmark: bm,
+                          surahId: bm.surahId,
                           surahName: surah?.nameTransliteration ?? '',
                           surahNameAr: surah?.nameAr ?? '',
                           onOpen: () => context.go(
@@ -82,6 +84,7 @@ class BookmarksScreen extends ConsumerWidget {
 class _BookmarkTile extends StatelessWidget {
   const _BookmarkTile({
     required this.bookmark,
+    required this.surahId,
     required this.surahName,
     required this.surahNameAr,
     required this.onOpen,
@@ -89,6 +92,7 @@ class _BookmarkTile extends StatelessWidget {
   });
 
   final Bookmark bookmark;
+  final int surahId;
   final String surahName;
   final String surahNameAr;
   final VoidCallback onOpen;
@@ -96,6 +100,7 @@ class _BookmarkTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -117,7 +122,7 @@ class _BookmarkTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      surahName,
+                      t.surahName(surahId, fallback: surahName),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
