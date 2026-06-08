@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'daos/audio_cache_dao.dart';
 import 'daos/ayah_dao.dart';
 import 'daos/bookmark_dao.dart';
+import 'daos/learning_dao.dart';
 import 'daos/position_dao.dart';
 import 'daos/reciter_dao.dart';
 import 'daos/surah_dao.dart';
@@ -47,6 +48,7 @@ part 'app_database.g.dart';
     AudioCacheDao,
     WordsDao,
     WordTimingsDao,
+    LearningDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {

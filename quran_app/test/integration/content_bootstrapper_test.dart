@@ -154,4 +154,49 @@ void main() {
     expect(timingCount.read<int>('c'), greaterThan(0),
         reason: 'Al-Fatiha word timings for ar.alafasy must be seeded');
   });
+
+  group('LearningDao (Learn feature)', () {
+    late int firstWordId;
+
+    setUp(() async {
+      await bootstrapper.bootstrap();
+      firstWordId = (await db.customSelect(
+        'SELECT id FROM words WHERE ayah_id = 1 ORDER BY id ASC LIMIT 1',
+        readsFrom: {db.words},
+      ).getSingle()).read<int>('id');
+    });
+
+    test('addWord is idempotent', () async {
+      final dao = db.learningDao;
+      await dao.addWord(firstWordId);
+      await dao.addWord(firstWordId);
+      final count = await db.customSelect(
+        'SELECT COUNT(*) AS c FROM learning_words WHERE word_id = ?',
+        variables: [Variable.withInt(firstWordId)],
+        readsFrom: {db.learningWords},
+      ).getSingle();
+      expect(count.read<int>('c'), 1);
+    });
+
+    test('recordReview applies SM-2: lapse resets reps to 0', () async {
+      final dao = db.learningDao;
+      await dao.addWord(firstWordId);
+
+      // First, get a correct review (reps goes 0 -> 1, interval=1).
+      await dao.recordReview(wordId: firstWordId, quality: 4);
+      // Then lapse (quality < 3) — reps must reset to 0.
+      final after = await dao.recordReview(wordId: firstWordId, quality: 1);
+      expect(after.repetitions, 0);
+      expect(after.intervalDays, 1);
+    });
+
+    test('watchDue returns the just-reviewed word', () async {
+      final dao = db.learningDao;
+      await dao.addWord(firstWordId);
+      // nextReviewAt defaults to DateTime.now() on insert → due immediately.
+      final due = await dao.watchDue().first;
+      expect(due, isNotEmpty);
+      expect(due.first.word.id, firstWordId);
+    });
+  });
 }
