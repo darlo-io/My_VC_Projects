@@ -5,6 +5,7 @@ import '../../../../core/database/app_database.dart';
 import '../../../../core/i18n/localized_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/generated/app_localizations.dart';
+import '../data/juz_mapping.dart';
 import 'surah_list_screen.dart';
 
 class SegmentButton extends StatelessWidget {
@@ -165,13 +166,18 @@ class JuzList extends StatelessWidget {
       ),
       itemCount: 30,
       itemBuilder: (_, i) {
+        final juzNumber = i + 1;
         return Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(t.comingSoon)),
-              );
+              // The Mushaf does not split at surah boundaries, so
+              // each Juz starts somewhere mid-surah. We use the
+              // hardcoded [kJuzStarts] table (until the seed grows
+              // the `Ayahs.juz` column) to land the user on the
+              // first ayah of their chosen Juz.
+              final start = juzStart(juzNumber);
+              context.go('/reader/${start.surahId}?ayah=${start.ayahNumber}');
             },
             borderRadius: BorderRadius.circular(14),
             child: Container(

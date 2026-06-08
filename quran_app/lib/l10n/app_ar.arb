@@ -265,5 +265,10 @@
   "notesEmpty": "لا توجد ملاحظات بعد.\nأضف أول ملاحظة أدناه.",
   "notesHint": "نص الملاحظة…",
   "ayahLabel": "الآية {number}",
-  "wordSameRoot": "كلمات أخرى من الجذر نفسه"
+  "wordSameRoot": "كلمات أخرى من الجذر نفسه",
+  "readerPrevSurah": "السورة السابقة",
+  "readerNextSurah": "السورة التالية",
+  "readerFirstSurah": "السورة الأولى",
+  "readerLastSurah": "السورة الأخيرة",
+  "juzOpenError": "تعذّر فتح الجزء {number}"
 }

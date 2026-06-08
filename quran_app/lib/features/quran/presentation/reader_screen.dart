@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/database/app_database.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/i18n/localized_names.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/common_widgets.dart';
 import '../../../shared/widgets/ornaments.dart';
@@ -83,6 +83,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final ayahsAsync = ref.watch(_ayahsStreamProvider(widget.surahId));
     final bookmarkedIds =
         ref.watch(bookmarkedAyahIdsProvider).value ?? const <int>{};
+    // Adjacent surahs for the prev/next sticky bars. Disabled on
+    // the first and last surah respectively.
+    final prevSurahId = widget.surahId > 1 ? widget.surahId - 1 : null;
+    final nextSurahId = widget.surahId < 114 ? widget.surahId + 1 : null;
 
     return Scaffold(
       body: SafeArea(
@@ -120,10 +124,22 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               data: (data) {
                 final surah = data.surah;
                 if (surah == null) return const SizedBox(height: 80);
-                return SurahTitleFrame(
-                  arabicName: surah.nameAr,
-                  transliteration: t.surahName(surah.id, fallback: surah.nameTransliteration),
-                  subtitle: t.ayahsCount(surah.ayahCount),
+                return Column(
+                  children: [
+                    SurahTitleFrame(
+                      arabicName: surah.nameAr,
+                      transliteration: t.surahName(surah.id,
+                          fallback: surah.nameTransliteration),
+                      subtitle: t.ayahsCount(surah.ayahCount),
+                    ),
+                    if (prevSurahId != null) ...[
+                      const SizedBox(height: 8),
+                      _SurahNavChip(
+                        direction: _NavDirection.prev,
+                        targetSurahId: prevSurahId,
+                      ),
+                    ],
+                  ],
                 );
               },
             ),
@@ -143,7 +159,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   }
                   return ListView.separated(
                     controller: _scrollCtrl,
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      0,
+                      20,
+                      nextSurahId == null ? 24 : 80,
+                    ),
                     itemCount: ayahs.length,
                     separatorBuilder: (_, _) => const OrnateDivider(),
                     itemBuilder: (_, i) {
@@ -164,12 +185,111 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 },
               ),
             ),
+            if (nextSurahId != null)
+              _SurahNavChip(
+                direction: _NavDirection.next,
+                targetSurahId: nextSurahId,
+              ),
           ],
         ),
       ),
     );
   }
 }
+
+enum _NavDirection { prev, next }
+
+/// Sticky bar that links to the prev/next surah. Loads the target
+/// surah's name asynchronously and shows a localized fallback until
+/// the lookup completes. Tapping pushes the new route; the
+/// `_readerDataProvider` is `autoDispose.family` so it re-fetches
+/// for the new surahId without a manual cache clear.
+class _SurahNavChip extends ConsumerWidget {
+  const _SurahNavChip({
+    required this.direction,
+    required this.targetSurahId,
+  });
+
+  final _NavDirection direction;
+  final int targetSurahId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = AppLocalizations.of(context);
+    final isPrev = direction == _NavDirection.prev;
+    final label = isPrev ? t.readerPrevSurah : t.readerNextSurah;
+    final isEdge = (isPrev && targetSurahId == 1) ||
+        (!isPrev && targetSurahId == 114);
+    final fallbackName = isEdge
+        ? (isPrev ? t.readerFirstSurah : t.readerLastSurah)
+        : null;
+    final surahAsync = ref.watch(_surahNameProvider(targetSurahId));
+    final targetName = surahAsync.value?.nameTransliteration ?? fallbackName;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, isPrev ? 0 : 0, 20, isPrev ? 0 : 12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => context.go('/reader/$targetSurahId?ayah=1'),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.borderSubtle),
+            ),
+            child: Row(
+              children: [
+                if (isPrev) ...[
+                  const Icon(Icons.chevron_left, color: AppColors.gold),
+                  const SizedBox(width: 6),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: isPrev
+                        ? CrossAxisAlignment.start
+                        : CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textTertiary,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        targetName ?? '…',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isPrev) ...[
+                  const SizedBox(width: 6),
+                  const Icon(Icons.chevron_right, color: AppColors.gold),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Cached lookup of a single surah by id. Used by [_SurahNavChip]
+/// for the prev/next labels.
+final _surahNameProvider = FutureProvider.autoDispose
+    .family<Surah?, int>((ref, id) => ref.watch(surahDaoProvider).getById(id));
 
 /// Поток аятов одной суры. Не смотрит всю таблицу `ayahs`, только
 /// нужные строки (Drift сам эмитит при изменениях).

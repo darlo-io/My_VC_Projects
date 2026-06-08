@@ -839,4 +839,21 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get wordSameRoot => 'كلمات أخرى من الجذر نفسه';
+
+  @override
+  String get readerPrevSurah => 'السورة السابقة';
+
+  @override
+  String get readerNextSurah => 'السورة التالية';
+
+  @override
+  String get readerFirstSurah => 'السورة الأولى';
+
+  @override
+  String get readerLastSurah => 'السورة الأخيرة';
+
+  @override
+  String juzOpenError(Object number) {
+    return 'تعذّر فتح الجزء $number';
+  }
 }

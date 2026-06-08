@@ -1695,6 +1695,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Other words with the same root'**
   String get wordSameRoot;
+
+  /// No description provided for @readerPrevSurah.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous surah'**
+  String get readerPrevSurah;
+
+  /// No description provided for @readerNextSurah.
+  ///
+  /// In en, this message translates to:
+  /// **'Next surah'**
+  String get readerNextSurah;
+
+  /// No description provided for @readerFirstSurah.
+  ///
+  /// In en, this message translates to:
+  /// **'First surah'**
+  String get readerFirstSurah;
+
+  /// No description provided for @readerLastSurah.
+  ///
+  /// In en, this message translates to:
+  /// **'Last surah'**
+  String get readerLastSurah;
+
+  /// No description provided for @juzOpenError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open Juz {number}'**
+  String juzOpenError(Object number);
 }
 
 class _AppLocalizationsDelegate

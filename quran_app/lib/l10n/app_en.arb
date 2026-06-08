@@ -313,5 +313,10 @@
   "notesEmpty": "No notes yet.\nAdd the first one below.",
   "notesHint": "Note text…",
   "ayahLabel": "Ayah {number}",
-  "wordSameRoot": "Other words with the same root"
+  "wordSameRoot": "Other words with the same root",
+  "readerPrevSurah": "Previous surah",
+  "readerNextSurah": "Next surah",
+  "readerFirstSurah": "First surah",
+  "readerLastSurah": "Last surah",
+  "juzOpenError": "Could not open Juz {number}"
 }

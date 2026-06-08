@@ -265,5 +265,10 @@
   "notesEmpty": "Заметок пока нет.\nДобавьте первую ниже.",
   "notesHint": "Текст заметки…",
   "ayahLabel": "Аят {number}",
-  "wordSameRoot": "Другие слова с тем же корнем"
+  "wordSameRoot": "Другие слова с тем же корнем",
+  "readerPrevSurah": "Предыдущая сура",
+  "readerNextSurah": "Следующая сура",
+  "readerFirstSurah": "Первая сура",
+  "readerLastSurah": "Последняя сура",
+  "juzOpenError": "Не удалось открыть Джуз {number}"
 }

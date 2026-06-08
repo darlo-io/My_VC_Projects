@@ -841,4 +841,21 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get wordSameRoot => 'Другие слова с тем же корнем';
+
+  @override
+  String get readerPrevSurah => 'Предыдущая сура';
+
+  @override
+  String get readerNextSurah => 'Следующая сура';
+
+  @override
+  String get readerFirstSurah => 'Первая сура';
+
+  @override
+  String get readerLastSurah => 'Последняя сура';
+
+  @override
+  String juzOpenError(Object number) {
+    return 'Не удалось открыть Джуз $number';
+  }
 }

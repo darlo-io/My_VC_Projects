@@ -839,4 +839,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wordSameRoot => 'Other words with the same root';
+
+  @override
+  String get readerPrevSurah => 'Previous surah';
+
+  @override
+  String get readerNextSurah => 'Next surah';
+
+  @override
+  String get readerFirstSurah => 'First surah';
+
+  @override
+  String get readerLastSurah => 'Last surah';
+
+  @override
+  String juzOpenError(Object number) {
+    return 'Could not open Juz $number';
+  }
 }
