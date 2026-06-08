@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/ornaments.dart';
 import '../../../audio/presentation/word_timing_provider.dart';
 import '../../../learning/presentation/word_card.dart';
+import 'notes_panel.dart';
 
 class AyahTile extends ConsumerStatefulWidget {
   const AyahTile({
@@ -72,6 +75,9 @@ class _AyahTileState extends ConsumerState<AyahTile> {
             children: [
               AyahNumberBadge(number: widget.ayah.ayahNumber),
               const Spacer(),
+              // Кнопка заметок
+              _NoteButton(ayahId: widget.ayah.id),
+              const SizedBox(width: 4),
               IconButton(
                 onPressed: widget.onToggleBookmark,
                 icon: BookmarkStar(filled: widget.isBookmarked, size: 22),
@@ -245,5 +251,68 @@ Future<void> toggleBookmark(
         ayahNumber: ayah.ayahNumber,
       ),
     );
+  }
+}
+
+/// Маленькая иконка-заметка с бейджем-счётчиком.
+/// При тапе открывает [showNotesPanel] для текущего аята.
+class _NoteButton extends ConsumerWidget {
+  const _NoteButton({required this.ayahId});
+  final int ayahId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final countStream = ref.watch(notesDaoProvider).watchCountForAyah(ayahId);
+    return StreamBuilder<int>(
+      stream: countStream,
+      builder: (context, snapshot) {
+        final count = snapshot.data ?? 0;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _openNotesFor(context, ref, ayahId),
+              icon: const Icon(
+                Icons.sticky_note_2_outlined,
+                color: AppColors.gold,
+                size: 22,
+              ),
+            ),
+            if (count > 0)
+              Positioned(
+                right: 4,
+                top: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  child: Text(
+                    '$count',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textOnGold,
+                      height: 1.1,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _openNotesFor(BuildContext context, WidgetRef ref, int ayahId) async {
+    final ayah = await ref
+        .read(ayahDaoProvider)
+        .getById(ayahId);
+    if (ayah == null || !context.mounted) return;
+    unawaited(showNotesPanel(context: context, ref: ref, ayah: ayah));
   }
 }

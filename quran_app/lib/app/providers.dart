@@ -10,6 +10,7 @@ import '../core/database/daos/audio_cache_dao.dart';
 import '../core/database/daos/ayah_dao.dart';
 import '../core/database/daos/bookmark_dao.dart';
 import '../core/database/daos/learning_dao.dart';
+import '../core/database/daos/notes_dao.dart';
 import '../core/database/daos/position_dao.dart';
 import '../core/database/daos/reciter_dao.dart';
 import '../core/database/daos/surah_dao.dart';
@@ -73,6 +74,10 @@ final wordTimingsDaoProvider = Provider<WordTimingsDao>(
 
 final learningDaoProvider = Provider<LearningDao>(
   (ref) => ref.watch(appDatabaseProvider).learningDao,
+);
+
+final notesDaoProvider = Provider<NotesDao>(
+  (ref) => ref.watch(appDatabaseProvider).notesDao,
 );
 
 final recitersRepositoryProvider = Provider<RecitersRepository>(

@@ -199,4 +199,77 @@ void main() {
       expect(due.first.word.id, firstWordId);
     });
   });
+
+  group('NotesDao (Notes feature)', () {
+    late int firstAyahId;
+
+    setUp(() async {
+      firstAyahId = (await db.customSelect(
+        'SELECT id FROM ayahs WHERE surah_id = 1 ORDER BY ayah_number ASC LIMIT 1',
+        readsFrom: {db.ayahs},
+      ).getSingle()).read<int>('id');
+    });
+
+    test('addNote + watchForAyah round-trip', () async {
+      final dao = db.notesDao;
+      final id = await dao.addNote(ayahId: firstAyahId, text: 'тестовая заметка');
+      expect(id, greaterThan(0));
+
+      final notes = await dao.watchForAyah(firstAyahId).first;
+      expect(notes, hasLength(1));
+      expect(notes.first.textValue, 'тестовая заметка');
+      expect(notes.first.ayahId, firstAyahId);
+    });
+
+    test('addNote is not unique per ayah (multiple notes allowed)',
+        () async {
+      final dao = db.notesDao;
+      await dao.addNote(ayahId: firstAyahId, text: 'первая');
+      await dao.addNote(ayahId: firstAyahId, text: 'вторая');
+      final notes = await dao.watchForAyah(firstAyahId).first;
+      expect(notes, hasLength(2));
+    });
+
+    test('updateText changes text and bumps updatedAt', () async {
+      final dao = db.notesDao;
+      final id = await dao.addNote(ayahId: firstAyahId, text: 'v1');
+      final original = (await dao.watchForAyah(firstAyahId).first).first;
+      final originalUpdated = original.updatedAt;
+
+      // Sleep 5ms to ensure DateTime.now() differs visibly.
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      await dao.updateText(original, 'v2');
+
+      final after = (await dao.watchForAyah(firstAyahId).first).first;
+      expect(after.id, id);
+      expect(after.textValue, 'v2');
+      expect(after.updatedAt.isAfter(originalUpdated), isTrue);
+    });
+
+    test('deleteById removes only the targeted note', () async {
+      final dao = db.notesDao;
+      await dao.addNote(ayahId: firstAyahId, text: 'a');
+      await dao.addNote(ayahId: firstAyahId, text: 'b');
+      final notes = await dao.watchForAyah(firstAyahId).first;
+      await dao.deleteById(notes.first.id);
+
+      final remaining = await dao.watchForAyah(firstAyahId).first;
+      expect(remaining, hasLength(1));
+      expect(remaining, hasLength(1));
+      // Sanity: the deleted note is gone.
+      expect(
+        remaining.any((n) => n.id == notes.first.id),
+        isFalse,
+      );
+    });
+
+    test('watchCountForAyah reflects current count', () async {
+      final dao = db.notesDao;
+      expect(await dao.watchCountForAyah(firstAyahId).first, 0);
+      await dao.addNote(ayahId: firstAyahId, text: 'x');
+      expect(await dao.watchCountForAyah(firstAyahId).first, 1);
+      await dao.addNote(ayahId: firstAyahId, text: 'y');
+      expect(await dao.watchCountForAyah(firstAyahId).first, 2);
+    });
+  });
 }

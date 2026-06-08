@@ -9,6 +9,7 @@ import 'daos/audio_cache_dao.dart';
 import 'daos/ayah_dao.dart';
 import 'daos/bookmark_dao.dart';
 import 'daos/learning_dao.dart';
+import 'daos/notes_dao.dart';
 import 'daos/position_dao.dart';
 import 'daos/reciter_dao.dart';
 import 'daos/surah_dao.dart';
@@ -49,6 +50,7 @@ part 'app_database.g.dart';
     WordsDao,
     WordTimingsDao,
     LearningDao,
+    NotesDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
