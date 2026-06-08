@@ -16,3 +16,16 @@
 /s*.png.bak
 /screen.png
 /screen.png.bak
+
+# Ad-hoc review screenshots and layouts (kept locally for reference
+# but not committed)
+/bg*.png
+/listen*.png
+/listen_fixed.png
+/t*.png
+
+# One-off data dumps used while building the seed/ARB (research
+# artifacts; lives next to the project)
+/surahs.csv
+/surahs_arb.txt
+/ui.xml
