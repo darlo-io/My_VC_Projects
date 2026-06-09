@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart' show Value;
+
 import '../../../core/database/app_database.dart';
 
 /// Хардкод-сид Al-Fatiha (сура 1) + тайминги для `ar.alafasy`.
@@ -95,18 +97,63 @@ class AlFatihaSeed {
     ],
   ];
 
+  /// Per-word mushaf metadata for Al-Fatiha: transliteration,
+  /// English translation, lemma (bucketed morphological form), and
+  /// root (3-4 letter Arabic root). Keyed by the Arabic word text
+  /// because Al-Fatiha only has 29 unique words — the same
+  /// word in different forms (e.g. الْعَالَمِينَ) collapses to
+  /// one lookup entry. The full 6236-word dataset is generated
+  /// by `tools/build_words_seed.dart` and lives in
+  /// `assets/quran_seed/words.json`; this hardcoded table is the
+  /// bare minimum that lets the "Same root" section in the
+  /// learning card show real data for the first surah before
+  /// someone runs the generator.
+  static const _wordMeta = <String, _WordMetaEntry>{
+    'بِسْمِ':         _WordMetaEntry(transliteration: 'bis\'mi',     translation: 'In (the) name',     lemma: 'سْم',  root: 'سمو'),
+    'اللَّهِ':         _WordMetaEntry(transliteration: 'lillāhi',     translation: 'of Allah',          lemma: 'الله', root: 'اله'),
+    'الرَّحْمَٰنِ':  _WordMetaEntry(transliteration: 'ar-raḥmāni',  translation: 'the Most Merciful', lemma: 'رحمٰن', root: 'رحم'),
+    'الرَّحِيمِ':     _WordMetaEntry(transliteration: 'ar-raḥīmi',   translation: 'the Compassionate', lemma: 'رحيم', root: 'رحم'),
+    'الْحَمْدُ':       _WordMetaEntry(transliteration: 'al-ḥamdu',    translation: 'All praise',        lemma: 'حمد',  root: 'حمد'),
+    'لِلَّهِ':         _WordMetaEntry(transliteration: 'lillāhi',     translation: 'is for Allah',      lemma: 'الله', root: 'اله'),
+    'رَبِّ':           _WordMetaEntry(transliteration: 'rabbi',       translation: 'Lord',              lemma: 'ربّ',  root: 'ربب'),
+    'الْعَالَمِينَ':  _WordMetaEntry(transliteration: 'al-\'ālamīna', translation: 'of the worlds',     lemma: 'عالم', root: 'علم'),
+    'مَالِكِ':         _WordMetaEntry(transliteration: 'māliki',      translation: 'Master / Owner of', lemma: 'ملك',  root: 'ملك'),
+    'يَوْمِ':          _WordMetaEntry(transliteration: 'yawmi',       translation: '(of the) Day',      lemma: 'يوم',  root: 'يوم'),
+    'الدِّينِ':        _WordMetaEntry(transliteration: 'ad-dīni',     translation: 'the Judgment',      lemma: 'دين',  root: 'دين'),
+    'إِيَّاكَ':        _WordMetaEntry(transliteration: 'iyyāka',      translation: 'You alone',         lemma: 'ايّ',  root: 'ايي'),
+    'نَعْبُدُ':        _WordMetaEntry(transliteration: 'na\'budu',    translation: 'we worship',        lemma: 'عبد',  root: 'عبد'),
+    'وَإِيَّاكَ':     _WordMetaEntry(transliteration: 'wa-iyyāka',   translation: 'and You alone',     lemma: 'ايّ',  root: 'ايي'),
+    'نَسْتَعِينُ':    _WordMetaEntry(transliteration: 'nasta\'īnu',  translation: 'we ask for help',   lemma: 'عون',  root: 'عون'),
+    'اهْدِنَا':        _WordMetaEntry(transliteration: 'ihdinā',      translation: 'Guide us',          lemma: 'هدى',  root: 'هدى'),
+    'الصِّرَاطَ':     _WordMetaEntry(transliteration: 'aṣ-ṣirāṭa',  translation: 'the path',          lemma: 'صراط', root: 'صرط'),
+    'الْمُسْتَقِيمَ': _WordMetaEntry(transliteration: 'al-mustaqīma', translation: 'the straight',     lemma: 'قيم',  root: 'قوم'),
+    'صِرَاطَ':        _WordMetaEntry(transliteration: 'ṣirāṭa',     translation: 'the path',          lemma: 'صراط', root: 'صرط'),
+    'الَّذِينَ':     _WordMetaEntry(transliteration: 'alladhīna',   translation: 'those who',         lemma: 'الذي', root: 'ال'),
+    'أَنْعَمْتَ':     _WordMetaEntry(transliteration: 'an\'amta',    translation: 'You have blessed',  lemma: 'نعم',  root: 'نعم'),
+    'عَلَيْهِمْ':    _WordMetaEntry(transliteration: '\'alayhim',   translation: 'upon them',         lemma: 'على',  root: 'علو'),
+    'غَيْرِ':         _WordMetaEntry(transliteration: 'ghayri',      translation: 'not (of)',          lemma: 'غير', root: 'غير'),
+    'الْمَغْضُوبِ':  _WordMetaEntry(transliteration: 'al-maghḍūbi', translation: 'those who earned anger', lemma: 'غضب', root: 'غضب'),
+    'وَلَا':          _WordMetaEntry(transliteration: 'walā',        translation: 'and not',           lemma: 'لا',   root: 'لا'),
+    'الضَّالِّينَ':  _WordMetaEntry(transliteration: 'aḍ-ḍālīna',  translation: 'the astray',        lemma: 'ضلال', root: 'ضلل'),
+  };
+
   /// Сгенерировать списки companions для вставки.
   static List<WordsCompanion> wordsCompanions(int baseAyahId) {
     final out = <WordsCompanion>[];
     for (var i = 0; i < wordsByAyah.length; i++) {
       final ayahId = baseAyahId + i;
       for (var p = 0; p < wordsByAyah[i].length; p++) {
+        final arabic = wordsByAyah[i][p];
+        final meta = _wordMeta[arabic];
         out.add(
           WordsCompanion.insert(
             ayahId: ayahId,
             position: p,
-            arabic: wordsByAyah[i][p],
-            normalized: wordsByAyah[i][p], // без отдельной нормализации в MVP
+            arabic: arabic,
+            normalized: arabic, // без отдельной нормализации в MVP
+            translation: Value(meta?.translation),
+            lemma: Value(meta?.lemma),
+            root: Value(meta?.root),
           ),
         );
       }
@@ -141,4 +188,23 @@ class AlFatihaSeed {
     }
     return list;
   }
+}
+
+/// Per-word mushaf metadata for the Al-Fatiha hardcoded seed.
+/// Stores transliteration + English translation + Arabic lemma
+/// + Arabic root. Used as the value type for
+/// [AlFatihaSeed._wordMeta] and as the source of truth for the
+/// "Same root" learning card on surah 1.
+class _WordMetaEntry {
+  const _WordMetaEntry({
+    required this.transliteration,
+    required this.translation,
+    required this.lemma,
+    required this.root,
+  });
+
+  final String transliteration;
+  final String translation;
+  final String lemma;
+  final String root;
 }

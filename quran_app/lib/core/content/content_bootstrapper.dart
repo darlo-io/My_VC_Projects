@@ -102,7 +102,7 @@ class ContentBootstrapper {
       await ayahDao.insertAyahs(
         result.ayahs
             .map(
-              (a) =>               AyahsCompanion.insert(
+              (a) => AyahsCompanion.insert(
                 id: Value(a['id'] as int),
                 surahId: a['surah_id'] as int,
                 ayahNumber: a['ayah_number'] as int,
@@ -110,9 +110,14 @@ class ContentBootstrapper {
                 textNormalized: ArabicNormalizer.normalize(
                   a['text_uthmani'] as String,
                 ),
-                page: const Value(null),
-                juz: const Value(null),
-                hizb: const Value(null),
+                // page/juz/hizb are intentionally omitted: their
+                // default is `Value.absent()` which the column
+                // maps to NULL. The post-create `backfillJuzColumn`
+                // and `backfillPageAndHizbColumn` migrations then
+                // populate the values from the in-tree lookup
+                // tables. Passing `Value(null)` here would be a
+                // no-op write that the backfills would still
+                // have to overwrite — pure overhead.
               ),
             )
             .toList(),
@@ -150,6 +155,38 @@ class ContentBootstrapper {
     await manifestRepository.apply(defaultManifest());
     await recitersRepository.ensureSeeded();
     await _seedAlFatihaWords();
+    await _seedWordsFromResult(result);
+  }
+
+  /// Insert the per-word mushaf dictionary from
+  /// `assets/quran_seed/words.json` (populated by
+  /// `tools/build_words_seed.dart`). Idempotent: a count check
+  /// short-circuits the insert if the `words` table is already
+  /// populated. We deliberately do *not* merge — re-running the
+  /// seed against an existing DB assumes the user has either
+  /// wiped or is fine with the old data.
+  Future<void> _seedWordsFromResult(ContentDownloadResult result) async {
+    if (result.words.isEmpty) return;
+    if (await wordsDao.count() > 0) return;
+    await wordsDao.insertAll(
+      result.words
+          .map(
+            (w) => WordsCompanion.insert(
+              ayahId: w['ayah_id'] as int,
+              position: w['position'] as int,
+              arabic: w['arabic'] as String,
+              // Normalize the Arabic form so the FTS5 prefix
+              // search (and the `searchByRoot` LIKE query) both
+              // find the row regardless of the spelling variant
+              // the user types.
+              normalized: w['arabic'] as String,
+              translation: Value(w['translation'] as String?),
+              lemma: Value(w['lemma'] as String?),
+              root: Value(w['root'] as String?),
+            ),
+          )
+          .toList(),
+    );
   }
 
   /// Хардкод-сюр Al-Fatiha: слова + тайминги.
