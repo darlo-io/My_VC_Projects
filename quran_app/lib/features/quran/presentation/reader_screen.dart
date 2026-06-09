@@ -63,11 +63,15 @@ class ReaderScreen extends ConsumerStatefulWidget {
 }
 
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
-  final _scrollCtrl = ScrollController();
+  late final PageController _pageCtrl;
 
   @override
   void initState() {
     super.initState();
+    // PageView is 0-indexed; the route's `?ayah=` is 1-indexed.
+    _pageCtrl = PageController(
+      initialPage: (widget.initialAyah - 1).clamp(0, 1 << 30),
+    );
     // Persist the "last position" and the daily reading-history
     // increment once per screen-mount, after the first frame so
     // we don't block the initial paint. Both are UPSERTs so
@@ -98,7 +102,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   @override
   void dispose() {
-    _scrollCtrl.dispose();
+    _pageCtrl.dispose();
     super.dispose();
   }
 
@@ -188,27 +192,46 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                       ),
                     );
                   }
-                  return ListView.separated(
-                    controller: _scrollCtrl,
-                    padding: EdgeInsets.fromLTRB(
-                      20,
-                      0,
-                      20,
-                      nextSurahId == null ? 24 : 80,
-                    ),
+                  return PageView.builder(
+                    controller: _pageCtrl,
                     itemCount: ayahs.length,
-                    separatorBuilder: (_, _) => const OrnateDivider(),
+                    onPageChanged: (i) {
+                      // Persist the new "last position" on every
+                      // page change. PageView fires this once per
+                      // settled page, so we don't need a debounce.
+                      // The DAO is an UPSERT so re-entering the
+                      // same ayah is a no-op.
+                      final a = ayahs[i];
+                      ref
+                          .read(positionDaoProvider)
+                          .setLast(surahId: a.surahId, ayahId: a.id);
+                    },
                     itemBuilder: (_, i) {
                       final a = ayahs[i];
-                      return AyahTile(
-                        ayah: a,
-                        translation: dataAsync.value?.translations[a.id],
-                        fontSize: prefs.fontSize,
-                        isBookmarked: bookmarkedIds.contains(a.id),
-                        onToggleBookmark: () => toggleBookmark(
-                          ref,
-                          ayah: a,
-                          isCurrentlyBookmarked: bookmarkedIds.contains(a.id),
+                      return Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          20,
+                          8,
+                          20,
+                          nextSurahId == null ? 16 : 16,
+                        ),
+                        child: Center(
+                          child: SingleChildScrollView(
+                            physics: const ClampingScrollPhysics(),
+                            child: AyahTile(
+                              ayah: a,
+                              translation:
+                                  dataAsync.value?.translations[a.id],
+                              fontSize: prefs.fontSize,
+                              isBookmarked: bookmarkedIds.contains(a.id),
+                              onToggleBookmark: () => toggleBookmark(
+                                ref,
+                                ayah: a,
+                                isCurrentlyBookmarked:
+                                    bookmarkedIds.contains(a.id),
+                              ),
+                            ),
+                          ),
                         ),
                       );
                     },
