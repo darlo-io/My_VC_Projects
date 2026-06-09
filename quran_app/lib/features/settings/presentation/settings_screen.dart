@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
+import '../../../../core/database/app_database.dart';
+import '../../../../core/i18n/localized_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/common_widgets.dart';
@@ -73,6 +75,8 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   onTap: () => _showTrSheet(context, ref, t),
                 ),
+                const Divider(height: 1),
+                _ReciterTile(),
               ],
             ),
           ),
@@ -465,6 +469,157 @@ class _ClearCacheTile extends ConsumerWidget {
           SnackBar(content: Text(t.settingsCacheCleared)),
         );
       },
+    );
+  }
+}
+
+/// Settings tile that surfaces the currently-selected audio
+/// reciter (read from [AppPreferences.reciterId]) and lets the
+/// user pick a different one via a modal bottom sheet.
+///
+/// Why this lives in [SettingsScreen] rather than [ListenScreen]:
+/// the reciter choice is app-wide state, not per-playback
+/// state, so it belongs in the persistent-settings UI. The
+/// Listen screen still has its own inline reciter carousel for
+/// quick per-session swaps — that UX is preserved and writes
+/// to the same [AppPreferences.reciterId] key.
+class _ReciterTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = AppLocalizations.of(context);
+    final prefs = ref.watch(appPreferencesProvider);
+    final activeId = prefs.reciterId;
+    return SettingsTile(
+      icon: Icons.record_voice_over_outlined,
+      title: t.settingsReciter,
+      trailing: Text(
+        // `reciterNameI` falls back to the English name from
+        // the ARB fallback table when ARB doesn't have an
+        // entry for this id (e.g. a brand-new reciter added
+        // in the seed but not yet translated). The
+        // [SurahAndReciterNames] extension centralises this
+        // lookup so the Settings tile and the Listen screen
+        // can never disagree on the spelling.
+        t.reciterName(activeId, fallback: LocalizedNames.reciterEn[activeId] ?? ''),
+        style: const TextStyle(
+          color: AppColors.gold,
+          fontWeight: FontWeight.w600,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+      onTap: () => _showReciterSheet(context, ref, t, activeId),
+    );
+  }
+
+  void _showReciterSheet(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations t,
+    String activeId,
+  ) {
+    final recitersAsync = ref.watch(recitersStreamProvider);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: recitersAsync.when(
+            data: (reciters) => _buildList(
+              sheetCtx,
+              ref,
+              t,
+              reciters,
+              activeId,
+            ),
+            loading: () => const SizedBox(
+              height: 120,
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+            error: (e, _) => SizedBox(
+              height: 120,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    '$e',
+                    style: const TextStyle(color: AppColors.textSecondary),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildList(
+    BuildContext sheetCtx,
+    WidgetRef ref,
+    AppLocalizations t,
+    List<Reciter> reciters,
+    String activeId,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+          child: Text(
+            t.settingsReciter,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          child: Text(
+            t.settingsReciterHint,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textTertiary,
+            ),
+          ),
+        ),
+        for (final r in reciters)
+          ListTile(
+            title: Text(
+              t.reciterName(
+                r.id,
+                fallback: r.nameEn,
+              ),
+              style: const TextStyle(color: AppColors.textPrimary),
+            ),
+            subtitle: r.id == activeId
+                ? Text(
+                    t.settingsReciterActive,
+                    style: const TextStyle(
+                      color: AppColors.gold,
+                      fontSize: 12,
+                    ),
+                  )
+                : null,
+            trailing: r.id == activeId
+                ? const Icon(Icons.check, color: AppColors.gold)
+                : null,
+            onTap: () async {
+              await ref.read(appPreferencesProvider).setReciterId(r.id);
+              if (!sheetCtx.mounted) return;
+              Navigator.pop(sheetCtx);
+            },
+          ),
+      ],
     );
   }
 }

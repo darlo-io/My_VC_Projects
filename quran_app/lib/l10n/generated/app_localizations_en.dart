@@ -916,4 +916,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get quizEmpty =>
       'No questions available yet. Read a surah first, then come back.';
+
+  @override
+  String get settingsReciter => 'Reciter';
+
+  @override
+  String get settingsReciterHint => 'Choose who reads the Quran aloud';
+
+  @override
+  String get settingsReciterActive => 'Currently selected';
 }

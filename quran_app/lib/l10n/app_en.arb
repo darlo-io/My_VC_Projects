@@ -336,5 +336,8 @@
   "quizResultsTitle": "Results",
   "quizScore": "{correct} of {total} correct",
   "quizPlayAgain": "Play again",
-  "quizEmpty": "No questions available yet. Read a surah first, then come back."
+  "quizEmpty": "No questions available yet. Read a surah first, then come back.",
+  "settingsReciter": "Reciter",
+  "settingsReciterHint": "Choose who reads the Quran aloud",
+  "settingsReciterActive": "Currently selected"
 }

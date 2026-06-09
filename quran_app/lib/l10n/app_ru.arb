@@ -288,5 +288,8 @@
   "quizResultsTitle": "Результаты",
   "quizScore": "{correct} из {total} верно",
   "quizPlayAgain": "Сыграть ещё",
-  "quizEmpty": "Вопросов пока нет. Сначала прочитайте суру, затем возвращайтесь."
+  "quizEmpty": "Вопросов пока нет. Сначала прочитайте суру, затем возвращайтесь.",
+  "settingsReciter": "Чтец",
+  "settingsReciterHint": "Выберите, кто будет читать Коран вслух",
+  "settingsReciterActive": "Сейчас выбран"
 }

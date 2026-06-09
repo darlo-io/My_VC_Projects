@@ -288,5 +288,8 @@
   "quizResultsTitle": "النتائج",
   "quizScore": "{correct} من {total} صحيحة",
   "quizPlayAgain": "العب مرة أخرى",
-  "quizEmpty": "لا توجد أسئلة بعد. اقرأ سورة أولاً، ثم عُد."
+  "quizEmpty": "لا توجد أسئلة بعد. اقرأ سورة أولاً، ثم عُد.",
+  "settingsReciter": "القارئ",
+  "settingsReciterHint": "اختر من يتلو القرآن",
+  "settingsReciterActive": "المحدد حاليًا"
 }

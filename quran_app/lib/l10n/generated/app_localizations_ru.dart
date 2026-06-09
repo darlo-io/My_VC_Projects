@@ -919,4 +919,13 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get quizEmpty =>
       'Вопросов пока нет. Сначала прочитайте суру, затем возвращайтесь.';
+
+  @override
+  String get settingsReciter => 'Чтец';
+
+  @override
+  String get settingsReciterHint => 'Выберите, кто будет читать Коран вслух';
+
+  @override
+  String get settingsReciterActive => 'Сейчас выбран';
 }

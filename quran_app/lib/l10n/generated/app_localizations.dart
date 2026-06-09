@@ -1833,6 +1833,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No questions available yet. Read a surah first, then come back.'**
   String get quizEmpty;
+
+  /// No description provided for @settingsReciter.
+  ///
+  /// In en, this message translates to:
+  /// **'Reciter'**
+  String get settingsReciter;
+
+  /// No description provided for @settingsReciterHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose who reads the Quran aloud'**
+  String get settingsReciterHint;
+
+  /// No description provided for @settingsReciterActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently selected'**
+  String get settingsReciterActive;
 }
 
 class _AppLocalizationsDelegate
