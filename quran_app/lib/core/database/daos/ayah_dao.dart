@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../data/juz_mapping.dart';
+import '../../data/quran_layout.dart';
 import '../../search/fts_query.dart';
 import '../app_database.dart';
 import '../tables.dart';
@@ -155,6 +156,51 @@ class AyahDao extends DatabaseAccessor<AppDatabase> with _$AyahDaoMixin {
       updates: {ayahs},
     );
     return updatedCount;
+  }
+
+  /// Backfill the `Ayahs.page` and `Ayahs.hizb` columns from
+  /// [kQuranLayout]. Like [backfillJuzColumn], this is idempotent
+  /// (gated on `page IS NULL AND hizb IS NULL`).
+  ///
+  /// We can't use a single UPDATE here because [kQuranLayout] is
+  /// an in-memory list, not a SQL CASE expression. Instead we
+  /// chunk the rows in batches of [batchSize] and call
+  /// [batch] with a sequence of per-row `update`s. 6236 rows
+  /// at 500/batch = 13 batches; this completes in well under
+  /// a second on a typical device.
+  Future<int> backfillPageAndHizbColumn({int batchSize = 500}) async {
+    if (kQuranLayout.isEmpty) return 0;
+    // Cheap pre-check: skip the work entirely if no rows need
+    // updating. The caller can read the returned `0` as "no
+    // backfill was needed".
+    final hasNulls = await customSelect(
+      'SELECT 1 FROM ayahs WHERE page IS NULL OR hizb IS NULL LIMIT 1',
+      readsFrom: {ayahs},
+    ).getSingleOrNull();
+    if (hasNulls == null) return 0;
+
+    var updated = 0;
+    for (var offset = 0; offset < kQuranLayout.length; offset += batchSize) {
+      final end =
+          (offset + batchSize).clamp(0, kQuranLayout.length).toInt();
+      await batch((b) {
+        for (var i = offset; i < end; i++) {
+          final entry = kQuranLayout[i];
+          b.update(
+            ayahs,
+            AyahsCompanion(
+              page: Value(entry.page),
+              hizb: Value(entry.hizb),
+            ),
+            where: (a) =>
+                a.surahId.equals(entry.surahId) &
+                a.ayahNumber.equals(entry.ayahNumber),
+          );
+        }
+      });
+      updated += end - offset;
+    }
+    return updated;
   }
 
   Future<List<Word>> getWordsForAyah(int ayahId) =>

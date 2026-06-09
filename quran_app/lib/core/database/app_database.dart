@@ -72,6 +72,14 @@ class AppDatabase extends _$AppDatabase {
           // gated on `juz IS NULL`), so re-running the
           // migration is a no-op.
           await ayahDao.backfillJuzColumn();
+          // Backfill the `Ayahs.page` and `Ayahs.hizb` columns
+          // from [kQuranLayout]. The [kQuranLayout] table is
+          // an approximation (see its file header for the
+          // caveats); the columns are still better than NULL
+          // for the "what page am I on?" UI, and a real
+          // dataset can replace the table in one shot without
+          // touching this migration.
+          await ayahDao.backfillPageAndHizbColumn();
         },
         onUpgrade: (m, from, to) async {
           // MIGRATION CONTRACT — read before bumping schemaVersion.
@@ -113,6 +121,9 @@ class AppDatabase extends _$AppDatabase {
             // only need the explicit call for the v5 -> v7 path
             // and the v6 -> v7 path. Idempotent.
             await ayahDao.backfillJuzColumn();
+            // Same window: backfill page/hizb from
+            // [kQuranLayout]. Also idempotent.
+            await ayahDao.backfillPageAndHizbColumn();
           }
         },
         beforeOpen: (details) async {
