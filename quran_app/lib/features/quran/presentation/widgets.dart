@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/providers.dart';
 import '../../../../core/data/juz_mapping.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/i18n/localized_names.dart';
@@ -150,11 +152,11 @@ class SurahRow extends StatelessWidget {
   }
 }
 
-class JuzList extends StatelessWidget {
+class JuzList extends ConsumerWidget {
   const JuzList({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = AppLocalizations.of(context);
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -170,14 +172,35 @@ class JuzList extends StatelessWidget {
         return Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () {
-              // The Mushaf does not split at surah boundaries, so
-              // each Juz starts somewhere mid-surah. We use the
-              // hardcoded [kJuzStarts] table (until the seed grows
-              // the `Ayahs.juz` column) to land the user on the
-              // first ayah of their chosen Juz.
-              final start = juzStart(juzNumber);
-              context.go('/reader/${start.surahId}?ayah=${start.ayahNumber}');
+            onTap: () async {
+              // Resolve the first ayah of this Juz from the
+              // database via [AyahDao.watchByJuz]. We previously
+              // used the hardcoded [kJuzStarts] table for
+              // this; now that the DAO computes the range from
+              // the same in-memory boundaries (and the column is
+              // backfilled by the post-create migration), the
+              // tap target reflects whatever seed or future
+              // corrections a developer might have applied.
+              //
+              // `watchByJuz` returns a Stream; we only need the
+              // first emission. If the DB is empty (still
+              // seeding) the stream is empty and we fall back
+              // to the hardcoded table so the tap never breaks
+              // the UI.
+              final first = await ref
+                  .read(ayahDaoProvider)
+                  .watchByJuz(juzNumber, limit: 1)
+                  .first;
+              if (!context.mounted) return;
+              if (first.isNotEmpty) {
+                final a = first.first;
+                context.go('/reader/${a.surahId}?ayah=${a.ayahNumber}');
+              } else {
+                final start = juzStart(juzNumber);
+                context.go(
+                  '/reader/${start.surahId}?ayah=${start.ayahNumber}',
+                );
+              }
             },
             borderRadius: BorderRadius.circular(14),
             child: Container(
