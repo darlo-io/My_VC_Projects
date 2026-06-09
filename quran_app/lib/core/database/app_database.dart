@@ -67,6 +67,11 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
           await _createFts();
           await _createPerformanceIndexes();
+          // Backfill the `Ayahs.juz` column from the
+          // [kJuzStarts] table. Idempotent (the UPDATE is
+          // gated on `juz IS NULL`), so re-running the
+          // migration is a no-op.
+          await ayahDao.backfillJuzColumn();
         },
         onUpgrade: (m, from, to) async {
           // MIGRATION CONTRACT — read before bumping schemaVersion.
@@ -99,6 +104,15 @@ class AppDatabase extends _$AppDatabase {
               'CREATE INDEX IF NOT EXISTS idx_audio_cache_last_played '
               'ON audio_cache_metadata (last_played_at)',
             );
+          }
+
+          if (from >= 5 && from < 7) {
+            // v5 -> v7: backfill the `Ayahs.juz` column from
+            // [kJuzStarts]. Pre-v5 was reset above and re-runs
+            // through `onCreate` which also backfills, so we
+            // only need the explicit call for the v5 -> v7 path
+            // and the v6 -> v7 path. Idempotent.
+            await ayahDao.backfillJuzColumn();
           }
         },
         beforeOpen: (details) async {

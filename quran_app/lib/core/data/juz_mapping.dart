@@ -11,6 +11,11 @@
 /// Coordinates verified against the standard Madinah Mushaf layout
 /// (KFUPM / quran.com). When the seed grows `Ayahs.juz` data, this
 /// table can be retired in favour of a `WHERE juz = ?` query.
+///
+/// Lives in `lib/core/data/` rather than under `lib/features/`
+/// because the data is shared between the DAO layer (used to
+/// backfill the `Ayahs.juz` column at create / migration time)
+/// and the reader / Juz-picker UI.
 class JuzStart {
   const JuzStart({required this.surahId, required this.ayahNumber});
   final int surahId;

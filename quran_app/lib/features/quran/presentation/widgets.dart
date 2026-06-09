@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/data/juz_mapping.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/i18n/localized_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/generated/app_localizations.dart';
-import '../data/juz_mapping.dart';
 import 'surah_list_screen.dart';
 
 class SegmentButton extends StatelessWidget {
