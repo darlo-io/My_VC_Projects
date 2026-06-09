@@ -14,6 +14,7 @@ import '../../features/search/presentation/search_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/statistics/presentation/statistics_screen.dart';
 import '../../features/tasbih/presentation/tasbih_screen.dart';
+import '../../features/test/presentation/quiz_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers.dart';
 
@@ -90,6 +91,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/learn',
         builder: (_, _) => const LearnScreen(),
+      ),
+      GoRoute(
+        path: '/test',
+        builder: (_, _) => const QuizScreen(),
       ),
       GoRoute(
         path: '/statistics',

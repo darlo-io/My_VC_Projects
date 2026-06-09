@@ -19,6 +19,8 @@ import '../core/database/daos/word_timings_dao.dart';
 import '../core/database/daos/words_dao.dart';
 import '../core/database/models/last_read_position.dart';
 import '../features/audio/data/quran_audio_handler.dart';
+import '../features/test/data/quiz_service.dart';
+import '../features/test/data/quiz_session.dart';
 import '../core/networking/api_client.dart';
 import '../core/storage/app_preferences.dart';
 import '../features/audio/data/audio_cache.dart';
@@ -69,6 +71,25 @@ final positionDaoProvider = Provider<PositionDao>(
 final lastReadPositionProvider =
     StreamProvider<LastReadPosition>((ref) {
   return ref.watch(positionDaoProvider).watchLastWithSurah();
+});
+
+/// [QuizService] tied to the singleton [AppDatabase]. The Quiz
+/// screen watches a `FutureProvider` over its `buildSession`
+/// method to load a fresh session whenever the user re-enters
+/// the screen.
+final quizServiceProvider = Provider<QuizService>((ref) {
+  return QuizService(ref.watch(appDatabaseProvider));
+});
+
+/// Async loader for a fresh [QuizSession]. Re-creates a new
+/// session on every watch — the screen calls
+/// `ref.invalidate(quizSessionProvider)` to start a new round
+/// after the user finishes one.
+final quizSessionProvider = FutureProvider<QuizSession?>((ref) async {
+  final lang = ref.watch(appPreferencesProvider).translationLang;
+  return ref.watch(quizServiceProvider).buildSession(
+        languageCode: lang,
+      );
 });
 final reciterDaoProvider = Provider<ReciterDao>(
   (ref) => ref.watch(appDatabaseProvider).reciterDao,

@@ -325,5 +325,16 @@
   "statsLast7Days": "Last 7 days",
   "statsNoData": "No reading history yet. Open any surah to start tracking.",
   "statsDaysUnit": "days",
-  "statsStreakHint": "Open the app daily to grow your streak."
+  "statsStreakHint": "Open the app daily to grow your streak.",
+  "quizTitle": "Quiz",
+  "quizQuestion": "Which translation matches the ayah?",
+  "quizProgress": "Question {current} of {total}",
+  "quizSkip": "Skip",
+  "quizNext": "Next",
+  "quizCorrect": "Correct!",
+  "quizWrong": "Not quite",
+  "quizResultsTitle": "Results",
+  "quizScore": "{correct} of {total} correct",
+  "quizPlayAgain": "Play again",
+  "quizEmpty": "No questions available yet. Read a surah first, then come back."
 }

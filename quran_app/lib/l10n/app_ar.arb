@@ -277,5 +277,16 @@
   "statsLast7Days": "آخر 7 أيام",
   "statsNoData": "لا يوجد سجل قراءة بعد. افتح أي سورة للبدء.",
   "statsDaysUnit": "يوم",
-  "statsStreakHint": "افتح التطبيق يوميًا لزيادة سلسلتك."
+  "statsStreakHint": "افتح التطبيق يوميًا لزيادة سلسلتك.",
+  "quizTitle": "اختبار",
+  "quizQuestion": "أي ترجمة تطابق الآية؟",
+  "quizProgress": "السؤال {current} من {total}",
+  "quizSkip": "تخطٍ",
+  "quizNext": "التالي",
+  "quizCorrect": "صحيح!",
+  "quizWrong": "غير صحيح",
+  "quizResultsTitle": "النتائج",
+  "quizScore": "{correct} من {total} صحيحة",
+  "quizPlayAgain": "العب مرة أخرى",
+  "quizEmpty": "لا توجد أسئلة بعد. اقرأ سورة أولاً، ثم عُد."
 }

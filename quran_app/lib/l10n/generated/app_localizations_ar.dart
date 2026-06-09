@@ -877,4 +877,41 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get statsStreakHint => 'افتح التطبيق يوميًا لزيادة سلسلتك.';
+
+  @override
+  String get quizTitle => 'اختبار';
+
+  @override
+  String get quizQuestion => 'أي ترجمة تطابق الآية؟';
+
+  @override
+  String quizProgress(Object current, Object total) {
+    return 'السؤال $current من $total';
+  }
+
+  @override
+  String get quizSkip => 'تخطٍ';
+
+  @override
+  String get quizNext => 'التالي';
+
+  @override
+  String get quizCorrect => 'صحيح!';
+
+  @override
+  String get quizWrong => 'غير صحيح';
+
+  @override
+  String get quizResultsTitle => 'النتائج';
+
+  @override
+  String quizScore(Object correct, Object total) {
+    return '$correct من $total صحيحة';
+  }
+
+  @override
+  String get quizPlayAgain => 'العب مرة أخرى';
+
+  @override
+  String get quizEmpty => 'لا توجد أسئلة بعد. اقرأ سورة أولاً، ثم عُد.';
 }

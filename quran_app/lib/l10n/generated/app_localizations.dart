@@ -1767,6 +1767,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open the app daily to grow your streak.'**
   String get statsStreakHint;
+
+  /// No description provided for @quizTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiz'**
+  String get quizTitle;
+
+  /// No description provided for @quizQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Which translation matches the ayah?'**
+  String get quizQuestion;
+
+  /// No description provided for @quizProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Question {current} of {total}'**
+  String quizProgress(Object current, Object total);
+
+  /// No description provided for @quizSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get quizSkip;
+
+  /// No description provided for @quizNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get quizNext;
+
+  /// No description provided for @quizCorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct!'**
+  String get quizCorrect;
+
+  /// No description provided for @quizWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Not quite'**
+  String get quizWrong;
+
+  /// No description provided for @quizResultsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Results'**
+  String get quizResultsTitle;
+
+  /// No description provided for @quizScore.
+  ///
+  /// In en, this message translates to:
+  /// **'{correct} of {total} correct'**
+  String quizScore(Object correct, Object total);
+
+  /// No description provided for @quizPlayAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Play again'**
+  String get quizPlayAgain;
+
+  /// No description provided for @quizEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No questions available yet. Read a surah first, then come back.'**
+  String get quizEmpty;
 }
 
 class _AppLocalizationsDelegate

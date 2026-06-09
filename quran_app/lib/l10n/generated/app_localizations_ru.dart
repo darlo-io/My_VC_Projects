@@ -881,4 +881,42 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get statsStreakHint =>
       'Открывайте приложение каждый день, чтобы увеличить серию.';
+
+  @override
+  String get quizTitle => 'Тест';
+
+  @override
+  String get quizQuestion => 'Какой перевод соответствует аяту?';
+
+  @override
+  String quizProgress(Object current, Object total) {
+    return 'Вопрос $current из $total';
+  }
+
+  @override
+  String get quizSkip => 'Пропустить';
+
+  @override
+  String get quizNext => 'Дальше';
+
+  @override
+  String get quizCorrect => 'Верно!';
+
+  @override
+  String get quizWrong => 'Неверно';
+
+  @override
+  String get quizResultsTitle => 'Результаты';
+
+  @override
+  String quizScore(Object correct, Object total) {
+    return '$correct из $total верно';
+  }
+
+  @override
+  String get quizPlayAgain => 'Сыграть ещё';
+
+  @override
+  String get quizEmpty =>
+      'Вопросов пока нет. Сначала прочитайте суру, затем возвращайтесь.';
 }

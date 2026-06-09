@@ -76,7 +76,7 @@ class HomeScreen extends ConsumerWidget {
                 icon: Icons.assignment_turned_in_rounded,
                 title: t.cardTest,
                 color: AppColors.cardTest,
-                onTap: () => _comingSoon(context, t.comingSoon),
+                onTap: () => context.go('/test'),
               ),
               _FeatureItem(
                 icon: Icons.bubble_chart_rounded,
@@ -95,12 +95,6 @@ class HomeScreen extends ConsumerWidget {
           SizedBox(height: isArabicUI ? 0 : 0),
         ],
       ),
-    );
-  }
-
-  void _comingSoon(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
     );
   }
 }

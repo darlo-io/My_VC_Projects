@@ -277,5 +277,16 @@
   "statsLast7Days": "Последние 7 дней",
   "statsNoData": "Пока нет истории. Откройте любую суру, чтобы начать.",
   "statsDaysUnit": "дн.",
-  "statsStreakHint": "Открывайте приложение каждый день, чтобы увеличить серию."
+  "statsStreakHint": "Открывайте приложение каждый день, чтобы увеличить серию.",
+  "quizTitle": "Тест",
+  "quizQuestion": "Какой перевод соответствует аяту?",
+  "quizProgress": "Вопрос {current} из {total}",
+  "quizSkip": "Пропустить",
+  "quizNext": "Дальше",
+  "quizCorrect": "Верно!",
+  "quizWrong": "Неверно",
+  "quizResultsTitle": "Результаты",
+  "quizScore": "{correct} из {total} верно",
+  "quizPlayAgain": "Сыграть ещё",
+  "quizEmpty": "Вопросов пока нет. Сначала прочитайте суру, затем возвращайтесь."
 }
