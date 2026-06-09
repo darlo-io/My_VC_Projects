@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../app_database.dart';
+import '../models/last_read_position.dart';
 import '../tables.dart';
 
 part 'position_dao.g.dart';
@@ -22,7 +23,7 @@ class DailyReading {
   final int ayahsRead;
 }
 
-@DriftAccessor(tables: [LastPosition, ReadingHistory])
+@DriftAccessor(tables: [LastPosition, ReadingHistory, Surahs, Ayahs])
 class PositionDao extends DatabaseAccessor<AppDatabase>
     with _$PositionDaoMixin {
   PositionDao(super.db);
@@ -30,6 +31,59 @@ class PositionDao extends DatabaseAccessor<AppDatabase>
   Stream<LastPositionData?> watchLast() => (select(lastPosition)
         ..where((p) => p.id.equals(1)))
       .watchSingleOrNull();
+
+  /// Stream of the last reading position enriched with the
+  /// surrounding surah metadata and a `[0.0, 1.0]` progress ratio
+  /// (computed as `ayahNumber / surah.ayahCount`).
+  ///
+  /// Single JOIN query rather than three separate lookups (last
+  /// position → surah → ayah) — the home screen can render
+  /// "Continue reading" without a fan-out on every state change.
+  /// Emits [LastReadPosition.empty] when the position row is
+  /// missing (i.e. the user hasn't opened a surah yet).
+  Stream<LastReadPosition> watchLastWithSurah() {
+    return customSelect(
+      '''
+      SELECT
+        lp.surah_id    AS lp_surah_id,
+        lp.ayah_id     AS lp_ayah_id,
+        lp.updated_at  AS lp_updated_at,
+        s.ayah_count   AS s_ayah_count,
+        s.name_transliteration AS s_name_transliteration,
+        a.ayah_number  AS a_ayah_number
+      FROM last_position lp
+      LEFT JOIN surahs s ON s.id = lp.surah_id
+      LEFT JOIN ayahs  a ON a.id = lp.ayah_id
+      WHERE lp.id = 1
+      ''',
+      readsFrom: {lastPosition, surahs, ayahs},
+    ).watchSingle().map(
+      (row) {
+        final lpSurahId = row.readNullable<int>('lp_surah_id');
+        if (lpSurahId == null) {
+          return const LastReadPosition.empty();
+        }
+        final ayahCount = row.readNullable<int>('s_ayah_count') ?? 0;
+        // Prefer the live ayah row's ordinal; fall back to the
+        // route-stored `lp.ayah_id` only if the row was deleted
+        // out from under us (shouldn't happen but the type is
+        // nullable).
+        final liveAyahNumber = row.readNullable<int>('a_ayah_number');
+        final inSurahAyah =
+            liveAyahNumber ?? row.read<int>('lp_ayah_id');
+        final progress = ayahCount > 0
+            ? (inSurahAyah / ayahCount).clamp(0.0, 1.0)
+            : 0.0;
+        return LastReadPosition(
+          surahId: lpSurahId,
+          surahName:
+              row.readNullable<String>('s_name_transliteration') ?? '',
+          ayahNumber: inSurahAyah,
+          progress: progress,
+        );
+      },
+    );
+  }
 
   /// UPSERT the single "last position" row (PK = 1). Called every
   /// time the reader opens an ayah so the home screen's "Continue

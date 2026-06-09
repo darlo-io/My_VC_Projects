@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
+import '../../../../core/database/models/last_read_position.dart';
 import '../../../../core/i18n/localized_names.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/common_widgets.dart';
-import '../../../../core/theme/app_colors.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -16,7 +17,8 @@ class HomeScreen extends ConsumerWidget {
     final t = AppLocalizations.of(context);
     final loc = Localizations.localeOf(context);
     final isArabicUI = loc.languageCode == 'ar';
-    final last = ref.watch(positionStreamProvider).value ?? const _LastPosition.empty();
+    final lastAsync = ref.watch(lastReadPositionProvider);
+    final last = lastAsync.value ?? const LastReadPosition.empty();
     final isEmpty = last.surahId == 0;
     // In Arabic UI we keep the Arabic name as the primary visible
     // label; in any other locale we look up the ARB translation
@@ -412,52 +414,8 @@ class _FeatureGrid extends StatelessWidget {
   }
 }
 
-/// Снимок последней позиции чтения для главной.
-class _LastPosition {
-  const _LastPosition({
-    required this.surahId,
-    required this.surahName,
-    required this.ayahNumber,
-    required this.progress,
-  });
-
-  /// Пустой снимок (нет сохранённой позиции). UI подставляет
-  /// локализованный fallback через `t.homeFallbackSurahName`.
-  const _LastPosition.empty()
-      : surahId = 0,
-        surahName = '',
-        ayahNumber = 0,
-        progress = 0.0;
-
-  final int surahId;
-  final String surahName;
-  final int ayahNumber;
-  final double progress;
-}
-
-final positionStreamProvider = StreamProvider<_LastPosition>((ref) async* {
-  final dao = ref.watch(positionDaoProvider);
-  final surahDao = ref.watch(surahDaoProvider);
-  final ayahDao = ref.watch(ayahDaoProvider);
-  await for (final last in dao.watchLast()) {
-    if (last == null) {
-      // Нет последней позиции — пустой снимок. UI подставит локализованный
-      // fallback через t.homeFallbackSurahName.
-      yield const _LastPosition.empty();
-      continue;
-    }
-    final surah = await surahDao.getById(last.surahId);
-    final ayah = await ayahDao.getById(last.ayahId);
-    final ayahCount = surah?.ayahCount ?? 0;
-    final inSurahAyah = ayah?.ayahNumber ?? last.ayahId;
-    final progress = ayahCount > 0
-        ? (inSurahAyah / ayahCount).clamp(0.0, 1.0)
-        : 0.0;
-    yield _LastPosition(
-      surahId: last.surahId,
-      surahName: surah?.nameTransliteration ?? '',
-      ayahNumber: inSurahAyah,
-      progress: progress,
-    );
-  }
-});
+/// Снимок последней позиции чтения для главной. Moved to
+/// `lib/core/database/models/last_read_position.dart` and exposed
+/// via the `lastReadPositionProvider` in `app/providers.dart`.
+/// Kept this comment as a breadcrumb in case a future reader
+/// greps for the old class name.

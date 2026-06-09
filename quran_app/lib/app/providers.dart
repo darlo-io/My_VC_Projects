@@ -17,6 +17,7 @@ import '../core/database/daos/surah_dao.dart';
 import '../core/database/daos/translation_dao.dart';
 import '../core/database/daos/word_timings_dao.dart';
 import '../core/database/daos/words_dao.dart';
+import '../core/database/models/last_read_position.dart';
 import '../features/audio/data/quran_audio_handler.dart';
 import '../core/networking/api_client.dart';
 import '../core/storage/app_preferences.dart';
@@ -60,6 +61,15 @@ final translationDaoProvider = Provider<TranslationDao>(
 final positionDaoProvider = Provider<PositionDao>(
   (ref) => ref.watch(appDatabaseProvider).positionDao,
 );
+
+/// Stream of the last read position enriched with the surrounding
+/// surah metadata. Exposed as an `AsyncValue<LastReadPosition>` so
+/// the home screen can `.value` it and fall back to
+/// [LastReadPosition.empty] on the first frame.
+final lastReadPositionProvider =
+    StreamProvider<LastReadPosition>((ref) {
+  return ref.watch(positionDaoProvider).watchLastWithSurah();
+});
 final reciterDaoProvider = Provider<ReciterDao>(
   (ref) => ref.watch(appDatabaseProvider).reciterDao,
 );

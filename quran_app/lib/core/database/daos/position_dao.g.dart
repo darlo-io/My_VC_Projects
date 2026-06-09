@@ -6,6 +6,8 @@ part of 'position_dao.dart';
 mixin _$PositionDaoMixin on DatabaseAccessor<AppDatabase> {
   $LastPositionTable get lastPosition => attachedDatabase.lastPosition;
   $ReadingHistoryTable get readingHistory => attachedDatabase.readingHistory;
+  $SurahsTable get surahs => attachedDatabase.surahs;
+  $AyahsTable get ayahs => attachedDatabase.ayahs;
   PositionDaoManager get managers => PositionDaoManager(this);
 }
 
@@ -19,4 +21,8 @@ class PositionDaoManager {
         _db.attachedDatabase,
         _db.readingHistory,
       );
+  $$SurahsTableTableManager get surahs =>
+      $$SurahsTableTableManager(_db.attachedDatabase, _db.surahs);
+  $$AyahsTableTableManager get ayahs =>
+      $$AyahsTableTableManager(_db.attachedDatabase, _db.ayahs);
 }
