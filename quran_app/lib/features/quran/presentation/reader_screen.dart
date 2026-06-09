@@ -68,20 +68,31 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   void initState() {
     super.initState();
-    // Record the opening of this ayah for the daily reading
-    // history. Fires once per screen-mount (not per build), and
-    // only after the first frame so we don't block the initial
-    // paint. The UPSERT in [PositionDao.recordReading] coalesces
-    // rapid re-entries to the same (date, surah) into a single
-    // row, so a user who reopens the same ayah in the same
-    // session won't double-count.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Persist the "last position" and the daily reading-history
+    // increment once per screen-mount, after the first frame so
+    // we don't block the initial paint. Both are UPSERTs so
+    // re-entering the same (date, surah, ayah) is a no-op for
+    // history and an idempotent update for the last position.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      ref.read(positionDaoProvider).recordReading(
-            date: DateTime.now(),
-            surahId: widget.surahId,
-            ayahsRead: 1,
-          );
+      final dao = ref.read(positionDaoProvider);
+      // Resolve the DB row id for the route's initialAyah. The
+      // stream provider hasn't been read yet at this point, so we
+      // issue a direct query. If it fails (e.g. ayah number out
+      // of range) we fall back to the route's value — better to
+      // record something than to crash before the first frame.
+      final initialAyah = widget.initialAyah;
+      final ayahRow = await ref
+          .read(ayahDaoProvider)
+          .getBySurahAndNumber(widget.surahId, initialAyah);
+      if (!mounted) return;
+      final ayahId = ayahRow?.id ?? initialAyah;
+      await dao.setLast(surahId: widget.surahId, ayahId: ayahId);
+      await dao.recordReading(
+        date: DateTime.now(),
+        surahId: widget.surahId,
+        ayahsRead: 1,
+      );
     });
   }
 

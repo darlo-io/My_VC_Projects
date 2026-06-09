@@ -40,6 +40,18 @@ class AyahDao extends DatabaseAccessor<AppDatabase> with _$AyahDaoMixin {
   Future<Ayah?> getById(int id) =>
       (select(ayahs)..where((a) => a.id.equals(id))).getSingleOrNull();
 
+  /// Look up the unique ayah row that lives in [surahId] and has
+  /// [ayahNumber] (1-based ordinal within the surah). Returns
+  /// `null` if the combination doesn't exist (e.g. ayah number
+  /// out of range, or surahId doesn't exist in the seed).
+  Future<Ayah?> getBySurahAndNumber(int surahId, int ayahNumber) =>
+      (select(ayahs)
+            ..where(
+              (a) => a.surahId.equals(surahId) &
+                  a.ayahNumber.equals(ayahNumber),
+            ))
+          .getSingleOrNull();
+
   Future<List<Word>> getWordsForAyah(int ayahId) =>
       (select(words)
             ..where((w) => w.ayahId.equals(ayahId))

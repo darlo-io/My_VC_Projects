@@ -31,6 +31,25 @@ class PositionDao extends DatabaseAccessor<AppDatabase>
         ..where((p) => p.id.equals(1)))
       .watchSingleOrNull();
 
+  /// UPSERT the single "last position" row (PK = 1). Called every
+  /// time the reader opens an ayah so the home screen's "Continue
+  /// reading" card can deep-link back to where the user left off.
+  /// The `page` column is left NULL — we don't track mushaf page
+  /// numbers in this app yet (the seed doesn't populate them).
+  Future<void> setLast({
+    required int surahId,
+    required int ayahId,
+  }) async {
+    await into(lastPosition).insertOnConflictUpdate(
+      LastPositionCompanion.insert(
+        id: const Value(1),
+        surahId: surahId,
+        ayahId: ayahId,
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   /// Атомарный UPSERT по (date, surah_id). Добавляет ayahsRead к существующему
   /// значению или создаёт новую строку. Один SQL-запрос без race-condition.
   Future<void> recordReading({
