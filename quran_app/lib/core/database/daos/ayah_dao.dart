@@ -4,30 +4,10 @@ import '../../data/juz_mapping.dart';
 import '../../data/quran_layout.dart';
 import '../../search/fts_query.dart';
 import '../app_database.dart';
+import '../models/search_hits.dart';
 import '../tables.dart';
 
 part 'ayah_dao.g.dart';
-
-/// Lightweight projection used by [AyahDao.searchByText]. Carries the
-/// minimum data the search-result UI needs to render a row and deep-link
-/// into the reader (without a second round-trip to load the full Ayah).
-class AyahSearchHit {
-  const AyahSearchHit({
-    required this.ayahId,
-    required this.surahId,
-    required this.ayahNumber,
-    required this.surahNameAr,
-    required this.textUthmani,
-    required this.textNormalized,
-  });
-
-  final int ayahId;
-  final int surahId;
-  final int ayahNumber;
-  final String surahNameAr;
-  final String textUthmani;
-  final String textNormalized;
-}
 
 @DriftAccessor(tables: [Ayahs, Words])
 class AyahDao extends DatabaseAccessor<AppDatabase> with _$AyahDaoMixin {
@@ -138,7 +118,9 @@ class AyahDao extends DatabaseAccessor<AppDatabase> with _$AyahDaoMixin {
     // of O(N * DAOs) round-trips.
     //
     // We express each Juz boundary as a SQL clause: the latest
-    // boundary that the row matches is the row's Juz.
+    // boundary that the row matches is the row's Juz. The
+    // `CASE` keyword is required by SQL — `SET col = WHEN ...`
+    // is a syntax error.
     final caseClauses = StringBuffer();
     final args = <Variable<Object>>[];
     for (var i = 0; i < kJuzStarts.length; i++) {
@@ -150,7 +132,7 @@ class AyahDao extends DatabaseAccessor<AppDatabase> with _$AyahDaoMixin {
       );
     }
     final updatedCount = await customUpdate(
-      'UPDATE ayahs SET juz = $caseClauses'
+      'UPDATE ayahs SET juz = CASE $caseClauses END '
       'WHERE juz IS NULL',
       variables: args,
       updates: {ayahs},

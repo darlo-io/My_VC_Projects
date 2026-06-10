@@ -18,6 +18,11 @@ class MiniPlayer extends ConsumerWidget {
     final state = ref.watch(audioPlayerControllerProvider);
     if (state.surah == null) return const SizedBox.shrink();
 
+    // Если плеер в error-состоянии, показываем вместо плей/паузы
+    // иконку ошибки с подсветкой — пользователь сразу видит, что
+    // нужно тапнуть и retry.
+    final hasError = state.error != null;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Material(
@@ -33,10 +38,14 @@ class MiniPlayer extends ConsumerWidget {
                 end: Alignment.bottomRight,
                 colors: [AppColors.surfaceElevated, AppColors.surface],
               ),
-              border: Border.all(color: AppColors.gold, width: 1.2),
+              border: Border.all(
+                color: hasError ? AppColors.error : AppColors.gold,
+                width: 1.2,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.gold.withValues(alpha: 0.15),
+                  color: (hasError ? AppColors.error : AppColors.gold)
+                      .withValues(alpha: 0.15),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -46,10 +55,13 @@ class MiniPlayer extends ConsumerWidget {
             child: Row(
               children: [
                 GoldIconBadge(
-                  icon: state.playing ? Icons.graphic_eq : Icons.music_note,
+                  icon: hasError
+                      ? Icons.error_outline
+                      : (state.playing ? Icons.graphic_eq : Icons.music_note),
                   size: 40,
                   iconSize: 20,
                   background: Colors.transparent,
+                  borderColor: hasError ? AppColors.error : AppColors.gold,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -69,29 +81,49 @@ class MiniPlayer extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        state.reciter == null
-                            ? ''
-                            : t.reciterName(
-                                state.reciter!.id,
-                                fallback: state.reciter!.nameEn,
-                              ),
+                        hasError
+                            ? t.playerError
+                            : (state.reciter == null
+                                ? ''
+                                : t.reciterName(
+                                    state.reciter!.id,
+                                    fallback: state.reciter!.nameEn,
+                                  )),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textTertiary,
+                          color: hasError
+                              ? AppColors.error
+                              : AppColors.textTertiary,
                         ),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  onPressed: () => ref
-                      .read(quranAudioHandlerProvider)
-                      .play(),
+                  onPressed: () {
+                    if (hasError) {
+                      // Retry: чистим ошибку и зовём playSurah заново
+                      // через контроллер.
+                      ref
+                          .read(audioPlayerControllerProvider.notifier)
+                          .clearError();
+                      if (state.reciter != null) {
+                        ref
+                            .read(audioPlayerControllerProvider.notifier)
+                            .playSurah(
+                              reciterId: state.reciter!.id,
+                              surahId: state.surah!.id,
+                            );
+                      }
+                    } else {
+                      ref.read(quranAudioHandlerProvider).play();
+                    }
+                  },
                   icon: Icon(
-                    state.playing ? Icons.pause : Icons.play_arrow,
-                    color: AppColors.gold,
+                    hasError ? Icons.refresh : (state.playing ? Icons.pause : Icons.play_arrow),
+                    color: hasError ? AppColors.error : AppColors.gold,
                   ),
                 ),
                 IconButton(

@@ -18,6 +18,7 @@ class AyahTile extends ConsumerStatefulWidget {
     required this.fontSize,
     required this.isBookmarked,
     required this.onToggleBookmark,
+    this.lineByLine = true,
     super.key,
   });
 
@@ -26,6 +27,15 @@ class AyahTile extends ConsumerStatefulWidget {
   final double fontSize;
   final bool isBookmarked;
   final VoidCallback onToggleBookmark;
+
+  /// Режим чтения: `true` (по умолчанию) — арабские слова идут
+  /// в `Wrap` с `WrapAlignment.center`, визуально выровнены
+  /// по центру viewport'а и переносятся построчно (соответствует
+  /// референсу `docs/images/read line by line.png`). `false` —
+  /// «книжный» режим: `Text` (не `SelectableText` — последний
+  /// перехватывает HitTest) с `TextAlign.justify`, каждое слово
+  /// в одну длинную строку.
+  final bool lineByLine;
 
   @override
   ConsumerState<AyahTile> createState() => _AyahTileState();
@@ -56,7 +66,7 @@ class _AyahTileState extends ConsumerState<AyahTile> {
     final token = ++_loadToken;
     setState(() => _loadingWords = true);
     final list =
-        await ref.read(wordsDaoProvider).getByAyah(widget.ayah.id);
+        await ref.read(quranRepositoryProvider).wordsForAyahViaWordsDao(widget.ayah.id);
     if (!mounted || token != _loadToken) return;
     setState(() {
       _words = list;
@@ -66,8 +76,16 @@ class _AyahTileState extends ConsumerState<AyahTile> {
 
   @override
   Widget build(BuildContext context) {
+    // Здесь НЕТ GoldFrame — рамка рисуется один раз на всю
+    // Mushaf-область в [ReaderScreen]. Оборачивать каждый аят в свою
+    // рамку — нарушает референс, где рамка одна и обнимает ВСЕ
+    // аяты суры (см. `docs/images/read line by line.png`).
+    //
+    // OrnateDivider тоже НЕ здесь — разделитель между аятами
+    // рисует [_SingleScrollMushaf._AyahSeparator] в `reader_screen.dart`,
+    // чтобы можно было пропустить divider перед первым аятом.
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -90,15 +108,22 @@ class _AyahTileState extends ConsumerState<AyahTile> {
             fontSize: widget.fontSize,
             words: _words,
             loading: _loadingWords,
+            lineByLine: widget.lineByLine,
           ),
           if (widget.translation != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
+            // Перевод центрирован с большим межстрочным
+            // интервалом (1.6) — соответствует референсу, где
+            // между арабским и переводом — воздух, и перевод
+            // «дышит» по вертикали.
             Text(
               widget.translation!,
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,
-                height: 1.5,
+                height: 1.6,
+                letterSpacing: 0.1,
               ),
             ),
           ],
@@ -114,16 +139,18 @@ class _ArabicText extends ConsumerWidget {
     required this.fontSize,
     required this.words,
     required this.loading,
+    required this.lineByLine,
   });
 
   final Ayah ayah;
   final double fontSize;
   final List<Word>? words;
   final bool loading;
+  final bool lineByLine;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Нет данных по словам (не сидированы) — fallback на plain text.
+    // Нет данных по словам — fallback на plain text.
     if (words == null && !loading) {
       return _plainText(ayah.textUthmani);
     }
@@ -141,12 +168,28 @@ class _ArabicText extends ConsumerWidget {
         ? ref.watch(currentWordIdProvider)
         : CurrentWordId.beforeFirst;
 
+    if (!lineByLine) {
+      // «Книжный» режим: всё одной строкой (`Text` с
+      // `TextAlign.justify`). Не используем Wrap с alignment —
+      // там строки не центрируются и приходится жертвовать
+      // переносами.
+      return _plainText(ayah.textUthmani);
+    }
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Wrap(
-        alignment: WrapAlignment.start,
+        // `WrapAlignment.center` центрирует каждую визуальную
+        // строку арабского текста по горизонтали — соответствует
+        // референсу `read line by line.png`, где строки аята
+        // центрированы, а не прижаты к правому краю (как было
+        // с `WrapAlignment.start` в RTL). Слова по-прежнему
+        // идут справа-налево, но контейнер строки — по центру.
+        alignment: WrapAlignment.center,
         textDirection: TextDirection.rtl,
-            crossAxisAlignment: WrapCrossAlignment.start,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 2,
+        runSpacing: 4,
         children: words!.map((w) {
           final isCurrent = w.id == currentWord.value && isCurrentSurah;
           return _WordSpan(
@@ -170,13 +213,26 @@ class _ArabicText extends ConsumerWidget {
   }
 
   Widget _plainText(String text) {
-    return SelectableText(
+    // Используем `Text` (а не `SelectableText`): `SelectableText`
+    // перехватывает HitTest для cursor/выделения, и тап НЕ
+    // доходит до родительского Mushaf-GestDetector — toggle
+    // панелей не срабатывает поверх текста. В Mushaf выделение
+    // не нужно (в печатной Mushaf текст тоже не выделяется),
+    // поэтому `Text` — лучший компромисс.
+    return Text(
       text,
       textDirection: TextDirection.rtl,
-      textAlign: TextAlign.justify,
+      // Center-выровненный текст для соответствия референсу.
+      // `TextAlign.justify` (был) создавал неприятные большие
+      // пробелы между словами в коротких аятах. Но в «книжном»
+      // режиме `lineByLine == false` — принудительно justify
+      // для длинного потока текста без центрирования.
+      textAlign: lineByLine ? TextAlign.center : TextAlign.justify,
       style: TextStyle(
         fontSize: fontSize,
-        height: 2.0,
+        // 2.2 — соответствует референсу: вертикальный
+        // межстрочный интервал ~1.2x от размера шрифта.
+        height: 2.2,
         color: AppColors.textPrimary,
         fontFamily: 'Amiri',
       ),
@@ -232,26 +288,20 @@ class _WordSpan extends StatelessWidget {
 
 /// Один стрим на весь экран: множество ID аятов с закладками.
 final bookmarkedAyahIdsProvider = StreamProvider<Set<int>>((ref) {
-  return ref.watch(bookmarkDaoProvider).watchBookmarkedAyahIds();
+  return ref.watch(bookmarksRepositoryProvider).watchBookmarkedAyahIds();
 });
 
-Future<void> toggleBookmark(
+Future<bool> toggleBookmark(
   WidgetRef ref, {
   required Ayah ayah,
   required bool isCurrentlyBookmarked,
-}) async {
-  final dao = ref.read(bookmarkDaoProvider);
-  if (isCurrentlyBookmarked) {
-    await dao.deleteByAyah(ayah.id);
-  } else {
-    await dao.insertBookmark(
-      BookmarksCompanion.insert(
+}) {
+  return ref.read(bookmarksRepositoryProvider).toggle(
         surahId: ayah.surahId,
         ayahId: ayah.id,
         ayahNumber: ayah.ayahNumber,
-      ),
-    );
-  }
+        isCurrentlyBookmarked: isCurrentlyBookmarked,
+      );
 }
 
 /// Маленькая иконка-заметка с бейджем-счётчиком.
@@ -262,7 +312,8 @@ class _NoteButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final countStream = ref.watch(notesDaoProvider).watchCountForAyah(ayahId);
+    final countStream =
+        ref.watch(notesRepositoryProvider).watchCountForAyah(ayahId);
     return StreamBuilder<int>(
       stream: countStream,
       builder: (context, snapshot) {
@@ -310,8 +361,8 @@ class _NoteButton extends ConsumerWidget {
 
   void _openNotesFor(BuildContext context, WidgetRef ref, int ayahId) async {
     final ayah = await ref
-        .read(ayahDaoProvider)
-        .getById(ayahId);
+        .read(quranRepositoryProvider)
+        .getAyah(ayahId);
     if (ayah == null || !context.mounted) return;
     unawaited(showNotesPanel(context: context, ref: ref, ayah: ayah));
   }

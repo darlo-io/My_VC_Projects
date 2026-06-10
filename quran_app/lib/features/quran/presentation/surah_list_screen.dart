@@ -7,9 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/database/app_database.dart';
-import '../../../../core/database/daos/ayah_dao.dart';
-import '../../../../core/database/daos/surah_dao.dart';
-import '../../../../core/database/daos/translation_dao.dart';
+import '../../../../core/database/models/search_hits.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/common_widgets.dart';
@@ -62,7 +60,6 @@ class _SurahListScreenState extends ConsumerState<SurahListScreen> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final dao = ref.watch(surahDaoProvider);
 
     return SafeArea(
       bottom: false,
@@ -144,11 +141,12 @@ class _SurahListScreenState extends ConsumerState<SurahListScreen> {
           Expanded(
             child: switch (_scope) {
               _SearchScope.juz => const JuzList(),
-              _SearchScope.surah => _SurahList(query: _query, dao: dao),
+              _SearchScope.surah => _SurahList(
+                  query: _query,
+                  stream: ref.watch(quranRepositoryProvider).watchAllSurahs(),
+                ),
               _SearchScope.ayah => _AyahSearchResults(
                   query: _submittedQuery,
-                  ayahDao: ref.watch(ayahDaoProvider),
-                  translationDao: ref.watch(translationDaoProvider),
                 ),
             },
           ),
@@ -159,16 +157,16 @@ class _SurahListScreenState extends ConsumerState<SurahListScreen> {
 }
 
 class _SurahList extends StatelessWidget {
-  const _SurahList({required this.query, required this.dao});
+  const _SurahList({required this.query, required this.stream});
 
   final String query;
-  final SurahDao dao;
+  final Stream<List<Surah>> stream;
 
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return StreamBuilder<List<Surah>>(
-      stream: dao.watchAll(),
+      stream: stream,
       builder: (context, snapshot) {
         final items = snapshot.data ?? const <Surah>[];
         final q = query.toLowerCase();
@@ -198,37 +196,77 @@ class _SurahList extends StatelessWidget {
   }
 }
 
-class _AyahSearchResults extends StatelessWidget {
-  const _AyahSearchResults({
-    required this.query,
-    required this.ayahDao,
-    required this.translationDao,
-  });
-
+class _AyahSearchResults extends ConsumerStatefulWidget {
+  const _AyahSearchResults({required this.query});
   final String query;
-  final AyahDao ayahDao;
-  final TranslationDao translationDao;
+
+  @override
+  ConsumerState<_AyahSearchResults> createState() => _AyahSearchResultsState();
+}
+
+class _AyahSearchResultsState extends ConsumerState<_AyahSearchResults> {
+  Future<List<Object>>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleSearch();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AyahSearchResults old) {
+    super.didUpdateWidget(old);
+    if (old.query != widget.query) _scheduleSearch();
+  }
+
+  void _scheduleSearch() {
+    // Defer the first build to avoid hitting the DB inside `build`.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _future = _runSearch(widget.query));
+    });
+  }
+
+  Future<List<Object>> _runSearch(String query) async {
+    final repo = ref.read(searchRepositoryProvider);
+    final loc = Localizations.localeOf(context);
+    final isArabic = loc.languageCode == 'ar';
+    final arabicHits = await repo.searchAyahs(query);
+    if (isArabic) return List<Object>.from(arabicHits);
+    final translationHits = await repo.searchTranslations(
+      query: query,
+      languageCode: loc.languageCode,
+    );
+    // Merge: dedupe by ayahId, prefer translation over arabic (the
+    // user typed in a non-Arabic locale and is more likely to want
+    // the readable hit first), keep list stable on surah/ayah order.
+    final byAyah = <int, Object>{};
+    for (final h in translationHits) {
+      byAyah[h.ayahId] = h;
+    }
+    for (final h in arabicHits) {
+      byAyah.putIfAbsent(h.ayahId, () => h);
+    }
+    final merged = byAyah.values.toList()
+      ..sort((a, b) {
+        final sa = a is AyahSearchHit ? a.surahId : (a as TranslationSearchHit).surahId;
+        final sb = b is AyahSearchHit ? b.surahId : (b as TranslationSearchHit).surahId;
+        if (sa != sb) return sa.compareTo(sb);
+        final na = a is AyahSearchHit ? a.ayahNumber : (a as TranslationSearchHit).ayahNumber;
+        final nb = b is AyahSearchHit ? b.ayahNumber : (b as TranslationSearchHit).ayahNumber;
+        return na.compareTo(nb);
+      });
+    return merged;
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    if (query.isEmpty) {
+    if (widget.query.isEmpty) {
       return _EmptyMessage(text: t.searchAyahHint);
     }
-    final loc = Localizations.localeOf(context);
-    // Translation search is only meaningful for non-Arabic locales
-    // (we ship Russian Kuliev/Porohova + English Sahih). For Arabic
-    // we surface the Arabic-original FTS results instead, so the
-    // user always sees *something* matching their query.
-    final isArabic = loc.languageCode == 'ar';
     return FutureBuilder<List<Object>>(
-      future: _runSearch(
-        query: query,
-        ayahDao: ayahDao,
-        translationDao: translationDao,
-        includeTranslation: !isArabic,
-        languageCode: isArabic ? 'en' : loc.languageCode,
-      ),
+      future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -260,41 +298,6 @@ class _AyahSearchResults extends StatelessWidget {
         );
       },
     );
-  }
-
-  Future<List<Object>> _runSearch({
-    required String query,
-    required AyahDao ayahDao,
-    required TranslationDao translationDao,
-    required bool includeTranslation,
-    required String languageCode,
-  }) async {
-    final arabicHits = await ayahDao.searchByText(query);
-    if (!includeTranslation) return List<Object>.from(arabicHits);
-    final translationHits = await translationDao.search(
-      query: query,
-      languageCode: languageCode,
-    );
-    // Merge: dedupe by ayahId, prefer translation over arabic (the
-    // user typed in a non-Arabic locale and is more likely to want
-    // the readable hit first), keep list stable on surah/ayah order.
-    final byAyah = <int, Object>{};
-    for (final h in translationHits) {
-      byAyah[h.ayahId] = h;
-    }
-    for (final h in arabicHits) {
-      byAyah.putIfAbsent(h.ayahId, () => h);
-    }
-    final merged = byAyah.values.toList()
-      ..sort((a, b) {
-        final sa = a is AyahSearchHit ? a.surahId : (a as TranslationSearchHit).surahId;
-        final sb = b is AyahSearchHit ? b.surahId : (b as TranslationSearchHit).surahId;
-        if (sa != sb) return sa.compareTo(sb);
-        final na = a is AyahSearchHit ? a.ayahNumber : (a as TranslationSearchHit).ayahNumber;
-        final nb = b is AyahSearchHit ? b.ayahNumber : (b as TranslationSearchHit).ayahNumber;
-        return na.compareTo(nb);
-      });
-    return merged;
   }
 }
 

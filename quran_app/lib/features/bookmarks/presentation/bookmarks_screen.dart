@@ -14,8 +14,8 @@ class BookmarksScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = AppLocalizations.of(context);
-    final dao = ref.watch(bookmarkDaoProvider);
-    final surahDao = ref.watch(surahDaoProvider);
+    final bookmarksRepo = ref.watch(bookmarksRepositoryProvider);
+    final quranRepo = ref.watch(quranRepositoryProvider);
 
     return SafeArea(
       bottom: false,
@@ -35,7 +35,7 @@ class BookmarksScreen extends ConsumerWidget {
           ),
           Expanded(
             child: StreamBuilder<List<Bookmark>>(
-              stream: dao.watchAll(),
+              stream: bookmarksRepo.watchAll(),
               builder: (context, snapshot) {
                 final items = snapshot.data ?? const <Bookmark>[];
                 if (items.isEmpty) {
@@ -45,7 +45,7 @@ class BookmarksScreen extends ConsumerWidget {
                   );
                 }
                 return StreamBuilder<List<Surah>>(
-                  stream: surahDao.watchAll(),
+                  stream: quranRepo.watchAllSurahs(),
                   builder: (context, surahSnap) {
                     final surahs = {
                       for (final s in surahSnap.data ?? const <Surah>[])
@@ -66,7 +66,7 @@ class BookmarksScreen extends ConsumerWidget {
                           onOpen: () => context.go(
                             '/reader/${bm.surahId}?ayah=${bm.ayahNumber}',
                           ),
-                          onDelete: () => dao.deleteByAyah(bm.ayahId),
+                          onDelete: () => bookmarksRepo.dao.deleteByAyah(bm.ayahId),
                         );
                       },
                     );

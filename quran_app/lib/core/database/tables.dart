@@ -176,6 +176,11 @@ class LearningWords extends Table {
   IntColumn get repetitions => integer().withDefault(const Constant(0))();
   DateTimeColumn get nextReviewAt => dateTime()();
   DateTimeColumn get lastReviewAt => dateTime().nullable()();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+        {wordId},
+      ];
 }
 
 /// Метаданные аудио-кеша.

@@ -14,6 +14,7 @@ class AppPreferences {
   static const _kTranslationLang = 'reader.translationLang';
   static const _kThemeMode = 'app.themeMode';
   static const _kCacheLimitMb = 'audio.cacheLimitMb';
+  static const _kReadingMode = 'reader.readingMode';
 
   String? get languageCode => _prefs.getString(_kLanguageCode);
 
@@ -46,8 +47,30 @@ class AppPreferences {
   int get cacheLimitMb => _prefs.getInt(_kCacheLimitMb) ?? 2048;
   Future<void> setCacheLimitMb(int mb) => _prefs.setInt(_kCacheLimitMb, mb);
 
+  /// Режим чтения: `lineByLine` (построчный, как в Mushaf) или
+  /// `book` (обычный — каждое слово идёт в одну длинную строку
+  /// без центрирования). По умолчанию `lineByLine` — соответствует
+  /// референсу `docs/images/read line by line.png`.
+  String get readingMode =>
+      _prefs.getString(_kReadingMode) ?? 'lineByLine';
+  Future<void> setReadingMode(String v) =>
+      _prefs.setString(_kReadingMode, v);
+
   String? getString(String key) => _prefs.getString(key);
   Future<void> setString(String key, String value) =>
       _prefs.setString(key, value);
   Future<void> remove(String key) => _prefs.remove(key);
+
+  /// Удалить все ключи, которые `AppPreferences` создаёт. Используется
+  /// «Reset all data» в настройках. Ключи вроде `content.manifest.*`,
+  /// которые пишут другие подсистемы, НЕ трогаем — они восстановятся
+  /// при следующем bootstrap.
+  Future<void> clearAll() async {
+    final keys = _prefs.getKeys().where((k) => k.startsWith('app.') ||
+        k.startsWith('reader.') ||
+        k.startsWith('audio.'));
+    for (final k in keys) {
+      await _prefs.remove(k);
+    }
+  }
 }

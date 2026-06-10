@@ -210,6 +210,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsResetConfirmAction => 'Удалить';
 
   @override
+  String get settingsResetDone => 'Все данные удалены';
+
+  @override
+  String settingsResetFailed(Object error) {
+    return 'Не удалось сбросить: $error';
+  }
+
+  @override
   String get languageSystem => 'Системный';
 
   @override
@@ -928,4 +936,31 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsReciterActive => 'Сейчас выбран';
+
+  @override
+  String get mediaAlbum => 'Коран';
+
+  @override
+  String get fontPreviewSurah => 'Аль-Фатиха';
+
+  @override
+  String get playerError => 'Не удалось воспроизвести аудио';
+
+  @override
+  String get playerErrorHelp => 'Проверьте подключение и попробуйте снова';
+
+  @override
+  String get copyError => 'Скопировать ошибку';
+
+  @override
+  String get retryCopied => 'Ошибка скопирована';
+
+  @override
+  String get readingModeLineByLine => 'Построчно';
+
+  @override
+  String get readingModeBook => 'Книга';
+
+  @override
+  String get readingModeTooltip => 'Режим чтения';
 }

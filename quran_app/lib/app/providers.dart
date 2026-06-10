@@ -5,6 +5,11 @@ import '../core/content/content_bootstrapper.dart';
 import '../core/content/content_manifest.dart';
 import '../core/content/local_seed_service.dart';
 import '../core/content/quran_api.dart';
+import '../core/data/bookmarks_repository.dart';
+import '../core/data/learning_repository.dart';
+import '../core/data/notes_repository.dart';
+import '../core/data/quran_repository.dart';
+import '../core/data/search_repository.dart';
 import '../core/database/app_database.dart';
 import '../core/database/daos/audio_cache_dao.dart';
 import '../core/database/daos/ayah_dao.dart';
@@ -33,6 +38,28 @@ final sharedPreferencesProvider = Provider<SharedPreferences>(
   (ref) => throw UnimplementedError('Override in main()'),
 );
 
+/// Провайдер для [AppPreferences] — единый wrapper над
+/// SharedPreferences для пользовательских настроек (тема,
+/// размер шрифта, выбранный чтец и т.д.).
+///
+/// IMPORTANT: Это снова обычный `Provider` (не `NotifierProvider`).
+/// Почему: попытки сделать `setXxx`-методы, которые **уведомляли
+/// бы** подписчиков через `state = ...` или `invalidateSelf`,
+/// приводили к сбросу навигации в go_router (Reader выкидывал
+/// в Home при смене `readingMode`). Причина — какой-то из
+/// `ref.watch(appPreferencesProvider)` в графе (LanguageNotifier,
+/// cacheLimitMbProvider) пересобирался в неожиданном порядке
+/// с `MaterialApp.router`, что триггерило redirect/refresh.
+///
+/// Сейчас `setXxx` — fire-and-forget (пишет в SharedPreferences
+/// без уведомления Riverpod). UI, которому нужно **локально**
+/// обновиться при изменении (например, переключение reading-mode
+/// в Reader), использует `StatefulWidget.setState` и сам
+/// синхронизирует с `appPreferencesProvider` через mount/refresh.
+///
+/// Глобально зависящие от prefs экраны (Settings, Onboarding)
+/// делают `ref.refresh(appPreferencesProvider)` после записи —
+/// см. `LanguageNotifier.set` / `setTranslationLang` в Settings.
 final appPreferencesProvider = Provider<AppPreferences>(
   (ref) => AppPreferences(ref.watch(sharedPreferencesProvider)),
 );
@@ -70,7 +97,7 @@ final positionDaoProvider = Provider<PositionDao>(
 /// [LastReadPosition.empty] on the first frame.
 final lastReadPositionProvider =
     StreamProvider<LastReadPosition>((ref) {
-  return ref.watch(positionDaoProvider).watchLastWithSurah();
+  return ref.watch(quranRepositoryProvider).watchLastReadPosition();
 });
 
 /// [QuizService] tied to the singleton [AppDatabase]. The Quiz
@@ -180,6 +207,75 @@ final contentBootstrapperProvider = Provider<ContentBootstrapper>(
   ),
 );
 
+/// Полный сброс пользователя: wipes user-data tables +
+/// очищает аудио-кеш + сбрасывает SharedPreferences (кроме
+/// контент-манифеста, который восстановится на следующем
+/// bootstrap). Используется из SettingsScreen «Reset all data».
+/// После вызова стоит перезапустить `contentReadyProvider`,
+/// чтобы UI заметил изменения.
+///
+/// Принимает [WidgetRef] из Riverpod — на текущий момент
+/// единственный вызывающий (SettingsScreen) живёт в widget tree,
+/// и тащить `ProviderScope.containerOf(context)` туда было бы
+/// лишним шумом. При переносе логики в non-widget-контекст
+/// достаточно будет сделать обёртку, принимающую [Ref].
+Future<void> resetAllUserData(WidgetRef ref) async {
+  await ref.read(appDatabaseProvider).wipeUserData();
+  await ref.read(audioCacheProvider).clearAll();
+  // `clearAll` стирает префы, потом notifier инвалидируется →
+  // все подписчики (`ref.watch(appPreferencesProvider)`) видят
+  // пустые значения. Затем `contentReadyProvider` тоже сбрасывается
+  // — комбинация этих двух эффектов перекидывает пользователя на
+  // /bootstrap, откуда он попадёт на /onboarding.
+  ref.invalidate(appPreferencesProvider);
+  // Пересоздаём готовое состояние — теперь isReady() == true
+  // (контент есть), но last_position == null, закладки пустые и т.д.
+  ref.invalidate(contentReadyProvider);
+}
+
+// ----- Repositories (ARCHITECTURE §4) -----
+// UI читает только эти Provider'ы, не DAO напрямую.
+
+final quranRepositoryProvider = Provider<QuranRepository>((ref) {
+  return QuranRepository(
+    surahDao: ref.watch(surahDaoProvider),
+    ayahDao: ref.watch(ayahDaoProvider),
+    translationDao: ref.watch(translationDaoProvider),
+    positionDao: ref.watch(positionDaoProvider),
+    wordsDao: ref.watch(wordsDaoProvider),
+  );
+});
+
+final bookmarksRepositoryProvider = Provider<BookmarksRepository>((ref) {
+  return BookmarksRepository(ref.watch(bookmarkDaoProvider));
+});
+
+final notesRepositoryProvider = Provider<NotesRepository>((ref) {
+  return NotesRepository(ref.watch(notesDaoProvider));
+});
+
+final learningRepositoryProvider = Provider<LearningRepository>((ref) {
+  return LearningRepository(ref.watch(learningDaoProvider));
+});
+
+final searchRepositoryProvider = Provider<SearchRepository>((ref) {
+  // SearchRepository принимает функции вместо DAOs, чтобы не тянуть
+  // циклический импорт (см. комментарий в SearchRepository). Здесь
+  // мы биндим DAO-методы в plain-функции через tearoff (`dao.method`)
+  // — `this` фиксируется автоматически.
+  final surahDao = ref.watch(surahDaoProvider);
+  final ayahDao = ref.watch(ayahDaoProvider);
+  final translationDao = ref.watch(translationDaoProvider);
+  final wordsDao = ref.watch(wordsDaoProvider);
+  return SearchRepository(
+    searchSurahsFn: surahDao.searchByText,
+    searchAyahsFn: ayahDao.searchByText,
+    searchTranslationsFn: translationDao.search,
+    searchWordsFn: wordsDao.search,
+    searchWordsByRootFn: wordsDao.searchByRoot,
+  );
+});
+
 /// Состояние контента: загружен ли текст Корана.
 class ContentReadyNotifier extends AsyncNotifier<bool> {
   @override
@@ -216,7 +312,16 @@ class LanguageNotifier extends Notifier<String?> {
 
   Future<void> set(String? code) async {
     state = code;
+    // `appPreferencesProvider` снова `Provider` (не `Notifier`).
+    // Запись в SharedPreferences — fire-and-forget, без
+    // уведомления Riverpod-подписчиков. Глобальный refresh
+    // `appPreferencesProvider` нужен, потому что
+    // `LanguageNotifier.state` — это derived value, и любой
+    // widget, делающий `ref.watch(appPreferencesProvider)`
+    // (например, Settings или Onboarding), должен увидеть
+    // новое значение languageCode.
     await ref.read(appPreferencesProvider).setLanguageCode(code);
+    ref.invalidate(appPreferencesProvider);
   }
 }
 

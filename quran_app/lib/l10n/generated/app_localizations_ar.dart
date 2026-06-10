@@ -212,6 +212,14 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settingsResetConfirmAction => 'حذف';
 
   @override
+  String get settingsResetDone => 'تم حذف جميع البيانات';
+
+  @override
+  String settingsResetFailed(Object error) {
+    return 'تعذّر إعادة التعيين: $error';
+  }
+
+  @override
   String get languageSystem => 'النظام';
 
   @override
@@ -923,4 +931,31 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get settingsReciterActive => 'المحدد حاليًا';
+
+  @override
+  String get mediaAlbum => 'القرآن';
+
+  @override
+  String get fontPreviewSurah => 'الفاتحة';
+
+  @override
+  String get playerError => 'تعذّر تشغيل الصوت';
+
+  @override
+  String get playerErrorHelp => 'تحقق من الاتصال وأعد المحاولة';
+
+  @override
+  String get copyError => 'نسخ الخطأ';
+
+  @override
+  String get retryCopied => 'تم نسخ الخطأ';
+
+  @override
+  String get readingModeLineByLine => 'سطر بسطر';
+
+  @override
+  String get readingModeBook => 'كتاب';
+
+  @override
+  String get readingModeTooltip => 'وضع القراءة';
 }

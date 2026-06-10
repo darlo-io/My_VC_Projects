@@ -38,7 +38,6 @@ dependencies:
   # Audio (stub for MVP v0.2)
   just_audio: ^0.9.42
   audio_service: ^0.18.18
-  audio_session: ^0.1.21
 
   # Crypto for content integrity (SHA256)
   crypto: ^3.0.5

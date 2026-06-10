@@ -454,6 +454,18 @@ abstract class AppLocalizations {
   /// **'Delete'**
   String get settingsResetConfirmAction;
 
+  /// No description provided for @settingsResetDone.
+  ///
+  /// In en, this message translates to:
+  /// **'All data has been deleted'**
+  String get settingsResetDone;
+
+  /// No description provided for @settingsResetFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reset: {error}'**
+  String settingsResetFailed(Object error);
+
   /// No description provided for @languageSystem.
   ///
   /// In en, this message translates to:
@@ -1851,6 +1863,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Currently selected'**
   String get settingsReciterActive;
+
+  /// No description provided for @mediaAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Quran'**
+  String get mediaAlbum;
+
+  /// No description provided for @fontPreviewSurah.
+  ///
+  /// In en, this message translates to:
+  /// **'Al-Fatiha'**
+  String get fontPreviewSurah;
+
+  /// No description provided for @playerError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not play audio'**
+  String get playerError;
+
+  /// No description provided for @playerErrorHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your connection and try again'**
+  String get playerErrorHelp;
+
+  /// No description provided for @copyError.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy error'**
+  String get copyError;
+
+  /// No description provided for @retryCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Error copied to clipboard'**
+  String get retryCopied;
+
+  /// No description provided for @readingModeLineByLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Line by line'**
+  String get readingModeLineByLine;
+
+  /// No description provided for @readingModeBook.
+  ///
+  /// In en, this message translates to:
+  /// **'Book'**
+  String get readingModeBook;
+
+  /// No description provided for @readingModeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading mode'**
+  String get readingModeTooltip;
 }
 
 class _AppLocalizationsDelegate

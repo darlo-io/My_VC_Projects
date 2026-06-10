@@ -79,6 +79,15 @@ class ContentBootstrapper {
   }
 
   Future<void> _applyLocalSeed(ContentDownloadResult result) async {
+    // Один-единственный transaction на весь bootstrap. Если что-то
+    // упадёт (например, диск заполнится на 3000-м аяте) — Drift
+    // откатит все вставки, и БД останется в pre-bootstrap состоянии.
+    // Следующий запуск заново вызовет `_applyLocalSeed` и
+    // перезапустит процесс с нуля, не оставив полупосеянную БД.
+    //
+    // Раньше это были 3 отдельные транзакции + ещё две не-
+    // транзакционные записи manifest/reciters/words. Прерывание
+    // между ними оставляло БД в inconsistent состоянии.
     await db.transaction(() async {
       await surahDao.insertAll(
         result.surahs
@@ -96,9 +105,6 @@ class ContentBootstrapper {
             )
             .toList(),
       );
-    });
-
-    await db.transaction(() async {
       await ayahDao.insertAyahs(
         result.ayahs
             .map(
@@ -122,9 +128,6 @@ class ContentBootstrapper {
             )
             .toList(),
       );
-    });
-
-    await db.transaction(() async {
       await translationDao.insertTranslators(
         result.translators
             .map(
@@ -137,7 +140,6 @@ class ContentBootstrapper {
             )
             .toList(),
       );
-
       await translationDao.insertTranslations(
         result.translations
             .map(
@@ -152,6 +154,11 @@ class ContentBootstrapper {
       );
     });
 
+    // Manifest / reciters / words — отдельные мелкие writes.
+    // Они либо idempotent (manifest: перезаписывает), либо guarded
+    // count-check'ом (`_seedWordsFromResult` / `_seedAlFatihaWords`
+    // сначала смотрят `if (count > 0) return`), так что
+    // повторный запуск после частичного успеха — no-op.
     await manifestRepository.apply(defaultManifest());
     await recitersRepository.ensureSeeded();
     await _seedAlFatihaWords();

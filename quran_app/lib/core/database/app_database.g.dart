@@ -5148,6 +5148,10 @@ class $LearningWordsTable extends LearningWords
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {wordId},
+  ];
+  @override
   LearningWord map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return LearningWord(

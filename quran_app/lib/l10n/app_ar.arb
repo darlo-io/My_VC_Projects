@@ -59,6 +59,8 @@
   "settingsReset": "إعادة تعيين البيانات",
   "settingsResetConfirm": "هل أنت متأكد؟ سيتم حذف جميع البيانات.",
   "settingsResetConfirmAction": "حذف",
+  "settingsResetDone": "تم حذف جميع البيانات",
+  "settingsResetFailed": "تعذّر إعادة التعيين: {error}",
   "languageSystem": "النظام",
   "languageEnglish": "English",
   "languageRussian": "Русский",
@@ -291,5 +293,15 @@
   "quizEmpty": "لا توجد أسئلة بعد. اقرأ سورة أولاً، ثم عُد.",
   "settingsReciter": "القارئ",
   "settingsReciterHint": "اختر من يتلو القرآن",
-  "settingsReciterActive": "المحدد حاليًا"
+  "settingsReciterActive": "المحدد حاليًا",
+  "mediaAlbum": "القرآن",
+  "fontPreviewSurah": "الفاتحة",
+  "retry": "إعادة",
+  "playerError": "تعذّر تشغيل الصوت",
+  "playerErrorHelp": "تحقق من الاتصال وأعد المحاولة",
+  "copyError": "نسخ الخطأ",
+  "retryCopied": "تم نسخ الخطأ",
+  "readingModeLineByLine": "سطر بسطر",
+  "readingModeBook": "كتاب",
+  "readingModeTooltip": "وضع القراءة"
 }

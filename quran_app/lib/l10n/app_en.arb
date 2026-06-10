@@ -107,6 +107,8 @@
   "settingsReset": "Reset all data",
   "settingsResetConfirm": "Are you sure? All data will be deleted.",
   "settingsResetConfirmAction": "Delete",
+  "settingsResetDone": "All data has been deleted",
+  "settingsResetFailed": "Could not reset: {error}",
   "languageSystem": "System",
   "languageEnglish": "English",
   "languageRussian": "Русский",
@@ -339,5 +341,15 @@
   "quizEmpty": "No questions available yet. Read a surah first, then come back.",
   "settingsReciter": "Reciter",
   "settingsReciterHint": "Choose who reads the Quran aloud",
-  "settingsReciterActive": "Currently selected"
+  "settingsReciterActive": "Currently selected",
+  "mediaAlbum": "Quran",
+  "fontPreviewSurah": "Al-Fatiha",
+  "retry": "Retry",
+  "playerError": "Could not play audio",
+  "playerErrorHelp": "Check your connection and try again",
+  "copyError": "Copy error",
+  "retryCopied": "Error copied to clipboard",
+  "readingModeLineByLine": "Line by line",
+  "readingModeBook": "Book",
+  "readingModeTooltip": "Reading mode"
 }

@@ -208,6 +208,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsResetConfirmAction => 'Delete';
 
   @override
+  String get settingsResetDone => 'All data has been deleted';
+
+  @override
+  String settingsResetFailed(Object error) {
+    return 'Could not reset: $error';
+  }
+
+  @override
   String get languageSystem => 'System';
 
   @override
@@ -925,4 +933,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsReciterActive => 'Currently selected';
+
+  @override
+  String get mediaAlbum => 'Quran';
+
+  @override
+  String get fontPreviewSurah => 'Al-Fatiha';
+
+  @override
+  String get playerError => 'Could not play audio';
+
+  @override
+  String get playerErrorHelp => 'Check your connection and try again';
+
+  @override
+  String get copyError => 'Copy error';
+
+  @override
+  String get retryCopied => 'Error copied to clipboard';
+
+  @override
+  String get readingModeLineByLine => 'Line by line';
+
+  @override
+  String get readingModeBook => 'Book';
+
+  @override
+  String get readingModeTooltip => 'Reading mode';
 }

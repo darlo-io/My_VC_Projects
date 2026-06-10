@@ -1,26 +1,10 @@
 import 'package:drift/drift.dart';
 
 import '../app_database.dart';
+import '../models/search_hits.dart';
 import '../tables.dart';
 
 part 'surah_dao.g.dart';
-
-/// Projection used by [SurahDao.searchByText]. Returns just the
-/// fields the search-result UI needs; callers that need the full
-/// row can follow up with [SurahDao.getById].
-class SurahSearchHit {
-  const SurahSearchHit({
-    required this.surahId,
-    required this.nameAr,
-    required this.nameEn,
-    required this.nameTransliteration,
-  });
-
-  final int surahId;
-  final String nameAr;
-  final String nameEn;
-  final String nameTransliteration;
-}
 
 @DriftAccessor(tables: [Surahs])
 class SurahDao extends DatabaseAccessor<AppDatabase> with _$SurahDaoMixin {

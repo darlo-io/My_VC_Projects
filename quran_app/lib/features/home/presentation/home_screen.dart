@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/database/models/last_read_position.dart';
+import '../../../../core/i18n/hijri_calendar.dart';
 import '../../../../core/i18n/localized_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/generated/app_localizations.dart';
@@ -16,7 +17,6 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = AppLocalizations.of(context);
     final loc = Localizations.localeOf(context);
-    final isArabicUI = loc.languageCode == 'ar';
     final lastAsync = ref.watch(lastReadPositionProvider);
     final last = lastAsync.value ?? const LastReadPosition.empty();
     final isEmpty = last.surahId == 0;
@@ -39,7 +39,10 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: 24),
           _Greeting(
             greeting: t.greetingAssalamu,
-            dateLine: t.homeFallbackDate,
+            dateLine: formatHijriDate(
+              hijriFromGregorian(DateTime.now()),
+              loc.languageCode,
+            ),
           ),
           const SizedBox(height: 24),
           _ContinueCard(
@@ -92,7 +95,6 @@ class HomeScreen extends ConsumerWidget {
               ),
             ],
           ),
-          SizedBox(height: isArabicUI ? 0 : 0),
         ],
       ),
     );

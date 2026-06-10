@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/widgets.dart';
 
+import '../../../l10n/generated/app_localizations.dart';
 import 'audio_player_controller.dart';
 
 /// Singleton [BaseAudioHandler] для [audio_service].
@@ -24,22 +26,52 @@ class QuranAudioHandler extends BaseAudioHandler {
 
   AudioPlayerController? _controller;
   AudioPlayerState _lastState = AudioPlayerState.empty;
+  StreamSubscription<AudioPlayerState>? _stateSub;
+
+  /// Кеш локализованной строки `mediaAlbum` для текущей локали.
+  /// Перечитывается, если в `WidgetsBinding` сменился `locale`.
+  String? _cachedAlbum;
+  String? _cachedAlbumLocale;
 
   /// Привязать handler к контроллеру. Вызывается однократно после
   /// [AudioService.init] и сборки Riverpod-графа в main.dart.
   void attach(AudioPlayerController controller) {
     _controller = controller;
-    // Fire-and-forget subscription: the handler lives for the entire
-    // app lifetime and the underlying stream is closed when the
-    // controller is disposed. The initial broadcast happens on the
-    // first stream emission.
-    controller.stream.listen((s) {
+    // Subscription хранится явно, чтобы избежать потенциальной
+    // утечки при перепривязке. На практике attach вызывается
+    // ровно один раз за app-сессию, но `dispose()` теперь чистый.
+    _stateSub?.cancel();
+    _stateSub = controller.stream.listen((s) {
       _lastState = s;
       _broadcast(s);
     });
   }
 
-  void _broadcast(AudioPlayerState s) {
+  /// Подгрузить локализованный «album» для нотификации/lock-screen.
+  /// Handler живёт за пределами widget tree, поэтому берём активную
+  /// локаль из `WidgetsBinding` и через `AppLocalizations.delegate.load`
+  /// получаем сгенерированный инстанс. Результат кешируется, чтобы
+  /// не дёргать async-код на каждом broadcast.
+  Future<String> _album() async {
+    final code = WidgetsBinding
+            .instance.platformDispatcher.locale.languageCode;
+    if (_cachedAlbum != null && _cachedAlbumLocale == code) {
+      return _cachedAlbum!;
+    }
+    try {
+      final t = await AppLocalizations.delegate.load(Locale(code));
+      _cachedAlbum = t.mediaAlbum;
+      _cachedAlbumLocale = code;
+      return t.mediaAlbum;
+    } catch (_) {
+      // Fallback: hardcoded English title if the ARB delegate is
+      // somehow unavailable. Should never happen in practice but
+      // keeps the handler robust against test harness quirks.
+      return 'Quran';
+    }
+  }
+
+  Future<void> _broadcast(AudioPlayerState s) async {
     final processing = s.loading
         ? AudioProcessingState.loading
         : (s.error != null
@@ -68,7 +100,7 @@ class QuranAudioHandler extends BaseAudioHandler {
     if (s.surah != null) {
       mediaItem.add(MediaItem(
         id: 'quran/${s.reciter?.id ?? "default"}/${s.surah!.id}',
-        album: 'Коран',
+        album: await _album(),
         title: s.surahName,
         artist: s.reciter?.nameEn ?? '',
         duration: s.durationMs > 0
@@ -78,6 +110,15 @@ class QuranAudioHandler extends BaseAudioHandler {
     } else {
       mediaItem.add(null);
     }
+  }
+
+  /// Отменить подписку на поток контроллера. Вызывается явно из
+  /// тестов / tearDown; в проде handler живёт весь app-сеанс и
+  /// отписка не нужна (сборщик мусора сам закроет оба Subject'а
+  /// внутри BaseAudioHandler).
+  Future<void> shutdown() async {
+    await _stateSub?.cancel();
+    _stateSub = null;
   }
 
   /// Запустить суру (entry-point из app-кода).

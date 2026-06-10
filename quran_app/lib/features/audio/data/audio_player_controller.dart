@@ -168,6 +168,14 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
     }
   }
 
+  /// Сбросить error-флаг без изменения `surah/reciter`. Вызывается
+  /// из retry-кнопки в `_PlayerErrorBanner` перед повторным
+  /// `playSurah`. Делает так, чтобы старый текст ошибки не
+  /// «залипал» в UI, пока новая попытка грузится.
+  void clearError() {
+    state = state.copyWith(clearError: true);
+  }
+
   Future<void> seekTo(Duration position) => _player.seek(position);
 
   Future<void> stop() async {

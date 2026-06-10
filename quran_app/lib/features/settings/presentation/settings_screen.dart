@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/database/app_database.dart';
@@ -7,6 +8,13 @@ import '../../../../core/i18n/localized_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/common_widgets.dart';
+
+// Surfaced through the top-level function `resetAllUserData` in
+// `app/providers.dart` so we can call it from the Settings screen
+// without threading the entire DI graph into a private helper.
+// The actual wipe runs in a single Drift transaction (see
+// AppDatabase.wipeUserData) and clears both Drift tables and the
+// SharedPreferences keys owned by [AppPreferences].
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -180,7 +188,7 @@ class SettingsScreen extends ConsumerWidget {
               .map(
                 (s) => ListTile(
                   title: Text(
-                    'Ал-Фатиха',
+                    t.fontPreviewSurah,
                     style: TextStyle(fontSize: s, fontFamily: 'Amiri'),
                   ),
                   trailing: ref.read(appPreferencesProvider).fontSize == s
@@ -233,16 +241,43 @@ class SettingsScreen extends ConsumerWidget {
   ) {
     showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: Text(t.settingsReset),
         content: Text(t.settingsResetConfirm),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogCtx),
             child: Text(t.cancel),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () async {
+              // Закрываем диалог сразу, чтобы избежать двойного
+              // нажатия. Дальше — асинхронный wipe и переход на
+              // онбординг. Сохраняем `outerCtx` (он = context,
+              // пришедший в `_confirmReset`), чтобы не зависеть
+              // от `dialogCtx` после `Navigator.pop`.
+              final outerCtx = context;
+              final outerRef = ref;
+              Navigator.pop(dialogCtx);
+              try {
+                await resetAllUserData(outerRef);
+                if (!outerCtx.mounted) return;
+                ScaffoldMessenger.of(outerCtx).showSnackBar(
+                  SnackBar(content: Text(t.settingsResetDone)),
+                );
+                // Перекидываем на онбординг, чтобы пользователь
+                // заново выбрал язык. Settings route уйдёт
+                // из стека, контент-готовность пересоздастся.
+                outerCtx.go('/onboarding');
+              } catch (e) {
+                if (!outerCtx.mounted) return;
+                ScaffoldMessenger.of(outerCtx).showSnackBar(
+                  SnackBar(
+                    content: Text(t.settingsResetFailed('$e')),
+                  ),
+                );
+              }
+            },
             child: Text(t.settingsResetConfirmAction),
           ),
         ],
@@ -404,7 +439,13 @@ class _CacheLimitTile extends ConsumerWidget {
                       ? const Icon(Icons.check, color: AppColors.gold)
                       : null,
                   onTap: () async {
-                    await prefs.setCacheLimitMb(mb);
+                    // Через notifier — пересоберёт всех подписчиков
+                    // appPreferencesProvider. Затем отдельно
+                    // уведомляем cacheLimitMbProvider (он не
+                    // наследует от appPreferencesProvider).
+                    await ref
+                        .read(appPreferencesProvider)
+                        .setCacheLimitMb(mb);
                     ref.read(cacheLimitMbProvider.notifier).state = mb;
                     // Запустить eviction под новый лимит, не дожидаясь
                     // следующей загрузки.

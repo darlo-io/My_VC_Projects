@@ -59,6 +59,8 @@
   "settingsReset": "Сбросить все данные",
   "settingsResetConfirm": "Вы уверены? Все данные будут удалены.",
   "settingsResetConfirmAction": "Удалить",
+  "settingsResetDone": "Все данные удалены",
+  "settingsResetFailed": "Не удалось сбросить: {error}",
   "languageSystem": "Системный",
   "languageEnglish": "English",
   "languageRussian": "Русский",
@@ -291,5 +293,15 @@
   "quizEmpty": "Вопросов пока нет. Сначала прочитайте суру, затем возвращайтесь.",
   "settingsReciter": "Чтец",
   "settingsReciterHint": "Выберите, кто будет читать Коран вслух",
-  "settingsReciterActive": "Сейчас выбран"
+  "settingsReciterActive": "Сейчас выбран",
+  "mediaAlbum": "Коран",
+  "fontPreviewSurah": "Аль-Фатиха",
+  "retry": "Повторить",
+  "playerError": "Не удалось воспроизвести аудио",
+  "playerErrorHelp": "Проверьте подключение и попробуйте снова",
+  "copyError": "Скопировать ошибку",
+  "retryCopied": "Ошибка скопирована",
+  "readingModeLineByLine": "Построчно",
+  "readingModeBook": "Книга",
+  "readingModeTooltip": "Режим чтения"
 }

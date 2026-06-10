@@ -48,6 +48,24 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
       if (next.reciter != null && prev?.reciter?.id != next.reciter!.id) {
         ref.read(appPreferencesProvider).setReciterId(next.reciter!.id);
       }
+      // Показываем SnackBar при переходе из `loading -> error` или
+      // при первой установке `error` после успешной сессии. Раньше
+      // ошибка плеера была невидима в UI (CRITICAL из code review).
+      if (next.error != null && prev?.error != next.error) {
+        // Отложенно, чтобы SnackBar не конфликтовал с текущим
+        // showModalBottomSheet (если он открыт) и не плодил
+        // дубликаты при быстрых сменах состояния.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(t.playerError),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        });
+      }
     });
 
     return SafeArea(
@@ -287,6 +305,7 @@ class _Player extends ConsumerWidget {
     final playing = state.playing;
     final pos = state.positionMs;
     final dur = state.durationMs > 0 ? state.durationMs : 1;
+    final error = state.error;
 
     return GlassCard(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
@@ -360,6 +379,23 @@ class _Player extends ConsumerWidget {
               color: AppColors.textSecondary,
             ),
           ),
+          // Error-баннер: показывается когда `state.error` непуст.
+          // До Tier 2 это было CRITICAL — UI молчал при сбое
+          // загрузки и пользователь видел зависший спиннер.
+          if (error != null) ...[
+            const SizedBox(height: 16),
+            _PlayerErrorBanner(
+              message: t.playerError,
+              hint: t.playerErrorHelp,
+              onRetry: () {
+                // Очищаем ошибку и заново зовём playSurah. Стейт
+                // контроллера поддерживает copyWith(clearError: true).
+                final ctrl = ref.read(audioPlayerControllerProvider.notifier);
+                ctrl.clearError();
+                onPlay();
+              },
+            ),
+          ],
           const SizedBox(height: 16),
           Slider(
             value: hasTrack ? (pos / dur).clamp(0.0, 1.0) : 0.0,
@@ -373,6 +409,66 @@ class _Player extends ConsumerWidget {
                         .seekTo(target);
                   }
                 : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Баннер с сообщением об ошибке плеера и кнопкой retry.
+class _PlayerErrorBanner extends StatelessWidget {
+  const _PlayerErrorBanner({
+    required this.message,
+    required this.hint,
+    required this.onRetry,
+  });
+  final String message;
+  final String hint;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.error,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  hint,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Icon(Icons.refresh, size: 18),
           ),
         ],
       ),

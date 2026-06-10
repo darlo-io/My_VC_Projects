@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
-import '../../../core/database/daos/ayah_dao.dart';
-import '../../../core/database/daos/surah_dao.dart';
-import '../../../core/database/daos/translation_dao.dart';
+import '../../../core/database/models/search_hits.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/common_widgets.dart';
@@ -216,20 +214,23 @@ class _SearchResultsState extends ConsumerState<_SearchResults> {
 
   Future<List<_SearchHit>> _runSearch(String query, bool surahOnly) async {
     if (surahOnly) {
-      final hits = await ref.read(surahDaoProvider).searchByText(query);
-      return hits.map(_SurahHit.new).toList();
+      final hits =
+          await ref.read(searchRepositoryProvider).searchSurahs(query);
+      return hits.map<_SearchHit>(_SurahHit.new).toList();
     }
-    final ayahDao = ref.read(ayahDaoProvider);
-    final translationDao = ref.read(translationDaoProvider);
+    final repo = ref.read(searchRepositoryProvider);
     final lang = ref.read(appPreferencesProvider).translationLang;
     final includeTranslation = lang != 'ar';
+    // Два параллельных FTS5-MATCH: по Arabic-тексту и по переводу.
+    // Склейка по `ayahId` — перевод приоритетнее, если обе
+    // ветки нашли один аят.
     final results = await Future.wait<Object>([
-      ayahDao.searchByText(query),
+      repo.searchAyahs(query),
       if (includeTranslation)
-        translationDao.search(query: query, languageCode: lang),
+        repo.searchTranslations(query: query, languageCode: lang),
     ]);
     final ayahs = results[0] as List<AyahSearchHit>;
-    final translations = includeTranslation
+    final translations = results.length > 1
         ? results[1] as List<TranslationSearchHit>
         : const <TranslationSearchHit>[];
     final byAyah = <int, _SearchHit>{};

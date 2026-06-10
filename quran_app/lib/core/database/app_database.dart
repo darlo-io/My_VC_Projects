@@ -59,77 +59,109 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async {
-          await m.createAll();
-          await _createFts();
-          await _createPerformanceIndexes();
-          // Backfill the `Ayahs.juz` column from the
-          // [kJuzStarts] table. Idempotent (the UPDATE is
-          // gated on `juz IS NULL`), so re-running the
-          // migration is a no-op.
-          await ayahDao.backfillJuzColumn();
-          // Backfill the `Ayahs.page` and `Ayahs.hizb` columns
-          // from [kQuranLayout]. The [kQuranLayout] table is
-          // an approximation (see its file header for the
-          // caveats); the columns are still better than NULL
-          // for the "what page am I on?" UI, and a real
-          // dataset can replace the table in one shot without
-          // touching this migration.
-          await ayahDao.backfillPageAndHizbColumn();
-        },
-        onUpgrade: (m, from, to) async {
-          // MIGRATION CONTRACT — read before bumping schemaVersion.
-          //
-          // Pre-v5 installs (dev-era, never shipped): we drop and re-create.
-          //   Acceptable because the app has not been released and no users
-          //   have data worth preserving.
-          //
-          // v5 and above: ADDITIVE MIGRATIONS ONLY. Never call
-          //   `m.deleteTable` for v5+ upgrades. Use `m.addColumn`,
-          //   `m.alterTable`, `m.createTable`, or `customStatement` for
-          //   indexes/tables you genuinely need to add. User data (bookmarks,
-          //   notes, reading_history, last_position) MUST survive upgrades.
-          //
-          // Template for v5 -> v6 and onward (append a new if-branch):
-          //   if (from < 6) {
-          //     await m.addColumn(notes, notes.priority);
-          //     // ...other additive changes
-          //   }
-          if (from < 5) {
-            await _resetSchema(m);
-          }
+    onCreate: (m) async {
+      await m.createAll();
+      await _createFts();
+      await _createPerformanceIndexes();
+      // Backfill the `Ayahs.juz` column from the
+      // [kJuzStarts] table. Idempotent (the UPDATE is
+      // gated on `juz IS NULL`), so re-running the
+      // migration is a no-op.
+      await ayahDao.backfillJuzColumn();
+      // Backfill the `Ayahs.page` and `Ayahs.hizb` columns
+      // from [kQuranLayout]. The [kQuranLayout] table is
+      // an approximation (see its file header for the
+      // caveats); the columns are still better than NULL
+      // for the "what page am I on?" UI, and a real
+      // dataset can replace the table in one shot without
+      // touching this migration.
+      await ayahDao.backfillPageAndHizbColumn();
+    },
+    onUpgrade: (m, from, to) async {
+      // MIGRATION CONTRACT — read before bumping schemaVersion.
+      //
+      // Pre-v5 installs (dev-era, never shipped): we drop and re-create.
+      //   Acceptable because the app has not been released and no users
+      //   have data worth preserving.
+      //
+      // v5 and above: ADDITIVE MIGRATIONS ONLY. Never call
+      //   `m.deleteTable` for v5+ upgrades. Use `m.addColumn`,
+      //   `m.alterTable`, `m.createTable`, or `customStatement` for
+      //   indexes/tables you genuinely need to add. User data (bookmarks,
+      //   notes, reading_history, last_position) MUST survive upgrades.
+      //
+      // Template for v5 -> v6 and onward (append a new if-branch):
+      //   if (from < 6) {
+      //     await m.addColumn(notes, notes.priority);
+      //     // ...other additive changes
+      //   }
+      if (from < 5) {
+        await _resetSchema(m);
+      }
 
-          if (from < 6) {
-            // v5 -> v6 (and pre-v5 paths via the reset above): add the
-            // LRU-eviction index. `oldestFirst()` in AudioCacheDao orders
-            // by last_played_at; without this index it's a full scan.
-            // Safe to re-run on already-migrated DBs thanks to IF NOT EXISTS.
-            await m.database.customStatement(
-              'CREATE INDEX IF NOT EXISTS idx_audio_cache_last_played '
-              'ON audio_cache_metadata (last_played_at)',
-            );
-          }
+      if (from < 6) {
+        // v5 -> v6 (and pre-v5 paths via the reset above): add the
+        // LRU-eviction index. `oldestFirst()` in AudioCacheDao orders
+        // by last_played_at; without this index it's a full scan.
+        // Safe to re-run on already-migrated DBs thanks to IF NOT EXISTS.
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_audio_cache_last_played '
+          'ON audio_cache_metadata (last_played_at)',
+        );
+      }
 
-          if (from >= 5 && from < 7) {
-            // v5 -> v7: backfill the `Ayahs.juz` column from
-            // [kJuzStarts]. Pre-v5 was reset above and re-runs
-            // through `onCreate` which also backfills, so we
-            // only need the explicit call for the v5 -> v7 path
-            // and the v6 -> v7 path. Idempotent.
-            await ayahDao.backfillJuzColumn();
-            // Same window: backfill page/hizb from
-            // [kQuranLayout]. Also idempotent.
-            await ayahDao.backfillPageAndHizbColumn();
-          }
-        },
-        beforeOpen: (details) async {
-          await customStatement('PRAGMA foreign_keys = ON');
-        },
-      );
+      if (from >= 5 && from < 7) {
+        // v5 -> v7: backfill the `Ayahs.juz` column from
+        // [kJuzStarts]. Pre-v5 was reset above and re-runs
+        // through `onCreate` which also backfills, so we
+        // only need the explicit call for the v5 -> v7 path
+        // and the v6 -> v7 path. Idempotent.
+        await ayahDao.backfillJuzColumn();
+        // Same window: backfill page/hizb from
+        // [kQuranLayout]. Also idempotent.
+        await ayahDao.backfillPageAndHizbColumn();
+      }
+
+      // Idempotently (re)create the FTS5 shadow tables and
+      // their sync triggers for any DB upgraded from an older
+      // build that may have been created before
+      // `tafsirs_fts` existed. CREATE ... IF NOT EXISTS
+      // means this is a no-op on already-migrated installs.
+      await _createFts();
+
+      if (from < 8) {
+        // v7 -> v8: enforce one-to-one between LearningWords
+        // and Words. Without the UNIQUE, two parallel
+        // `addWord(sameId)` calls could both pass a
+        // `getSingleOrNull == null` check and then crash on
+        // the auto-incremented PK insert (well, the PK
+        // wouldn't actually collide — but the row would be
+        // duplicated, and the next `recordReview` would
+        // throw `TooManyResultsException` on its
+        // `getSingle`). De-dup existing rows first so the
+        // UNIQUE INDEX can be created. Keep the row with
+        // the highest `id` (the most recent review state)
+        // and drop the rest.
+        await customStatement('''
+              DELETE FROM learning_words
+              WHERE id NOT IN (
+                SELECT MAX(id) FROM learning_words GROUP BY word_id
+              )
+            ''');
+        await customStatement(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_learning_words_word_id '
+          'ON learning_words (word_id)',
+        );
+      }
+    },
+    beforeOpen: (details) async {
+      await customStatement('PRAGMA foreign_keys = ON');
+    },
+  );
 
   /// Destructive schema reset. Used ONLY for pre-v5 installs.
   /// Must not be reachable from a v5+ upgrade path.
@@ -178,6 +210,14 @@ class AppDatabase extends _$AppDatabase {
       CREATE VIRTUAL TABLE IF NOT EXISTS translations_fts USING fts5(
         text,
         content='translations',
+        content_rowid='id',
+        tokenize='unicode61 remove_diacritics 2'
+      )
+    ''');
+    await customStatement('''
+      CREATE VIRTUAL TABLE IF NOT EXISTS tafsirs_fts USING fts5(
+        text,
+        content='tafsirs',
         content_rowid='id',
         tokenize='unicode61 remove_diacritics 2'
       )
@@ -237,6 +277,26 @@ class AppDatabase extends _$AppDatabase {
       END
     ''');
     await customStatement('''
+      CREATE TRIGGER IF NOT EXISTS tafsirs_ai AFTER INSERT ON tafsirs BEGIN
+        INSERT INTO tafsirs_fts(rowid, text)
+        VALUES (new.id, new.text);
+      END
+    ''');
+    await customStatement('''
+      CREATE TRIGGER IF NOT EXISTS tafsirs_ad AFTER DELETE ON tafsirs BEGIN
+        INSERT INTO tafsirs_fts(tafsirs_fts, rowid, text)
+        VALUES ('delete', old.id, old.text);
+      END
+    ''');
+    await customStatement('''
+      CREATE TRIGGER IF NOT EXISTS tafsirs_au AFTER UPDATE ON tafsirs BEGIN
+        INSERT INTO tafsirs_fts(tafsirs_fts, rowid, text)
+        VALUES ('delete', old.id, old.text);
+        INSERT INTO tafsirs_fts(rowid, text)
+        VALUES (new.id, new.text);
+      END
+    ''');
+    await customStatement('''
       CREATE TRIGGER IF NOT EXISTS words_ai AFTER INSERT ON words BEGIN
         INSERT INTO words_fts(rowid, arabic, normalized, translation, lemma, root)
         VALUES (
@@ -268,6 +328,27 @@ class AppDatabase extends _$AppDatabase {
         );
       END
     ''');
+  }
+
+  /// Удалить **только пользовательские данные**:
+  /// bookmarks, notes, last_position, reading_history, learning_words.
+  /// Контент (surahs, ayahs, words, translations, tafsirs) и
+  /// метаданные кеша аудио сохраняются — после wipe приложение
+  /// остаётся читабельным, а закладки/заметки/прогресс начинаются
+  /// с чистого листа. Триггеры FTS5 также остаются — они часть
+  /// схемы, а не данных.
+  ///
+  /// Внутри одной транзакции, чтобы сброс был атомарен: если
+  /// одна таблица бросит — ничего не удалится, и пользователь
+  /// увидит ошибку, а не половину очищенного состояния.
+  Future<void> wipeUserData() async {
+    await transaction(() async {
+      await customStatement('DELETE FROM bookmarks');
+      await customStatement('DELETE FROM notes');
+      await customStatement('DELETE FROM last_position');
+      await customStatement('DELETE FROM reading_history');
+      await customStatement('DELETE FROM learning_words');
+    });
   }
 }
 

@@ -10,6 +10,7 @@ class ScreenHeader extends StatelessWidget {
     this.subtitle,
     this.actions = const [],
     this.onBack,
+    this.showTitle = true,
     super.key,
   });
 
@@ -17,6 +18,12 @@ class ScreenHeader extends StatelessWidget {
   final String? subtitle;
   final List<Widget> actions;
   final VoidCallback? onBack;
+
+  /// Показывать ли [title] и [subtitle]. По умолчанию `true`.
+  /// Используется на экранах, где заголовок не нужен (например,
+  /// Mushaf — заголовок суры рисует `SurahTitleFrame` поверх
+  /// Mushaf-рамки, а отдельный «Читать» сверху был избыточен).
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -37,32 +44,35 @@ class ScreenHeader extends StatelessWidget {
               )
             else
               const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                      height: 1.1,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 6),
+            if (showTitle)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      subtitle!,
+                      title,
                       style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                        height: 1.1,
                       ),
                     ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        subtitle!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ),
+                ),
+              )
+            else
+              const Spacer(),
             ...actions,
           ],
         ),

@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/database/app_database.dart';
-import '../../../core/database/daos/words_dao.dart';
+import '../../../core/database/models/search_hits.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
 
@@ -38,7 +38,7 @@ class _WordCardContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return StreamBuilder<Set<int>>(
-      stream: ref.watch(learningDaoProvider).watchVocabularyIds(),
+      stream: ref.watch(learningRepositoryProvider).watchVocabularyIds(),
       builder: (context, snapshot) {
         final inVocab = snapshot.data?.contains(word.id) ?? false;
         return _WordCardBody(word: word, inVocab: inVocab);
@@ -177,9 +177,13 @@ class _RelatedWordsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = AppLocalizations.of(context);
-    final dao = ref.watch(wordsDaoProvider);
+    final repo = ref.watch(searchRepositoryProvider);
     return FutureBuilder<List<WordSearchHit>>(
-      future: dao.searchByRoot(root, limit: 5, excludeWordId: excludeWordId),
+      future: repo.searchWordsByRoot(
+        root: root,
+        limit: 5,
+        excludeWordId: excludeWordId,
+      ),
       builder: (context, snapshot) {
         // Hide the section entirely while loading or when there are
         // no related words. We don't show an empty-state here because
@@ -376,7 +380,7 @@ class _AddToVocabButton extends ConsumerWidget {
       width: double.infinity,
       child: FilledButton.icon(
         onPressed: () async {
-          await ref.read(learningDaoProvider).addWord(word.id);
+          await ref.read(learningRepositoryProvider).add(word.id);
         },
         icon: const Icon(Icons.add, size: 20),
         label: Text(

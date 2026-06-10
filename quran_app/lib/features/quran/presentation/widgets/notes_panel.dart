@@ -55,7 +55,7 @@ class _NotesPanelState extends ConsumerState<_NotesPanel> {
     if (text.isEmpty || _saving) return;
     setState(() => _saving = true);
     try {
-      await ref.read(notesDaoProvider).addNote(
+      await ref.read(notesRepositoryProvider).add(
             ayahId: widget.ayah.id,
             text: text,
           );
@@ -68,7 +68,8 @@ class _NotesPanelState extends ConsumerState<_NotesPanel> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final notesStream = ref.watch(notesDaoProvider).watchForAyah(widget.ayah.id);
+    final notesStream =
+        ref.watch(notesRepositoryProvider).watchForAyah(widget.ayah.id);
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
 
     return SafeArea(
@@ -153,7 +154,7 @@ class _NotesPanelState extends ConsumerState<_NotesPanel> {
                           return _NoteTile(
                             note: n,
                             onDelete: () => ref
-                                .read(notesDaoProvider)
+                                .read(notesRepositoryProvider)
                                 .deleteById(n.id),
                           );
                         },

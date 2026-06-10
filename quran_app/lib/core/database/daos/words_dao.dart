@@ -2,38 +2,17 @@ import 'package:drift/drift.dart';
 
 import '../../search/fts_query.dart';
 import '../app_database.dart';
+import '../models/search_hits.dart';
 import '../tables.dart';
 
 part 'words_dao.g.dart';
 
 /// Lightweight projection used by [WordsDao.search] /
-/// [WordsDao.searchByRoot]. Carries the minimum data the result row
-/// UI needs to render a tap target and deep-link into the reader
-/// without a second round-trip to load the full Word + its Ayah.
-class WordSearchHit {
-  const WordSearchHit({
-    required this.wordId,
-    required this.surahId,
-    required this.ayahNumber,
-    required this.position,
-    required this.arabic,
-    required this.normalized,
-    required this.translation,
-    required this.lemma,
-    required this.root,
-  });
-
-  final int wordId;
-  final int surahId;
-  final int ayahNumber;
-  final int position;
-  final String arabic;
-  final String normalized;
-  final String? translation;
-  final String? lemma;
-  final String? root;
-}
-
+/// [WordsDao.searchByRoot]. Определён в [search_hits.dart] — здесь
+/// импортируется, чтобы разорвать циклический импорт между DAO и
+/// search_repository. Search-методы возвращают `List<WordSearchHit>`
+/// через `WordSearchHit(...)` напрямую (без `class WordSearchHit {}`
+/// в этом файле).
 @DriftAccessor(tables: [Words, Ayahs, Surahs])
 class WordsDao extends DatabaseAccessor<AppDatabase> with _$WordsDaoMixin {
   WordsDao(super.db);

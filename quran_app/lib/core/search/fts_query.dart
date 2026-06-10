@@ -11,13 +11,20 @@
 /// silently change its meaning.
 library;
 
+import 'arabic_normalizer.dart';
+
 /// Normalize a free-form user query into a safe FTS5 prefix-MATCH
 /// expression:
-///   1. split on whitespace;
-///   2. drop FTS5 reserved characters from each token
+///   1. apply the same Arabic normalization used at index time
+///      (collapse alef/ya/ta-marbuta variants, strip diacritics,
+///      tatweel). Without this step a user typing `الرحمن` could
+///      miss rows whose `text_normalized` was collapsed from
+///      `ٱلرَّحْمَٰنِ`;
+///   2. split on whitespace;
+///   3. drop FTS5 reserved characters from each token
 ///      (`" ' ( ) * : ^ - + . , ;`);
-///   3. drop empty tokens;
-///   4. emit each remaining token as a prefix (`token*`).
+///   4. drop empty tokens;
+///   5. emit each remaining token as a prefix (`token*`).
 ///
 /// Prefix-MATCH means partial words still match: typing `الرح`
 /// finds `الرحمن`.
@@ -27,7 +34,13 @@ library;
 /// an empty MATCH to SQLite (which would error).
 String buildFtsPrefixQuery(String raw) {
   const banned = {'"', '\'', '(', ')', '*', ':', '^', '-', '+', '.', ',', ';'};
-  final tokens = raw
+  // Arabic normalization is cheap and idempotent on Latin-only input,
+  // so we apply it unconditionally — Latin tokens are passed through
+  // unchanged. The normalizer lives in [arabic_normalizer.dart] and
+  // is the same function used by [ContentBootstrapper] when seeding
+  // `ayahs.text_normalized`, so the index and the query stay in lockstep.
+  final normalized = ArabicNormalizer.normalize(raw);
+  final tokens = normalized
       .split(RegExp(r'\s+'))
       .where((t) => t.isNotEmpty)
       .map((t) => t.split('').where((c) => !banned.contains(c)).join())

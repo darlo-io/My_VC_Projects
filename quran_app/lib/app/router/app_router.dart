@@ -1,9 +1,12 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/audio/data/quran_audio_handler.dart';
 import '../../features/audio/presentation/listen_screen.dart';
-import '../../l10n/generated/app_localizations.dart';
 import '../../features/bookmarks/presentation/bookmarks_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/learning/presentation/learn_screen.dart';
@@ -15,6 +18,7 @@ import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/statistics/presentation/statistics_screen.dart';
 import '../../features/tasbih/presentation/tasbih_screen.dart';
 import '../../features/test/presentation/quiz_screen.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../providers.dart';
 
@@ -110,10 +114,20 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 class _RouterRefresh extends ChangeNotifier {
   _RouterRefresh(Ref ref) {
+    // Слушаем ТОЛЬКО `contentReadyProvider` — он меняет решение
+    // `redirect` (идти на /bootstrap или нет). Слушать
+    // `languageProvider` НЕ нужно: смена языка НЕ должна
+    // re-evaluate redirect'а, и до недавнего времени это был
+    // источник проблем — при `setReadingMode` →
+    // `appPreferencesProvider.state = …` → `LanguageNotifier`
+    // rebuild → `_RouterRefresh.notifyListeners()` → go_router
+    // пере-обрабатывает текущий путь `/reader/:id` и в каком-то
+    // edge-case'е выкидывал пользователя на Home. Удаление
+    // listener'а решает проблему без потери функциональности
+    // (локализация MaterialApp обновляется отдельно).
     ref.listen<AsyncValue<bool>>(contentReadyProvider, (_, _) {
       notifyListeners();
     });
-    ref.listen<String?>(languageProvider, (_, _) => notifyListeners());
   }
 }
 
@@ -127,6 +141,7 @@ class _BootstrapScreen extends ConsumerStatefulWidget {
 class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
   String _statusKey = 'bootstrapChecking';
   bool _failed = false;
+  String _errorDetail = '';
 
   @override
   void initState() {
@@ -138,6 +153,7 @@ class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
     setState(() {
       _statusKey = 'bootstrapLocalLoading';
       _failed = false;
+      _errorDetail = '';
     });
     try {
       await ref.read(contentReadyProvider.notifier).bootstrap();
@@ -150,11 +166,18 @@ class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
       } else {
         if (mounted) context.go('/');
       }
-    } catch (_) {
+    } catch (e, st) {
+      developer.log(
+        'bootstrap failed',
+        name: '_BootstrapScreen',
+        error: e,
+        stackTrace: st,
+      );
       if (!mounted) return;
       setState(() {
         _statusKey = 'bootstrapFailed';
         _failed = true;
+        _errorDetail = e.toString();
       });
     }
   }
@@ -210,8 +233,51 @@ class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: _run,
-                  child: const Text('Retry'),
+                  child: Text(AppLocalizations.of(context).retry),
                 ),
+                if (_errorDetail.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  // `SelectableText` + кнопка копирования — даёт
+                  // пользователю вытащить реальный текст ошибки,
+                  // чтобы передать разработчику, без перезагрузки
+                  // и без `flutter logs`. `maxLines: 4` держит UI
+                  // компактным; полный текст — в debug-логе.
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: SelectableText(
+                      _errorDetail,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFF8E8676),
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                      ),
+                      maxLines: 4,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () async {
+                      await Clipboard.setData(
+                        ClipboardData(text: _errorDetail),
+                      );
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            AppLocalizations.of(context).retryCopied,
+                          ),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.copy, size: 14),
+                    label: Text(
+                      AppLocalizations.of(context).copyError,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
               ],
             ],
           ),

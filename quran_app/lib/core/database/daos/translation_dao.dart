@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../search/fts_query.dart';
 import '../app_database.dart';
+import '../models/search_hits.dart';
 import '../tables.dart';
 
 part 'translation_dao.g.dart';
@@ -14,28 +15,6 @@ class TranslationRow {
 
   final int ayahId;
   final String text;
-}
-
-/// A translation hit enriched with the surah/ayah coordinates so the
-/// search-result UI can deep-link into the reader. Same idea as
-/// [AyahSearchHit] but carries the translation text instead of the
-/// Arabic.
-class TranslationSearchHit {
-  const TranslationSearchHit({
-    required this.ayahId,
-    required this.surahId,
-    required this.ayahNumber,
-    required this.surahNameAr,
-    required this.text,
-    required this.translatorName,
-  });
-
-  final int ayahId;
-  final int surahId;
-  final int ayahNumber;
-  final String surahNameAr;
-  final String text;
-  final String translatorName;
 }
 
 @DriftAccessor(tables: [Translations, Translators, Ayahs, Surahs])

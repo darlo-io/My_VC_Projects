@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,6 +24,28 @@ Future<void> main() async {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
+
+  // Глобальный обработчик ошибок Flutter. По умолчанию в
+  // debug-режиме показывается красный экран, в release — тихо
+  // логируется. Нам важно **видеть** исключение в `flutter run`
+  // и в `adb logcat` — иначе, как сейчас, непонятно, почему
+  // Reader выкидывает в Home при смене reading-mode.
+  FlutterError.onError = (details) {
+    developer.log(
+      'FlutterError: ${details.exceptionAsString()}',
+      name: 'Flutter',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
+    // Также отдаём в дефолтный presentation (красный экран /
+    // console), чтобы не потерять UX дев-режима.
+    FlutterError.presentError(details);
+  };
+  // `PlatformDispatcher.instance.onError` срабатывает только
+  // в release-режиме (в debug FlutterError.onError уже ловит всё).
+  // Прописываем его явно — пригодится при профилировании.
+  // (Импорт `dart:ui` явно НЕ нужен — PlatformDispatcher в
+  // глобальном скоупе Flutter SDK.)
 
   final prefs = await SharedPreferences.getInstance();
   // Установить язык системы по умолчанию при первом запуске

@@ -90,6 +90,7 @@ class GoldFrame extends StatelessWidget {
     this.borderColor = AppColors.gold,
     this.borderWidth = 1.2,
     this.radius = 24,
+    this.showCornerArabesques = false,
     super.key,
   });
 
@@ -99,6 +100,15 @@ class GoldFrame extends StatelessWidget {
   final double borderWidth;
   final double radius;
 
+  /// Рисовать ли 4 угловые арабески-полумесяца (по одной в
+  /// каждом углу рамки). Соответствует референсу
+  /// `docs/images/read line by line.png` — на нём Mushaf-рамка
+  /// Аль-Фатихи имеет по ornament-звезде в каждом углу.
+  /// Default `false` — чтобы не ломать другие места, где
+  /// GoldFrame используется без арабесок (читатель сур-лист,
+  /// стикер заметок и т.д.).
+  final bool showCornerArabesques;
+
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
@@ -106,6 +116,7 @@ class GoldFrame extends StatelessWidget {
         color: borderColor,
         strokeWidth: borderWidth,
         radius: radius,
+        showCornerArabesques: showCornerArabesques,
       ),
       child: Padding(padding: padding, child: child),
     );
@@ -117,11 +128,13 @@ class _GoldFramePainter extends CustomPainter {
     required this.color,
     required this.strokeWidth,
     required this.radius,
+    this.showCornerArabesques = false,
   });
 
   final Color color;
   final double strokeWidth;
   final double radius;
+  final bool showCornerArabesques;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -155,14 +168,93 @@ class _GoldFramePainter extends CustomPainter {
       RRect.fromRectAndRadius(innerRect, Radius.circular(radius - inset)),
       innerPaint,
     );
+
+    // 4 угловые арабески-полумесяца со звёздами. Рисуются
+    // только если [showCornerArabesques] включён вызывающим
+    // сайтом. Симметрично — в каждом из 4 углов.
+    if (showCornerArabesques) {
+      _drawCornerArabesque(
+        canvas,
+        center: const Offset(28, 28),
+        paint: paint,
+        rotation: 0,
+      );
+      _drawCornerArabesque(
+        canvas,
+        center: Offset(size.width - 28, 28),
+        paint: paint,
+        rotation: math.pi / 2,
+      );
+      _drawCornerArabesque(
+        canvas,
+        center: Offset(size.width - 28, size.height - 28),
+        paint: paint,
+        rotation: math.pi,
+      );
+      _drawCornerArabesque(
+        canvas,
+        center: Offset(28, size.height - 28),
+        paint: paint,
+        rotation: -math.pi / 2,
+      );
+    }
+  }
+
+  /// Маленькая ornament-звезда в углу рамки. На референсе это
+  /// 8-конечная звезда с полумесяцем-дугой, повёрнутая так,
+  /// чтобы лучи смотрели наружу рамки, а дуга — внутрь.
+  void _drawCornerArabesque(
+    Canvas canvas, {
+    required Offset center,
+    required Paint paint,
+    required double rotation,
+  }) {
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(rotation);
+
+    const outerR = 6.0;
+    const innerR = 2.6;
+    final path = Path();
+    for (var i = 0; i < 16; i++) {
+      final r = i.isEven ? outerR : innerR;
+      final angle = i * math.pi / 8 - math.pi / 2;
+      final x = r * math.cos(angle);
+      final y = r * math.sin(angle);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+    canvas.drawPath(path, paint);
+
+    // Дуга-полумесяц, повёрнутая наружу от угла
+    final crescent = Path()
+      ..addArc(
+        Rect.fromCenter(center: const Offset(0, 8), width: 12, height: 12),
+        math.pi,
+        math.pi,
+      );
+    canvas.drawPath(crescent, paint);
+
+    canvas.restore();
   }
 
   @override
   bool shouldRepaint(_GoldFramePainter old) =>
-      old.color != color || old.strokeWidth != strokeWidth;
+      old.color != color ||
+      old.strokeWidth != strokeWidth ||
+      old.showCornerArabesques != showCornerArabesques;
 }
 
 /// Заголовок суры в золотой орнаментальной рамке.
+///
+/// Внешний вид соответствует референсу `docs/images/read line by
+/// line.png`: двойная cartouche-рамка с двумя симметричными
+/// арабесками-полумесяцами со звёздами по краям (см.
+/// `_SurahTitlePainter`).
 class SurahTitleFrame extends StatelessWidget {
   const SurahTitleFrame({
     required this.arabicName,
@@ -180,7 +272,7 @@ class SurahTitleFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 80,
+      height: 90,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -191,7 +283,7 @@ class SurahTitleFrame extends StatelessWidget {
               ),
             ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 64),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -236,54 +328,101 @@ class _SurahTitlePainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2
       ..strokeCap = StrokeCap.round;
+    final fill = Paint()
+      ..color = AppColors.gold
+      ..style = PaintingStyle.fill;
 
     final cy = size.height / 2;
     final w = size.width;
 
-    // Центральная линия с разрывом
-    final leftEnd = w / 2 - 110;
-    final rightStart = w / 2 + 110;
-    const halfGap = 18.0;
+    // Границы cartouche — двойная золотая рамка со скруглёнными
+    // углами. Внутренняя рамка — на 8px внутри.
+    final rect = Rect.fromLTWH(4, cy - 32, w - 8, 64);
+    final outerRRect = RRect.fromRectAndRadius(rect, const Radius.circular(28));
+    canvas.drawRRect(outerRRect, paint);
+    final innerRect = Rect.fromLTWH(8, cy - 28, w - 16, 56);
+    final innerRRect =
+        RRect.fromRectAndRadius(innerRect, const Radius.circular(24));
+    final innerPaint = Paint()
+      ..color = AppColors.gold.withValues(alpha: 0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.6;
+    canvas.drawRRect(innerRRect, innerPaint);
 
-    canvas.drawLine(
-      Offset(16, cy),
-      Offset(leftEnd - halfGap, cy),
-      paint,
+    // Боковые арабески-полумесяцы со звёздами. Симметрично слева и
+    // справа от cartouche: внешний полумесяц + 8-конечная звезда
+    // внутри. Эти элементы подсмотрены в референсе — придают
+    // визуальную «исламскую» идентичность, которой не хватало в
+    // предыдущей версии (там были только ornament-линии).
+    _drawArabesque(
+      canvas,
+      center: Offset(20, cy),
+      fill: fill,
+      paint: paint,
+      mirrored: false,
     );
-    canvas.drawLine(
-      Offset(rightStart + halfGap, cy),
-      Offset(w - 16, cy),
-      paint,
+    _drawArabesque(
+      canvas,
+      center: Offset(w - 20, cy),
+      fill: fill,
+      paint: paint,
+      mirrored: true,
     );
-
-    // Боковые орнаменты
-    final leftOrnament = Path();
-    leftOrnament.moveTo(leftEnd, cy);
-    leftOrnament.lineTo(leftEnd + halfGap, cy);
-    leftOrnament.moveTo(leftEnd + 3, cy - 8);
-    leftOrnament.lineTo(leftEnd + 3, cy + 8);
-    canvas.drawPath(leftOrnament, paint);
-
-    final rightOrnament = Path();
-    rightOrnament.moveTo(rightStart - halfGap, cy);
-    rightOrnament.lineTo(rightStart, cy);
-    rightOrnament.moveTo(rightStart - 3, cy - 8);
-    rightOrnament.lineTo(rightStart - 3, cy + 8);
-    canvas.drawPath(rightOrnament, paint);
-
-    // Декоративные ромбы по краям
-    _drawDiamond(canvas, Offset(20, cy), 5, paint);
-    _drawDiamond(canvas, Offset(w - 20, cy), 5, paint);
   }
 
-  void _drawDiamond(Canvas canvas, Offset c, double r, Paint paint) {
-    final path = Path()
-      ..moveTo(c.dx, c.dy - r)
-      ..lineTo(c.dx + r, c.dy)
-      ..lineTo(c.dx, c.dy + r)
-      ..lineTo(c.dx - r, c.dy)
-      ..close();
-    canvas.drawPath(path, paint);
+  /// Полумесяц с 8-конечной звездой по центру. В `mirrored: true`
+  /// фигура зеркалится по X (для правой стороны).
+  void _drawArabesque(
+    Canvas canvas, {
+    required Offset center,
+    required Paint fill,
+    required Paint paint,
+    required bool mirrored,
+  }) {
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    if (mirrored) canvas.scale(-1, 1);
+
+    // 8-конечная звезда (octagram) — 16 точек, чередующихся
+    // между outerR и innerR. Заполняется + обводится для
+    // «медальон»-вида.
+    final starR = 14.0;
+    final starInnerR = starR * 0.45;
+    final starPath = Path();
+    for (var i = 0; i < 16; i++) {
+      final r = i.isEven ? starR : starInnerR;
+      final angle = i * math.pi / 8 - math.pi / 2;
+      final x = r * math.cos(angle);
+      final y = r * math.sin(angle);
+      if (i == 0) {
+        starPath.moveTo(x, y);
+      } else {
+        starPath.lineTo(x, y);
+      }
+    }
+    starPath.close();
+    canvas.drawPath(starPath, fill);
+
+    // Маленькая центральная точка-капля
+    final centerDot = Paint()
+      ..color = AppColors.surface
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset.zero, 1.5, centerDot);
+
+    // Дуга-полумесяц снаружи звезды (внизу)
+    final crescent = Path()
+      ..addArc(
+        Rect.fromCenter(
+          center: const Offset(0, 8),
+          width: 26,
+          height: 26,
+        ),
+        math.pi,
+        math.pi,
+      );
+    canvas.drawPath(crescent, paint);
+
+    canvas.restore();
   }
 
   @override
@@ -373,7 +512,10 @@ class _StarHighlightPainter extends CustomPainter {
   bool shouldRepaint(_StarHighlightPainter old) => false;
 }
 
-/// Номер аята в золотой восьмиугольной рамке.
+/// Номер аята в золотой 8-конечной звезде (octagram, как на
+/// молитвенных чётках). У каждой вершины — острый луч наружу,
+/// что отличает звезду от 8-угольника (`_OctagonPainter` ниже
+/// оставлен на случай других нужд).
 class AyahNumberBadge extends StatelessWidget {
   const AyahNumberBadge({required this.number, this.size = 36, super.key});
 
@@ -386,14 +528,15 @@ class AyahNumberBadge extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _OctagonPainter(),
+        painter: _OctagramPainter(),
         child: Center(
           child: Text(
             '$number',
             style: const TextStyle(
               fontSize: 13,
-              color: AppColors.gold,
-              fontWeight: FontWeight.w600,
+              color: AppColors.backgroundDeep, // Тёмный текст на золотой заливке
+              fontWeight: FontWeight.w800,
+              fontFamily: 'Amiri',
             ),
           ),
         ),
@@ -402,19 +545,37 @@ class AyahNumberBadge extends StatelessWidget {
   }
 }
 
-class _OctagonPainter extends CustomPainter {
+class _OctagramPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.gold
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-    final path = Path();
     final cx = size.width / 2;
     final cy = size.height / 2;
-    final r = size.width / 2 - 1;
-    for (var i = 0; i < 8; i++) {
-      final angle = i * math.pi / 4 + math.pi / 8;
+    final outerR = size.width / 2 - 1;
+    // Коэффициент 0.45 — это «золотая» пропорция 8-конечной звезды:
+    // слишком острые лучи (0.3) визуально сливаются с шумом,
+    // слишком тупые (0.6) превращаются в восьмиугольник.
+    final innerR = outerR * 0.45;
+
+    // На референсе `docs/images/read line by line.png` номер
+    // аята — это **заполненная** золотая 8-звёздная плашка с
+    // тёмным цифровым индексом внутри. Outline-only (как было)
+    // выглядит «полупустым» по сравнению. Поэтому:
+    //   1) fill — сплошной gold
+    //   2) stroke — gold-dark поверх (1px) для остроты лучей
+    //   3) центральная капля — surface color (как на референсе)
+    final fill = Paint()
+      ..color = AppColors.gold
+      ..style = PaintingStyle.fill;
+    final stroke = Paint()
+      ..color = AppColors.goldDark
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8
+      ..strokeJoin = StrokeJoin.round;
+
+    final path = Path();
+    for (var i = 0; i < 16; i++) {
+      final r = i.isEven ? outerR : innerR;
+      final angle = i * math.pi / 8 - math.pi / 2;
       final x = cx + r * math.cos(angle);
       final y = cy + r * math.sin(angle);
       if (i == 0) {
@@ -424,11 +585,12 @@ class _OctagonPainter extends CustomPainter {
       }
     }
     path.close();
-    canvas.drawPath(path, paint);
+    canvas.drawPath(path, fill);
+    canvas.drawPath(path, stroke);
   }
 
   @override
-  bool shouldRepaint(_OctagonPainter old) => false;
+  bool shouldRepaint(_OctagramPainter old) => false;
 }
 
 /// Звёздочка закладки (заполненная/пустая).

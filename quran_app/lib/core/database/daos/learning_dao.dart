@@ -62,18 +62,17 @@ class LearningDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Добавить слово в словарь (idempotent: повторный вызов для того же
-  /// wordId — no-op).
+  /// wordId — no-op благодаря UNIQUE(word_id) + `insertOrIgnore`).
+  /// Раньше делался `getSingleOrNull` + insert, что создавало race
+  /// condition при двух параллельных вызовах.
   Future<void> addWord(int wordId) async {
-    final existing = await (select(learningWords)
-          ..where((l) => l.wordId.equals(wordId)))
-        .getSingleOrNull();
-    if (existing != null) return;
     await into(learningWords).insert(
       LearningWordsCompanion.insert(
         wordId: wordId,
         status: 'new',
         nextReviewAt: DateTime.now(),
       ),
+      mode: InsertMode.insertOrIgnore,
     );
   }
 

@@ -28,7 +28,7 @@ class _LearnScreenState extends ConsumerState<LearnScreen> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final dueStream = ref.watch(learningDaoProvider).watchDue();
+    final dueStream = ref.watch(learningRepositoryProvider).watchDue();
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -70,8 +70,9 @@ class _LearnScreenState extends ConsumerState<LearnScreen> {
   }
 
   Future<void> _handleReview(ReviewedWord rw, int quality) async {
-    final dao = ref.read(learningDaoProvider);
-    await dao.recordReview(wordId: rw.word.id, quality: quality);
+    await ref
+        .read(learningRepositoryProvider)
+        .recordReview(wordId: rw.word.id, quality: quality);
     if (!mounted) return;
     setState(() => _reviewedThisSession++);
   }
