@@ -299,6 +299,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsTitle => 'Statistics';
 
   @override
+  String get statsSubtitle => 'Your reading progress';
+
+  @override
   String get statsWeek => 'Week';
 
   @override
@@ -326,6 +329,122 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsPerDay => 'Ayahs per day';
 
   @override
+  String get statsProgressTitle => 'Quran read';
+
+  @override
+  String statsProgressPct(Object pct) {
+    return '$pct%';
+  }
+
+  @override
+  String statsOfTotal(Object total) {
+    return 'of $total';
+  }
+
+  @override
+  String get statsTotalAll => 'total';
+
+  @override
+  String get statsJuzTitle => 'Progress by Juz';
+
+  @override
+  String get statsJuzAll => 'All juz';
+
+  @override
+  String statsJuzProgressPct(Object pct) {
+    return '$pct%';
+  }
+
+  @override
+  String get statsAchievementsTitle => 'Recent achievements';
+
+  @override
+  String get statsAchievementsAll => 'All';
+
+  @override
+  String get statsAchvLastRead => 'Read surah';
+
+  @override
+  String get statsAchvStreak => 'Streak goal reached';
+
+  @override
+  String get statsAchvRecord => 'New record';
+
+  @override
+  String get statsAchvStreakSubtitle => 'Read without breaks';
+
+  @override
+  String get statsAchvRecordSubtitle => 'Ayahs in a day';
+
+  @override
+  String get statsAchvToday => 'Today';
+
+  @override
+  String get statsAchvYesterday => 'Yesterday';
+
+  @override
+  String statsAchvDaysAgo(Object days) {
+    return '$days days ago';
+  }
+
+  @override
+  String get weekdayMon => 'Mon';
+
+  @override
+  String get weekdayTue => 'Tue';
+
+  @override
+  String get weekdayWed => 'Wed';
+
+  @override
+  String get weekdayThu => 'Thu';
+
+  @override
+  String get weekdayFri => 'Fri';
+
+  @override
+  String get weekdaySat => 'Sat';
+
+  @override
+  String get weekdaySun => 'Sun';
+
+  @override
+  String get monthShortJan => 'Jan';
+
+  @override
+  String get monthShortFeb => 'Feb';
+
+  @override
+  String get monthShortMar => 'Mar';
+
+  @override
+  String get monthShortApr => 'Apr';
+
+  @override
+  String get monthShortMay => 'May';
+
+  @override
+  String get monthShortJun => 'Jun';
+
+  @override
+  String get monthShortJul => 'Jul';
+
+  @override
+  String get monthShortAug => 'Aug';
+
+  @override
+  String get monthShortSep => 'Sep';
+
+  @override
+  String get monthShortOct => 'Oct';
+
+  @override
+  String get monthShortNov => 'Nov';
+
+  @override
+  String get monthShortDec => 'Dec';
+
+  @override
   String get audioChooseSurah => 'Surah';
 
   @override
@@ -339,6 +458,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get audioNightMode => 'Night mode';
+
+  @override
+  String get audioSpeedOff => '1.0x';
+
+  @override
+  String get audioSleepOff => 'Off';
+
+  @override
+  String audioSleepMinutes(Object minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get audioSleepAfterCurrent => 'After current surah';
+
+  @override
+  String get audioPlaying => 'Playing';
+
+  @override
+  String get audioPaused => 'Paused';
 
   @override
   String get audioOff => 'Off';
@@ -761,6 +900,92 @@ class AppLocalizationsEn extends AppLocalizations {
   String get learnTitle => 'Words to review';
 
   @override
+  String get learnHubTitle => 'Learn';
+
+  @override
+  String get learnHubSubtitle =>
+      'Study the Quran by topics, tajweed rules\nand memorize it by heart';
+
+  @override
+  String get learnHubMemorization => 'Memorization';
+
+  @override
+  String get learnHubMemorizationHint => 'Read surahs and ayahs by heart';
+
+  @override
+  String get learnHubMemorizationProgress => 'Memorization progress';
+
+  @override
+  String get learnHubContinue => 'Continue';
+
+  @override
+  String get learnHubStart => 'Start';
+
+  @override
+  String get learnHubQuickAccess => 'Quick access';
+
+  @override
+  String get learnHubRecent => 'Recent sessions';
+
+  @override
+  String get learnHubMyBookmarks => 'My bookmarks';
+
+  @override
+  String get learnHubMyStats => 'My memorization stats';
+
+  @override
+  String get learnHubMyPlan => 'My study plan';
+
+  @override
+  String get learnHubBySection => 'Learn by section';
+
+  @override
+  String get learnHubByJuz => 'Quran by Juz\'';
+
+  @override
+  String get learnHubByJuzHint => 'Juz\' sections for gradual study';
+
+  @override
+  String get learnHubBySurah => 'Surahs';
+
+  @override
+  String get learnHubBySurahHint => 'Pick a surah to study and memorize';
+
+  @override
+  String get learnHubRecentAyahs => 'Recent ayahs';
+
+  @override
+  String get learnHubRecentAyahsHint => 'Read the last 50 ayahs of the Quran';
+
+  @override
+  String get learnHubDuas => 'Duas and dhikr';
+
+  @override
+  String get learnHubDuasHint => 'Daily duas and adhkar';
+
+  @override
+  String get learnHubTajweed => 'Tajweed rules';
+
+  @override
+  String get learnHubTajweedHint => 'Learn the rules of correct recitation';
+
+  @override
+  String get learnHubDailyGoal => 'Daily goal';
+
+  @override
+  String learnHubDailyGoalAyahs(Object current, Object target) {
+    return '$current / $target ayahs';
+  }
+
+  @override
+  String get learnHubDailyGoalHint => 'Keep going in the same spirit!';
+
+  @override
+  String learnHubStreakDays(Object days) {
+    return 'Streak: $days days';
+  }
+
+  @override
   String get learnSkip => 'Skip';
 
   @override
@@ -933,6 +1158,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsReciterActive => 'Currently selected';
+
+  @override
+  String get settingsDownloads => 'Downloads';
+
+  @override
+  String get settingsDownloadsHint => 'Manage audio cached on device';
+
+  @override
+  String downloadsTotalCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count surahs cached',
+      one: '1 surah cached',
+      zero: 'No surahs cached',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get downloadsClear => 'Delete all';
+
+  @override
+  String get contentUpdateChecking => 'Checking for content updates…';
+
+  @override
+  String get contentUpdateUpToDate => 'Content is up to date';
+
+  @override
+  String contentUpdateAvailable(Object version) {
+    return 'New content available: v$version';
+  }
+
+  @override
+  String get contentUpdateFailed => 'Content update failed';
+
+  @override
+  String get contentUpdateIntegrity => 'Integrity check failed';
 
   @override
   String get mediaAlbum => 'Quran';

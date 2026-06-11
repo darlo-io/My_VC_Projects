@@ -301,6 +301,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get statsTitle => 'الإحصاءات';
 
   @override
+  String get statsSubtitle => 'تقدمك في قراءة القرآن';
+
+  @override
   String get statsWeek => 'الأسبوع';
 
   @override
@@ -310,13 +313,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get statsYear => 'السنة';
 
   @override
-  String get statsAllTime => 'الإجمالي';
+  String get statsAllTime => 'كل الوقت';
 
   @override
   String get statsAyahsRead => 'آيات مقروءة';
 
   @override
-  String get statsSurahsRead => 'السور المقروءة';
+  String get statsSurahsRead => 'سور مقروءة';
 
   @override
   String get statsReadingTime => 'وقت القراءة';
@@ -326,6 +329,122 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get statsPerDay => 'آيات في اليوم';
+
+  @override
+  String get statsProgressTitle => 'القرآن المقروء';
+
+  @override
+  String statsProgressPct(Object pct) {
+    return '$pct٪';
+  }
+
+  @override
+  String statsOfTotal(Object total) {
+    return 'من $total';
+  }
+
+  @override
+  String get statsTotalAll => 'المجموع';
+
+  @override
+  String get statsJuzTitle => 'التقدم بحسب الأجزاء';
+
+  @override
+  String get statsJuzAll => 'كل الأجزاء';
+
+  @override
+  String statsJuzProgressPct(Object pct) {
+    return '$pct٪';
+  }
+
+  @override
+  String get statsAchievementsTitle => 'الإنجازات الأخيرة';
+
+  @override
+  String get statsAchievementsAll => 'الكل';
+
+  @override
+  String get statsAchvLastRead => 'سورة مقروءة';
+
+  @override
+  String get statsAchvStreak => 'تحقيق الهدف';
+
+  @override
+  String get statsAchvRecord => 'رقم قياسي جديد';
+
+  @override
+  String get statsAchvStreakSubtitle => 'القراءة دون انقطاع';
+
+  @override
+  String get statsAchvRecordSubtitle => 'آيات في يوم واحد';
+
+  @override
+  String get statsAchvToday => 'اليوم';
+
+  @override
+  String get statsAchvYesterday => 'أمس';
+
+  @override
+  String statsAchvDaysAgo(Object days) {
+    return 'قبل $days أيام';
+  }
+
+  @override
+  String get weekdayMon => 'إثن';
+
+  @override
+  String get weekdayTue => 'ثلا';
+
+  @override
+  String get weekdayWed => 'أرب';
+
+  @override
+  String get weekdayThu => 'خمي';
+
+  @override
+  String get weekdayFri => 'جمع';
+
+  @override
+  String get weekdaySat => 'سبت';
+
+  @override
+  String get weekdaySun => 'أحد';
+
+  @override
+  String get monthShortJan => 'ينا';
+
+  @override
+  String get monthShortFeb => 'فبر';
+
+  @override
+  String get monthShortMar => 'مار';
+
+  @override
+  String get monthShortApr => 'أبر';
+
+  @override
+  String get monthShortMay => 'ماي';
+
+  @override
+  String get monthShortJun => 'يون';
+
+  @override
+  String get monthShortJul => 'يول';
+
+  @override
+  String get monthShortAug => 'أغس';
+
+  @override
+  String get monthShortSep => 'سبت';
+
+  @override
+  String get monthShortOct => 'أكت';
+
+  @override
+  String get monthShortNov => 'نوف';
+
+  @override
+  String get monthShortDec => 'ديس';
 
   @override
   String get audioChooseSurah => 'السورة';
@@ -341,6 +460,26 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get audioNightMode => 'الوضع الليلي';
+
+  @override
+  String get audioSpeedOff => '1.0x';
+
+  @override
+  String get audioSleepOff => 'إيقاف';
+
+  @override
+  String audioSleepMinutes(Object minutes) {
+    return '$minutes د';
+  }
+
+  @override
+  String get audioSleepAfterCurrent => 'بعد السورة الحالية';
+
+  @override
+  String get audioPlaying => 'يعمل';
+
+  @override
+  String get audioPaused => 'متوقف';
 
   @override
   String get audioOff => 'إيقاف';
@@ -763,6 +902,92 @@ class AppLocalizationsAr extends AppLocalizations {
   String get learnTitle => 'كلمات للمراجعة';
 
   @override
+  String get learnHubTitle => 'تعلّم';
+
+  @override
+  String get learnHubSubtitle =>
+      'ادرس القرآن حسب المواضيع وقواعد التلاوة\nواحفظه عن ظهر قلب';
+
+  @override
+  String get learnHubMemorization => 'الحفظ';
+
+  @override
+  String get learnHubMemorizationHint => 'احفظ السور والآيات عن ظهر قلب';
+
+  @override
+  String get learnHubMemorizationProgress => 'تقدّم الحفظ';
+
+  @override
+  String get learnHubContinue => 'متابعة';
+
+  @override
+  String get learnHubStart => 'ابدأ';
+
+  @override
+  String get learnHubQuickAccess => 'وصول سريع';
+
+  @override
+  String get learnHubRecent => 'الجلسات الأخيرة';
+
+  @override
+  String get learnHubMyBookmarks => 'علاماتي';
+
+  @override
+  String get learnHubMyStats => 'إحصاءات الحفظ';
+
+  @override
+  String get learnHubMyPlan => 'خطتي الدراسية';
+
+  @override
+  String get learnHubBySection => 'تعلّم حسب القسم';
+
+  @override
+  String get learnHubByJuz => 'القرآن بالأجزاء';
+
+  @override
+  String get learnHubByJuzHint => 'أجزاء القرآن للدراسة المتدرجة';
+
+  @override
+  String get learnHubBySurah => 'السور';
+
+  @override
+  String get learnHubBySurahHint => 'اختر سورة للدراسة والحفظ';
+
+  @override
+  String get learnHubRecentAyahs => 'الآيات الأخيرة';
+
+  @override
+  String get learnHubRecentAyahsHint => 'اقرأ آخر 50 آية من القرآن';
+
+  @override
+  String get learnHubDuas => 'الأدعية والأذكار';
+
+  @override
+  String get learnHubDuasHint => 'أدعية وأذكار يومية أساسية';
+
+  @override
+  String get learnHubTajweed => 'قواعد التجويد';
+
+  @override
+  String get learnHubTajweedHint => 'تعلّم قواعد التلاوة الصحيحة';
+
+  @override
+  String get learnHubDailyGoal => 'هدف اليوم';
+
+  @override
+  String learnHubDailyGoalAyahs(Object current, Object target) {
+    return '$current / $target آيات';
+  }
+
+  @override
+  String get learnHubDailyGoalHint => 'استمر على نفس الروح!';
+
+  @override
+  String learnHubStreakDays(Object days) {
+    return 'السلسلة: $days يوم';
+  }
+
+  @override
   String get learnSkip => 'تخطٍ';
 
   @override
@@ -931,6 +1156,45 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get settingsReciterActive => 'المحدد حاليًا';
+
+  @override
+  String get settingsDownloads => 'التنزيلات';
+
+  @override
+  String get settingsDownloadsHint => 'إدارة الصوت المخزّن على الجهاز';
+
+  @override
+  String downloadsTotalCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count سور مخزنة',
+      two: 'سورتان مخزنتان',
+      one: 'سورة واحدة مخزنة',
+      zero: 'لا سور مخزنة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get downloadsClear => 'حذف الكل';
+
+  @override
+  String get contentUpdateChecking => 'جارٍ التحقق من تحديثات المحتوى…';
+
+  @override
+  String get contentUpdateUpToDate => 'المحتوى محدّث';
+
+  @override
+  String contentUpdateAvailable(Object version) {
+    return 'تحديث متاح: الإصدار $version';
+  }
+
+  @override
+  String get contentUpdateFailed => 'فشل تحديث المحتوى';
+
+  @override
+  String get contentUpdateIntegrity => 'فشل فحص السلامة';
 
   @override
   String get mediaAlbum => 'القرآن';

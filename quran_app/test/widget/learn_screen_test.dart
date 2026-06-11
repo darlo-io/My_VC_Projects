@@ -13,7 +13,7 @@ import 'package:quran_app/core/database/app_database.dart';
 import 'package:quran_app/core/networking/api_client.dart';
 import 'package:quran_app/core/storage/app_preferences.dart';
 import 'package:quran_app/features/audio/data/reciters_repository.dart';
-import 'package:quran_app/features/learning/presentation/learn_screen.dart';
+import 'package:quran_app/features/learning/presentation/learn_session_screen.dart';
 
 /// Widget tests for [LearnScreen] — Learn feature step 3/3.
 ///
@@ -61,7 +61,7 @@ void main() {
 
   Widget app() => ProviderScope(
         overrides: [appDatabaseProvider.overrideWithValue(db)],
-        child: const MaterialApp(home: LearnScreen()),
+        child: const MaterialApp(home: LearnSessionScreen()),
       );
 
   testWidgets('empty-state shows "Все слова выучены" when vocabulary is empty',

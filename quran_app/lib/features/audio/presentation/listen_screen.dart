@@ -118,6 +118,12 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
                       .read(audioPlayerControllerProvider.notifier)
                       .togglePlay(),
                   surahDao: surahDao,
+                  onSpeed: (s) => ref
+                      .read(audioPlayerControllerProvider.notifier)
+                      .setSpeed(s),
+                  onSleepTimer: (m) => ref
+                      .read(audioPlayerControllerProvider.notifier)
+                      .setSleepTimer(m),
                 );
               },
             ),
@@ -139,6 +145,8 @@ class _ListenBody extends StatelessWidget {
     required this.onPlay,
     required this.onTogglePause,
     required this.surahDao,
+    required this.onSpeed,
+    required this.onSleepTimer,
   });
 
   final List<Reciter> reciters;
@@ -150,6 +158,8 @@ class _ListenBody extends StatelessWidget {
   final VoidCallback onPlay;
   final VoidCallback onTogglePause;
   final SurahDao surahDao;
+  final ValueChanged<double> onSpeed;
+  final ValueChanged<int?> onSleepTimer;
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +177,15 @@ class _ListenBody extends StatelessWidget {
           state: playerState,
           onPlay: onPlay,
           onTogglePause: onTogglePause,
+        ),
+        const SizedBox(height: 16),
+        // Playback controls: speed, sleep timer, night mode.
+        // Отдельный widget чтобы build() `_Player` остался
+        // компактным.
+        _PlaybackControls(
+          state: playerState,
+          onSpeed: onSpeed,
+          onSleepTimer: onSleepTimer,
         ),
         const SizedBox(height: 28),
         _SurahPicker(
@@ -187,6 +206,334 @@ class _ListenBody extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Панель управления воспроизведением: скорость, sleep timer,
+/// night mode. Появляется сразу под основной «круглой» play-кнопкой
+/// и иконкой состояния (PLAYING / PAUSED).
+class _PlaybackControls extends StatelessWidget {
+  const _PlaybackControls({
+    required this.state,
+    required this.onSpeed,
+    required this.onSleepTimer,
+  });
+
+  final AudioPlayerState state;
+  final ValueChanged<double> onSpeed;
+  final ValueChanged<int?> onSleepTimer;
+
+  static const _kSpeedOptions = <double>[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+  static const _kSleepOptions = <int?>[null, 5, 10, 15, 30, 60];
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    return GlassCard(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Status line (PLAYING / PAUSED) + Night mode toggle
+          Row(
+            children: [
+              // Pulse dot — animated "now playing" indicator
+              _PlayingDot(active: state.playing),
+              const SizedBox(width: 8),
+              Text(
+                state.playing ? t.audioPlaying : t.audioPaused,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: t.audioNightMode,
+                onPressed: () {
+                  // night mode — placeholder. В будущем — понижение
+                  // громкости до 50% и смена эквалайзера.
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(t.audioNightMode),
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.bedtime_outlined,
+                  color: AppColors.gold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Speed + Sleep timer (chips)
+          Row(
+            children: [
+              Expanded(
+                child: _ControlRow(
+                  icon: Icons.speed,
+                  label: t.audioSpeed,
+                  value: _formatSpeed(state.speed, t),
+                  options: _kSpeedOptions
+                      .map((s) => _formatSpeed(s, t))
+                      .toList(),
+                  optionValues: _kSpeedOptions.cast<Object>(),
+                  currentValue: state.speed,
+                  onChanged: (v) => onSpeed(v as double),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ControlRow(
+                  icon: Icons.bedtime,
+                  label: t.audioSleepTimer,
+                  value: _formatSleep(state.sleepTimerAtMs, t),
+                  options: _kSleepOptions
+                      .map((m) => _formatSleepMinutes(m, t))
+                      .toList(),
+                  optionValues: _kSleepOptions.cast<Object>(),
+                  currentValue: state.sleepTimerAtMs,
+                  onChanged: (v) => onSleepTimer(v as int?),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatSpeed(double s, AppLocalizations t) {
+    if ((s - 1.0).abs() < 0.01) return t.audioSpeedOff;
+    return '${s.toStringAsFixed(s.truncateToDouble() == s ? 0 : 2)}x';
+  }
+
+  String _formatSleep(DateTime? at, AppLocalizations t) {
+    if (at == null) return t.audioSleepOff;
+    final remaining = at.difference(DateTime.now());
+    if (remaining.isNegative || remaining == Duration.zero) {
+      return t.audioSleepOff;
+    }
+    final mins = remaining.inMinutes;
+    if (mins >= 1) {
+      return t.audioSleepMinutes(mins);
+    }
+    return t.audioSleepMinutes(1);
+  }
+
+  String _formatSleepMinutes(int? m, AppLocalizations t) {
+    if (m == null) return t.audioSleepOff;
+    return t.audioSleepMinutes(m);
+  }
+}
+
+/// Одна строка «icon + label + value» с tap-to-cycle / tap-to-open
+/// chip. Не bottom sheet, а **меню в стиле popup menu** — короткий
+/// список значений (3-7), выбираемый напрямую.
+class _ControlRow extends StatelessWidget {
+  const _ControlRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.optionValues,
+    required this.currentValue,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final List<String> options;
+  final List<Object?> optionValues;
+  final Object? currentValue;
+  final ValueChanged<Object> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () async {
+          final picked = await showModalBottomSheet<Object>(
+            context: context,
+            backgroundColor: AppColors.surface,
+            builder: (sheetCtx) {
+              return SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.borderSubtle,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      for (var i = 0; i < options.length; i++)
+                        ListTile(
+                          leading: Icon(
+                            icon,
+                            color: AppColors.gold,
+                            size: 20,
+                          ),
+                          title: Text(
+                            options[i],
+                            style: TextStyle(
+                              color: optionValues[i] == currentValue
+                                  ? AppColors.gold
+                                  : AppColors.textPrimary,
+                              fontWeight: optionValues[i] == currentValue
+                                  ? FontWeight.w700
+                                  : FontWeight.w400,
+                            ),
+                          ),
+                          trailing: optionValues[i] == currentValue
+                              ? const Icon(
+                                  Icons.check,
+                                  color: AppColors.gold,
+                                  size: 18,
+                                )
+                              : null,
+                          onTap: () => Navigator.of(sheetCtx).pop(
+                            optionValues[i],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+          if (picked != null) onChanged(picked);
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.borderSubtle),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.gold, size: 16),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: AppColors.textTertiary,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                size: 14,
+                color: AppColors.textTertiary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Маленькая пульсирующая точка-индикатор «сейчас играет». Анимация —
+/// `AnimatedOpacity` (0.4 ↔ 1.0), 1 секунда, infinite. В MVP v0.2
+/// без анимации хватает `AnimatedContainer` с opacity.
+class _PlayingDot extends StatefulWidget {
+  const _PlayingDot({required this.active});
+  final bool active;
+
+  @override
+  State<_PlayingDot> createState() => _PlayingDotState();
+}
+
+class _PlayingDotState extends State<_PlayingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    if (widget.active) _ctrl.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(_PlayingDot old) {
+    super.didUpdateWidget(old);
+    if (widget.active && !_ctrl.isAnimating) {
+      _ctrl.repeat(reverse: true);
+    } else if (!widget.active) {
+      _ctrl.stop();
+      _ctrl.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, _) {
+        final opacity = widget.active ? 0.4 + 0.6 * _ctrl.value : 0.3;
+        return Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: widget.active
+                ? AppColors.gold.withValues(alpha: opacity)
+                : AppColors.textTertiary.withValues(alpha: opacity),
+            boxShadow: widget.active
+                ? [
+                    BoxShadow(
+                      color: AppColors.gold.withValues(alpha: opacity * 0.6),
+                      blurRadius: 8,
+                    ),
+                  ]
+                : null,
+          ),
+        );
+      },
     );
   }
 }

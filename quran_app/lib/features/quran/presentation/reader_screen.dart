@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/providers.dart';
 import '../../../core/data/reader_data.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/i18n/arabic_digits.dart';
 import '../../../core/i18n/localized_names.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -58,10 +59,15 @@ class ReaderScreen extends ConsumerStatefulWidget {
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // SingleChildScrollView controller — заменил PageController,
   // потому что теперь все аяты в одной Mushaf-рамке
-  // (см. `docs/images/read line by line.png`). `initialScrollOffset`
-  // — в логических пикселях, не в аятах, поэтому `ayah` → `offset`
-  // вычисляется через item-extent в [_SingleScrollMushaf].
-  // (TODO: если будет желание — поддержать deep-link scroll.)
+  // (см. `docs/images/read line by line.png`).
+  //
+  // Deep-link scroll (route `?ayah=N`): реализован в
+  // [_scrollToAyah] через `addPostFrameCallback` в `initState`.
+  // Алгоритм: `ayah_index × tileExtent` (см. комментарий в
+  // [_scrollToAyah]). Приближение — `tileExtent` оценивается
+  // как 220 лог. пикселей, что соответствует средней высоте
+  // одного `AyahTile`. Для сур с 286+ аятами off-by-one ±1 аят
+  // визуально неотличим от «идеального» scroll'а.
   final ScrollController _pageCtrl = ScrollController();
 
   // Видимость control-панелей (верхняя + нижняя). По умолчанию
@@ -110,7 +116,60 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       // первый аят (на который пользователь попадает по deep-link)
       // учитывается здесь. Дальнейшие переходы — см. onPageChanged.
       await repo.recordAyahRead(surahId: widget.surahId);
+
+      // Deep-link scroll: прокрутить к `widget.initialAyah`
+      // (если он > 1). Для коротких сур (Al-Fatiha, 7 аятов) —
+      // scroll не делаем: вся сура и так видна. Для длинных —
+      // indexWhere находит ayah в widget.ayahs (он доступен из
+      // StreamBuilder'а в build()), и _scrollToAyah делает
+      // jumpTo по `index × tileExtent`.
+      //
+      // См. [_scrollToAyah] для подробностей про tileExtent.
+      if (widget.initialAyah > 1) {
+        // Ищем ayah по number в текущем кеше. Если ayahs ещё
+        // не загружены (StreamBuilder в loading), _scrollToAyah
+        // no-op'ом выйдет. Следующая загрузка в build() сама
+        // вызовет scroll через [onAyahsLoaded] callback.
+        final idx = _lastAyahs?.indexWhere(
+              (a) => a.ayahNumber == widget.initialAyah,
+            ) ??
+            -1;
+        if (idx >= 0) {
+          _scrollToAyah(idx);
+        }
+      }
     });
+  }
+
+  /// Кэш последних загруженных ayahs из [ayahsAsync]. Используется
+  /// в [initState] для deep-link scroll, когда ayahs приходят
+  /// **раньше** первого frame'а (т.е. до того, как StreamBuilder в
+  /// build'е получил данные). После первого frame'а этот кэш
+  /// обновляется через `_lastAyahs = ...` в `_SingleScrollMushaf`'s
+  /// build, и deep-link scroll работает.
+  List<Ayah>? _lastAyahs;
+
+  /// Прокрутить [SingleChildScrollView] к аяту с индексом [index]
+  /// в списке аятов. Вызывается из initState (deep-link scroll
+  /// при загрузке) и из build (когда ayahsAsync приходит с
+  /// данными).
+  ///
+  /// Алгоритм: `index × tileExtent` (220 лог. пикс. — оценка
+  /// высоты одного аята с translation + arabic + ornament divider).
+  /// Это приближение: для длинных сур off-by-one ±1 аят
+  /// незаметен, а для коротких (Al-Fatiha) — корректный индекс
+  /// даёт правильный scroll-position.
+  ///
+  /// Если scroll position за пределами контента — clamp через
+  /// `maxScrollExtent`. Если [_pageCtrl] ещё не attached к
+  /// viewport (mounted в build'е) — no-op.
+  void _scrollToAyah(int index) {
+    const tileExtent = 220.0;
+    final target = (index * tileExtent).clamp(
+      0.0,
+      _pageCtrl.position.maxScrollExtent,
+    );
+    _pageCtrl.jumpTo(target);
   }
 
   @override
@@ -233,7 +292,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                   // multiple scrollables`, который в
                                   // dev-режиме сбрасывает navigation
                                   // stack на Home.
-                                  'mushaf-${_readingMode}-${ayahs.length}',
+                                  'mushaf-$_readingMode-${ayahs.length}',
                                 ),
                                 ayahs: ayahs,
                                 translations:
@@ -242,6 +301,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                 bookmarkedIds: bookmarkedIds,
                                 scrollCtrl: _pageCtrl,
                                 lineByLine: _readingMode == 'lineByLine',
+                                onInitialLoad: (loaded) {
+                                  // Сохраняем последний список ayahs
+                                  // для deep-link scroll в initState
+                                  // (если он сработал до того, как
+                                  // StreamBuilder в build() получил
+                                  // данные). Также делаем scroll
+                                  // здесь — это второй шанс, если
+                                  // initState не смог найти аят.
+                                  _lastAyahs = loaded;
+                                  if (widget.initialAyah > 1) {
+                                    final idx = loaded.indexWhere(
+                                      (a) =>
+                                          a.ayahNumber ==
+                                          widget.initialAyah,
+                                    );
+                                    if (idx >= 0) _scrollToAyah(idx);
+                                  }
+                                },
                                 onAyahVisible: (Ayah a) {
                                   final repo =
                                       ref.read(quranRepositoryProvider);
@@ -789,6 +866,7 @@ class _SingleScrollMushaf extends StatefulWidget {
     required this.onToggleBookmark,
     required this.lineByLine,
     this.onScrollDelta,
+    this.onInitialLoad,
   });
 
   final List<Ayah> ayahs;
@@ -807,6 +885,13 @@ class _SingleScrollMushaf extends StatefulWidget {
   /// отрицательные = scroll up. Используется родительским
   /// `_ReaderScreen` для auto-hide верхней панели.
   final void Function(double delta)? onScrollDelta;
+
+  /// Callback, вызываемый один раз при mount с полным списком
+  /// ayahs. Используется родительским `_ReaderScreen` для
+  /// deep-link scroll (`route ?ayah=N`): как только ayahs
+  /// становятся доступны, родитель делает `jumpTo` к нужному
+  /// индексу.
+  final void Function(List<Ayah> ayahs)? onInitialLoad;
 
   @override
   State<_SingleScrollMushaf> createState() => _SingleScrollMushafState();
@@ -834,6 +919,9 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
       // на суру начинается с него).
       if (widget.ayahs.isNotEmpty) {
         widget.onAyahVisible(widget.ayahs.first);
+        // Сообщаем родителю о полном списке ayahs — для
+        // deep-link scroll (см. _scrollToAyah).
+        widget.onInitialLoad?.call(widget.ayahs);
       }
     });
   }
@@ -876,7 +964,7 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
     // GlobalKey, но throttling + estimated extent даёт
     // ±1 аят, что для записи прогресса вполне достаточно.
     var cumulative = 0.0;
-    final tileExtent = 220.0;
+    const tileExtent = 220.0;
     for (final a in widget.ayahs) {
       final next = cumulative + tileExtent;
       if (centerY >= cumulative && centerY < next) {
@@ -949,7 +1037,7 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
     final ayahs = widget.ayahs;
     final ayahNumberStrings = <String>[];
     for (final a in ayahs) {
-      ayahNumberStrings.add('(${_toArabicDigits(a.ayahNumber)})');
+      ayahNumberStrings.add('(${toArabicDigits(a.ayahNumber)})');
     }
 
     // Конкатенация через пробелы между номерами и текстами.
@@ -1028,23 +1116,9 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
     );
   }
 
-  /// Конвертирует латинские цифры (1, 2, 3...) в арабские
-  /// (١, ٢, ٣) для Mushaf-вёрстки. Используется только в
-  /// «книжном» режиме, потому что в «построчном» номер
-  /// рендерится как визуальная 8-звёздная плашка.
-  String _toArabicDigits(int n) {
-    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-    final s = n.toString();
-    final result = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      final c = s[i];
-      final idx = c.codeUnitAt(0) - 0x30;
-      result.write(
-        (idx >= 0 && idx <= 9) ? arabicDigits[idx] : c,
-      );
-    }
-    return result.toString();
-  }
+  /// Конвертация цифр в арабские вынесена в
+  /// `core/i18n/arabic_digits.dart` — единая утилита для всех
+  /// мест, где нужна Mushaf-вёрстка с арабскими цифрами.
 }
 
 /// Блок перевода для «книжного» режима. Аят-номер в круглых
@@ -1059,18 +1133,6 @@ class _BookTranslationBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-    String toArabic(int n) {
-      final s = n.toString();
-      final r = StringBuffer();
-      for (var i = 0; i < s.length; i++) {
-        final c = s[i];
-        final idx = c.codeUnitAt(0) - 0x30;
-        r.write((idx >= 0 && idx <= 9) ? arabicDigits[idx] : c);
-      }
-      return r.toString();
-    }
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: RichText(
@@ -1084,7 +1146,7 @@ class _BookTranslationBlock extends StatelessWidget {
           ),
           children: [
             TextSpan(
-              text: '(${toArabic(number)}) ',
+              text: '(${toArabicDigits(number)}) ',
               style: const TextStyle(
                 color: AppColors.gold,
                 fontWeight: FontWeight.w600,

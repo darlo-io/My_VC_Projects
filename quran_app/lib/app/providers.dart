@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/content/content_bootstrapper.dart';
 import '../core/content/content_manifest.dart';
+import '../core/content/content_update_service.dart';
 import '../core/content/local_seed_service.dart';
 import '../core/content/quran_api.dart';
 import '../core/data/bookmarks_repository.dart';
@@ -147,6 +148,11 @@ final audioCacheProvider = Provider<AudioCache>(
   (ref) => AudioCache(
     dio: ref.watch(apiClientProvider).raw,
     dao: ref.watch(audioCacheDaoProvider),
+    // `prefs` нужен для LRU-eviction в play-path (раньше
+    // eviction вызывался ТОЛЬКО из Settings). Provider
+    // инжектится, чтобы избежать прямой зависимости от
+    // SharedPreferences в audio-подсистеме.
+    prefs: ref.watch(appPreferencesProvider),
   ),
 );
 
@@ -187,24 +193,52 @@ final contentDownloaderProvider = Provider<ContentDownloader>(
   (ref) => ContentDownloader(ref.watch(quranApiProvider)),
 );
 
+final contentUpdateServiceProvider = Provider<ContentUpdateService>((ref) {
+  // Берём `appVersion` из PackageInfo (через `appVersionProvider`),
+  // иначе — fallback из `pubspec.yaml: version` (1.0.0+1 →
+  // strip build → '1.0.0'). `appVersionProvider` обновляется в
+  // `main.dart` через `PackageInfo.fromPlatform()` после старта
+  // приложения; до этого момента используется fallback.
+  final pkg = ref.watch(appVersionProvider);
+  return ContentUpdateService(
+    api: ref.watch(quranApiProvider),
+    manifestRepository: ref.watch(contentManifestRepositoryProvider),
+    appVersion: pkg ?? '1.0.0',
+  );
+});
+
+/// Текущая версия приложения (`pubspec.yaml: version`).
+/// Инициализируется в `main.dart` через `PackageInfo.fromPlatform()`.
+/// Используется для [min_app_version] проверки в
+/// [ContentUpdateService].
+final appVersionProvider = StateProvider<String?>((ref) => null);
+
 final contentManifestRepositoryProvider =
     Provider<ContentManifestRepository>(
   (ref) => ContentManifestRepository(ref.watch(appPreferencesProvider)),
 );
 
 final contentBootstrapperProvider = Provider<ContentBootstrapper>(
-  (ref) => ContentBootstrapper(
-    db: ref.watch(appDatabaseProvider),
-    surahDao: ref.watch(surahDaoProvider),
-    ayahDao: ref.watch(ayahDaoProvider),
-    translationDao: ref.watch(translationDaoProvider),
-    wordsDao: ref.watch(wordsDaoProvider),
-    wordTimingsDao: ref.watch(wordTimingsDaoProvider),
-    downloader: ref.watch(contentDownloaderProvider),
-    manifestRepository: ref.watch(contentManifestRepositoryProvider),
-    recitersRepository: ref.watch(recitersRepositoryProvider),
-    localSeed: LocalSeedService(),
-  ),
+  (ref) {
+    final bootstrapper = ContentBootstrapper(
+      db: ref.watch(appDatabaseProvider),
+      surahDao: ref.watch(surahDaoProvider),
+      ayahDao: ref.watch(ayahDaoProvider),
+      translationDao: ref.watch(translationDaoProvider),
+      wordsDao: ref.watch(wordsDaoProvider),
+      wordTimingsDao: ref.watch(wordTimingsDaoProvider),
+      downloader: ref.watch(contentDownloaderProvider),
+      manifestRepository: ref.watch(contentManifestRepositoryProvider),
+      recitersRepository: ref.watch(recitersRepositoryProvider),
+      localSeed: LocalSeedService(),
+    );
+    // Опциональная прокрутка `contentUpdateService` через тот же
+    // `ref`. Позволяет `_fetchFromNetworkInBackground` вызвать
+    // `checkAndApply()` без жёсткой DI-зависимости.
+    final updateService = ref.watch(contentUpdateServiceProvider);
+    bootstrapper.contentUpdateService = updateService;
+    return bootstrapper;
+  },
 );
 
 /// Полный сброс пользователя: wipes user-data tables +

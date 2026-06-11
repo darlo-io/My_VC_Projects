@@ -12,14 +12,14 @@ import '../../../l10n/generated/app_localizations.dart';
 /// Источник истины: [LearningDao.watchDue]. Список обновляется реактивно:
 /// после `recordReview` карточка автоматически сдвигается на следующее due
 /// слово (или на экран "Все выучено", если due-список пуст).
-class LearnScreen extends ConsumerStatefulWidget {
-  const LearnScreen({super.key});
+class LearnSessionScreen extends ConsumerStatefulWidget {
+  const LearnSessionScreen({super.key});
 
   @override
-  ConsumerState<LearnScreen> createState() => _LearnScreenState();
+  ConsumerState<LearnSessionScreen> createState() => _LearnSessionScreenState();
 }
 
-class _LearnScreenState extends ConsumerState<LearnScreen> {
+class _LearnSessionScreenState extends ConsumerState<LearnSessionScreen> {
   int _reviewedThisSession = 0;
   // Кэшируем снимок due-списка на момент ревью, чтобы не было глитча
   // (стрим может выдать новое состояние пока мы анимируем переход).

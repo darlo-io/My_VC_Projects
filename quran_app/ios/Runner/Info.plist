@@ -49,6 +49,28 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<!--
+		`audio` — разрешает фонового воспроизведение MP3-сур
+		через `audio_service` (lock-screen controls, command
+		center). Без этого флаг'а iOS убивает плеер через ~30
+		секунд после lock'а. `audio_service` package
+		автоматически регистрирует `AVAudioSession` category
+		`playback`, и флаг `audio` в Info.plist активирует
+		полную background-capability.
+		См. ARCHITECTURE §10: "just_audio" + "audio_service".
+		-->
+		<string>audio</string>
+		<!--
+		`fetch` — разрешает background-обновления контента
+		(например, обновления Quran manifest'а через
+		`workmanager`). На MVP v0.1 не используется, но
+		добавляем сейчас, чтобы в Tier 3-content-update не
+		пришлось пересобирать Info.plist.
+		-->
+		<string>fetch</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

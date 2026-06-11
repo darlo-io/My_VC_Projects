@@ -386,7 +386,7 @@ class _SurahTitlePainter extends CustomPainter {
     // 8-конечная звезда (octagram) — 16 точек, чередующихся
     // между outerR и innerR. Заполняется + обводится для
     // «медальон»-вида.
-    final starR = 14.0;
+    const starR = 14.0;
     final starInnerR = starR * 0.45;
     final starPath = Path();
     for (var i = 0; i < 16; i++) {

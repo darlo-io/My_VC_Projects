@@ -100,6 +100,8 @@ class SettingsScreen extends ConsumerWidget {
                 _CacheLimitTile(),
                 const Divider(height: 1),
                 _ClearCacheTile(),
+                const Divider(height: 1),
+                _DownloadsTile(),
               ],
             ),
           ),
@@ -510,6 +512,241 @@ class _ClearCacheTile extends ConsumerWidget {
           SnackBar(content: Text(t.settingsCacheCleared)),
         );
       },
+    );
+  }
+}
+
+/// Settings tile that opens a per-reciter Downloads sheet.
+///
+/// Sheet показывает список всех ректоров + для каждого:
+///   - сколько сур кешировано (N / 114)
+///   - сколько места занимает (X MB)
+///   - кнопка «Delete all» — очищает кеш только этого ректора
+///
+/// Каждая строка — `Consumer` со `watchReciter(reciterId)` —
+/// ребилдится автоматически при загрузке / удалении сур.
+///
+/// Этот экран реализует ARCHITECTURE §14 «UI экран управления
+/// загрузками» (Чтец / Размер / [Удалить] / Занято: X MB / Y GB).
+class _DownloadsTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = AppLocalizations.of(context);
+    return ListTile(
+      leading: const Icon(
+        Icons.cloud_download_outlined,
+        color: AppColors.gold,
+      ),
+      title: Text(
+        t.settingsDownloads,
+        style: const TextStyle(color: AppColors.textPrimary),
+      ),
+      subtitle: Text(
+        t.settingsDownloadsHint,
+        style: const TextStyle(
+          color: AppColors.textTertiary,
+          fontSize: 12,
+        ),
+      ),
+      trailing: const Icon(
+        Icons.chevron_right,
+        color: AppColors.textTertiary,
+      ),
+      onTap: () => _showDownloadsSheet(context, ref, t),
+    );
+  }
+
+  void _showDownloadsSheet(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations t,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      builder: (sheetCtx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (_, scrollCtrl) {
+            return _DownloadsSheet(scrollCtrl: scrollCtrl, t: t);
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Sheet со списком ректоров и per-reciter статистикой кеша.
+class _DownloadsSheet extends ConsumerWidget {
+  const _DownloadsSheet({required this.scrollCtrl, required this.t});
+
+  final ScrollController scrollCtrl;
+  final AppLocalizations t;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recitersAsync = ref.watch(recitersStreamProvider);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          child: Row(
+            children: [
+              Text(
+                t.settingsDownloads,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: recitersAsync.when(
+            data: (reciters) => ListView.separated(
+              controller: scrollCtrl,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              itemCount: reciters.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (_, i) => _ReciterDownloadTile(
+                reciter: reciters[i],
+                t: t,
+              ),
+            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('$e')),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Одна строка в Downloads sheet: имя ректора + кол-во сур +
+/// размер + кнопка «Delete all».
+class _ReciterDownloadTile extends ConsumerWidget {
+  const _ReciterDownloadTile({required this.reciter, required this.t});
+
+  final Reciter reciter;
+  final AppLocalizations t;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // `watchReciter` возвращает стрим per-reciter статистики:
+    // суммарный размер (bytes) и кол-во записей (count).
+    // При любой загрузке / удалении стрим обновит UI.
+    final stats = ref.watch(audioCacheProvider).watchReciter(reciter.id);
+    return StreamBuilder<({int bytes, int count})>(
+      stream: stats,
+      builder: (context, snap) {
+        final bytes = snap.data?.bytes ?? 0;
+        final count = snap.data?.count ?? 0;
+        final sizeText = _formatBytes(bytes);
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.borderSubtle),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      t.reciterName(
+                        reciter.id,
+                        fallback: reciter.nameEn,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${t.downloadsTotalCount(count)} • $sizeText',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (count > 0)
+                IconButton(
+                  tooltip: t.downloadsClear,
+                  onPressed: () => _confirmDelete(
+                    context,
+                    ref,
+                    t,
+                    reciterName: t.reciterName(
+                      reciter.id,
+                      fallback: reciter.nameEn,
+                    ),
+                  ),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: AppColors.error,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    }
+    return '${(bytes / 1024 / 1024).toStringAsFixed(0)} MB';
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations t, {
+    required String reciterName,
+  }) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(t.downloadsClear),
+        content: Text(
+          '${t.settingsCacheClearConfirm}\n\n$reciterName',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text(t.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: Text(t.ok),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref.read(audioCacheProvider).clearReciter(reciter.id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(t.settingsCacheCleared)),
     );
   }
 }

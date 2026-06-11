@@ -301,6 +301,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get statsTitle => 'Статистика';
 
   @override
+  String get statsSubtitle => 'Ваш прогресс в чтении Корана';
+
+  @override
   String get statsWeek => 'Неделя';
 
   @override
@@ -310,10 +313,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get statsYear => 'Год';
 
   @override
-  String get statsAllTime => 'Всего';
+  String get statsAllTime => 'Все время';
 
   @override
-  String get statsAyahsRead => 'Аятов прочитано';
+  String get statsAyahsRead => 'Прочитано аятов';
 
   @override
   String get statsSurahsRead => 'Прочитано сур';
@@ -326,6 +329,122 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get statsPerDay => 'Аятов в день';
+
+  @override
+  String get statsProgressTitle => 'Прочитано Корана';
+
+  @override
+  String statsProgressPct(Object pct) {
+    return '$pct%';
+  }
+
+  @override
+  String statsOfTotal(Object total) {
+    return 'из $total';
+  }
+
+  @override
+  String get statsTotalAll => 'всего';
+
+  @override
+  String get statsJuzTitle => 'Прогресс по джузам';
+
+  @override
+  String get statsJuzAll => 'Все джузы';
+
+  @override
+  String statsJuzProgressPct(Object pct) {
+    return '$pct%';
+  }
+
+  @override
+  String get statsAchievementsTitle => 'Последние достижения';
+
+  @override
+  String get statsAchievementsAll => 'Все';
+
+  @override
+  String get statsAchvLastRead => 'Прочитана сура';
+
+  @override
+  String get statsAchvStreak => 'Достигнута цель';
+
+  @override
+  String get statsAchvRecord => 'Новый рекорд';
+
+  @override
+  String get statsAchvStreakSubtitle => 'Чтение без перерывов';
+
+  @override
+  String get statsAchvRecordSubtitle => 'Прочитано за день';
+
+  @override
+  String get statsAchvToday => 'Сегодня';
+
+  @override
+  String get statsAchvYesterday => 'Вчера';
+
+  @override
+  String statsAchvDaysAgo(Object days) {
+    return '$days дн. назад';
+  }
+
+  @override
+  String get weekdayMon => 'Пн';
+
+  @override
+  String get weekdayTue => 'Вт';
+
+  @override
+  String get weekdayWed => 'Ср';
+
+  @override
+  String get weekdayThu => 'Чт';
+
+  @override
+  String get weekdayFri => 'Пт';
+
+  @override
+  String get weekdaySat => 'Сб';
+
+  @override
+  String get weekdaySun => 'Вс';
+
+  @override
+  String get monthShortJan => 'Янв';
+
+  @override
+  String get monthShortFeb => 'Фев';
+
+  @override
+  String get monthShortMar => 'Мар';
+
+  @override
+  String get monthShortApr => 'Апр';
+
+  @override
+  String get monthShortMay => 'Май';
+
+  @override
+  String get monthShortJun => 'Июн';
+
+  @override
+  String get monthShortJul => 'Июл';
+
+  @override
+  String get monthShortAug => 'Авг';
+
+  @override
+  String get monthShortSep => 'Сен';
+
+  @override
+  String get monthShortOct => 'Окт';
+
+  @override
+  String get monthShortNov => 'Ноя';
+
+  @override
+  String get monthShortDec => 'Дек';
 
   @override
   String get audioChooseSurah => 'Сура';
@@ -341,6 +460,26 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get audioNightMode => 'Ночной режим';
+
+  @override
+  String get audioSpeedOff => '1.0x';
+
+  @override
+  String get audioSleepOff => 'Выкл';
+
+  @override
+  String audioSleepMinutes(Object minutes) {
+    return '$minutes мин';
+  }
+
+  @override
+  String get audioSleepAfterCurrent => 'После текущей суры';
+
+  @override
+  String get audioPlaying => 'Воспроизведение';
+
+  @override
+  String get audioPaused => 'Пауза';
 
   @override
   String get audioOff => 'Выключен';
@@ -763,6 +902,92 @@ class AppLocalizationsRu extends AppLocalizations {
   String get learnTitle => 'Слова для повторения';
 
   @override
+  String get learnHubTitle => 'Учить';
+
+  @override
+  String get learnHubSubtitle =>
+      'Изучайте Коран по темам, правилам чтения\nи заучивайте наизусть';
+
+  @override
+  String get learnHubMemorization => 'Заучивание';
+
+  @override
+  String get learnHubMemorizationHint => 'Учите суры и аяты наизусть';
+
+  @override
+  String get learnHubMemorizationProgress => 'Прогресс заучивания';
+
+  @override
+  String get learnHubContinue => 'Продолжить';
+
+  @override
+  String get learnHubStart => 'Начать';
+
+  @override
+  String get learnHubQuickAccess => 'Быстрый доступ';
+
+  @override
+  String get learnHubRecent => 'Последние занятия';
+
+  @override
+  String get learnHubMyBookmarks => 'Мои закладки';
+
+  @override
+  String get learnHubMyStats => 'Статистика заучивания';
+
+  @override
+  String get learnHubMyPlan => 'План занятий';
+
+  @override
+  String get learnHubBySection => 'Учить по разделам';
+
+  @override
+  String get learnHubByJuz => 'Коран по частям (Джуз\')';
+
+  @override
+  String get learnHubByJuzHint => 'Разделы Корана для поэтапного изучения';
+
+  @override
+  String get learnHubBySurah => 'Суры';
+
+  @override
+  String get learnHubBySurahHint => 'Выберите суру для изучения и заучивания';
+
+  @override
+  String get learnHubRecentAyahs => 'Последние аяты';
+
+  @override
+  String get learnHubRecentAyahsHint => 'Читайте последние 50 аятов Корана';
+
+  @override
+  String get learnHubDuas => 'Дуа и зикры';
+
+  @override
+  String get learnHubDuasHint => 'Основные дуа и зикры на каждый день';
+
+  @override
+  String get learnHubTajweed => 'Правила таджвида';
+
+  @override
+  String get learnHubTajweedHint => 'Изучите правила правильного чтения';
+
+  @override
+  String get learnHubDailyGoal => 'Ежедневная цель';
+
+  @override
+  String learnHubDailyGoalAyahs(Object current, Object target) {
+    return '$current / $target аятов';
+  }
+
+  @override
+  String get learnHubDailyGoalHint => 'Продолжайте в том же духе!';
+
+  @override
+  String learnHubStreakDays(Object days) {
+    return 'Серия: $days дней';
+  }
+
+  @override
   String get learnSkip => 'Пропустить';
 
   @override
@@ -936,6 +1161,47 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get settingsReciterActive => 'Сейчас выбран';
+
+  @override
+  String get settingsDownloads => 'Загрузки';
+
+  @override
+  String get settingsDownloadsHint =>
+      'Управление аудио, кешированным на устройстве';
+
+  @override
+  String downloadsTotalCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count суры кешированы',
+      many: '$count сур кешировано',
+      few: '$count суры кешированы',
+      one: '$count сура кеширована',
+      zero: 'Нет кешированных сур',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get downloadsClear => 'Удалить все';
+
+  @override
+  String get contentUpdateChecking => 'Проверка обновлений контента…';
+
+  @override
+  String get contentUpdateUpToDate => 'Контент актуален';
+
+  @override
+  String contentUpdateAvailable(Object version) {
+    return 'Доступно обновление: v$version';
+  }
+
+  @override
+  String get contentUpdateFailed => 'Ошибка обновления контента';
+
+  @override
+  String get contentUpdateIntegrity => 'Сбой проверки целостности';
 
   @override
   String get mediaAlbum => 'Коран';

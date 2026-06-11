@@ -84,26 +84,24 @@ class _AyahTileState extends ConsumerState<AyahTile> {
     // OrnateDivider тоже НЕ здесь — разделитель между аятами
     // рисует [_SingleScrollMushaf._AyahSeparator] в `reader_screen.dart`,
     // чтобы можно было пропустить divider перед первым аятом.
+    //
+    // Build разбит на 3 приватных widget'а для читаемости
+    // (см. [AyahTile] god-build до рефакторинга — 50 строк):
+    //   1. [_AyahHeader]    — Row: badge + note + bookmark
+    //   2. [_ArabicTextBody] — арабский (Wrap/Text) + words
+    //   3. [_AyahTranslation] — перевод (опционально)
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              AyahNumberBadge(number: widget.ayah.ayahNumber),
-              const Spacer(),
-              // Кнопка заметок
-              _NoteButton(ayahId: widget.ayah.id),
-              const SizedBox(width: 4),
-              IconButton(
-                onPressed: widget.onToggleBookmark,
-                icon: BookmarkStar(filled: widget.isBookmarked, size: 22),
-              ),
-            ],
+          _AyahHeader(
+            ayah: widget.ayah,
+            isBookmarked: widget.isBookmarked,
+            onToggleBookmark: widget.onToggleBookmark,
           ),
           const SizedBox(height: 12),
-          _ArabicText(
+          _ArabicTextBody(
             ayah: widget.ayah,
             fontSize: widget.fontSize,
             words: _words,
@@ -112,20 +110,7 @@ class _AyahTileState extends ConsumerState<AyahTile> {
           ),
           if (widget.translation != null) ...[
             const SizedBox(height: 14),
-            // Перевод центрирован с большим межстрочным
-            // интервалом (1.6) — соответствует референсу, где
-            // между арабским и переводом — воздух, и перевод
-            // «дышит» по вертикали.
-            Text(
-              widget.translation!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                height: 1.6,
-                letterSpacing: 0.1,
-              ),
-            ),
+            _AyahTranslation(text: widget.translation!),
           ],
         ],
       ),
@@ -133,8 +118,62 @@ class _AyahTileState extends ConsumerState<AyahTile> {
   }
 }
 
-class _ArabicText extends ConsumerWidget {
-  const _ArabicText({
+/// Header одного аята: gold 8-point star badge слева, и
+/// кнопки заметки + закладки справа.
+class _AyahHeader extends StatelessWidget {
+  const _AyahHeader({
+    required this.ayah,
+    required this.isBookmarked,
+    required this.onToggleBookmark,
+  });
+
+  final Ayah ayah;
+  final bool isBookmarked;
+  final VoidCallback onToggleBookmark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        AyahNumberBadge(number: ayah.ayahNumber),
+        const Spacer(),
+        _NoteButton(ayahId: ayah.id),
+        const SizedBox(width: 4),
+        IconButton(
+          onPressed: onToggleBookmark,
+          icon: BookmarkStar(filled: isBookmarked, size: 22),
+        ),
+      ],
+    );
+  }
+}
+
+/// Блок перевода под арабским текстом. Отдельный widget —
+/// чтобы родительский [AyahTile.build] оставался компактным,
+/// и при отсутствии перевода (например, для не-выбранного
+/// translationLang) мы рендерим только `if`-секцию без
+/// разделителя.
+class _AyahTranslation extends StatelessWidget {
+  const _AyahTranslation({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        fontSize: 14,
+        color: AppColors.textSecondary,
+        height: 1.6,
+        letterSpacing: 0.1,
+      ),
+    );
+  }
+}
+
+class _ArabicTextBody extends ConsumerWidget {
+  const _ArabicTextBody({
     required this.ayah,
     required this.fontSize,
     required this.words,

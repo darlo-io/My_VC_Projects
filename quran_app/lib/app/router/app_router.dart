@@ -5,11 +5,11 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/audio/data/quran_audio_handler.dart';
 import '../../features/audio/presentation/listen_screen.dart';
 import '../../features/bookmarks/presentation/bookmarks_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
-import '../../features/learning/presentation/learn_screen.dart';
+import '../../features/learning/presentation/learn_hub_screen.dart';
+import '../../features/learning/presentation/learn_session_screen.dart';
 import '../../features/onboarding/presentation/language_picker_screen.dart';
 import '../../features/quran/presentation/reader_screen.dart';
 import '../../features/quran/presentation/surah_list_screen.dart';
@@ -20,6 +20,8 @@ import '../../features/tasbih/presentation/tasbih_screen.dart';
 import '../../features/test/presentation/quiz_screen.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../shared/widgets/main_scaffold.dart';
+import '../../core/content/content_update_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -94,7 +96,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/learn',
-        builder: (_, _) => const LearnScreen(),
+        builder: (_, _) => const LearnHubScreen(),
+      ),
+      GoRoute(
+        path: '/learn/review',
+        builder: (_, _) => const LearnSessionScreen(),
       ),
       GoRoute(
         path: '/test',
@@ -143,10 +149,73 @@ class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
   bool _failed = false;
   String _errorDetail = '';
 
+  // Подписка на `ContentUpdateService.state` через
+  // `addListener` (т.к. это ValueNotifier, а не Provider).
+  VoidCallback? _contentUpdateDisposer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _run());
+    // Подписываемся на `ContentUpdateService.state` ПОСЛЕ первого
+    // frame, чтобы не ловить начальный `idle`. При `completed` —
+    // SnackBar "Content is up to date" / "New content available".
+    // При `failed` — SnackBar с ошибкой.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final service = ref.read(contentUpdateServiceProvider);
+      ContentUpdateState? prev;
+      void onChange() {
+        if (!mounted) return;
+        final next = service.state.value;
+        // Skip initial `idle` — он приходит на mount.
+        if (prev == null) {
+          prev = next;
+          return;
+        }
+        if (next.stage == ContentUpdateStage.completed) {
+          final t = AppLocalizations.of(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                next.newVersion == null
+                    ? t.contentUpdateUpToDate
+                    : t.contentUpdateAvailable(next.newVersion!),
+              ),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else if (next.stage == ContentUpdateStage.failed) {
+          final t = AppLocalizations.of(context);
+          final isIntegrity =
+              (next.message ?? '').startsWith('integrity:');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isIntegrity
+                    ? t.contentUpdateIntegrity
+                    : t.contentUpdateFailed,
+              ),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        prev = next;
+      }
+
+      service.state.addListener(onChange);
+      _contentUpdateDisposer = () {
+        service.state.removeListener(onChange);
+      };
+    });
+  }
+
+  @override
+  void dispose() {
+    _contentUpdateDisposer?.call();
+    super.dispose();
   }
 
   Future<void> _run() async {

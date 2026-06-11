@@ -39,8 +39,9 @@ dependencies:
   just_audio: ^0.9.42
   audio_service: ^0.18.18
 
-  # Crypto for content integrity (SHA256)
+  # Crypto for content integrity (SHA256 уже в `crypto`; ED25519 — `cryptography`).
   crypto: ^3.0.5
+  cryptography: ^2.7.0
 
 dev_dependencies:
   flutter_test:

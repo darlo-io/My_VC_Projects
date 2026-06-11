@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart' show ValueNotifier;
+import 'package:flutter/services.dart' show rootBundle;
 
 import '../../features/audio/data/reciters_repository.dart';
 import '../../features/quran/data/al_fatiha_seed.dart';
@@ -13,6 +16,7 @@ import '../database/daos/word_timings_dao.dart';
 import '../database/daos/words_dao.dart';
 import '../search/arabic_normalizer.dart';
 import 'content_manifest.dart';
+import 'content_update_service.dart';
 import 'local_seed_service.dart';
 
 class ContentBootstrapper {
@@ -40,6 +44,12 @@ class ContentBootstrapper {
   final RecitersRepository recitersRepository;
   final LocalSeedService localSeed;
 
+  /// Опциональный [ContentUpdateService] для network-fetch +
+  /// verify + apply manifest'а. Передаётся вызывающим (см.
+  /// [contentBootstrapperProvider]) — иначе fallback к
+  /// `downloader.downloadAll()` без проверки.
+  ContentUpdateService? contentUpdateService;
+
   /// Состояние прогресса для UI.
   final ValueNotifier<BootstrapProgress> progress =
       ValueNotifier(const BootstrapProgress.idle());
@@ -60,6 +70,15 @@ class ContentBootstrapper {
   /// Возвращает true, если контент применён.
   Future<bool> bootstrap() async {
     if (await isReady()) {
+      // Content уже на диске. Дополнительно проверяем SHA256
+      // сохранённого payload'а на повреждение — если файл был
+      // модифицирован / повреждён вне APK, `appliedPayloadSha256`
+      // ≠ `actualSha256` → `rebuild` с нуля.
+      if (!await _verifyStoredPayload()) {
+        progress.value = const BootstrapProgress.loadingLocal();
+        final result = await localSeed.load();
+        await _applyLocalSeed(result, payloadSha256: await _sha256OfAsset());
+      }
       progress.value = const BootstrapProgress.complete(offline: true);
       return true;
     }
@@ -67,7 +86,14 @@ class ContentBootstrapper {
     // 1) Локальный seed — гарантированно, без сети.
     progress.value = const BootstrapProgress.loadingLocal();
     final result = await localSeed.load();
-    await _applyLocalSeed(result);
+    // SHA256-verification payload'а (см. ARCHITECTURE §16):
+    // считаем хеш бандла из APK, и если он не совпадает с
+    // ранее сохранённым, считаем что данные повреждены —
+    // rollback manifest, и при следующем bootstrap'е пере-применим
+    // с нуля (на этом запуске — мы уже в mid-bootstrap, поэтому
+    // просто перезатираем).
+    final payloadSha256 = await _sha256OfAsset();
+    await _applyLocalSeed(result, payloadSha256: payloadSha256);
 
     progress.value = const BootstrapProgress.complete(offline: true);
 
@@ -78,7 +104,33 @@ class ContentBootstrapper {
     return true;
   }
 
-  Future<void> _applyLocalSeed(ContentDownloadResult result) async {
+  /// SHA256 hex-хеш `assets/quran_seed/quran_full.json` (payload,
+  /// который зовётся [LocalSeedService.load]). Вызывается перед
+  /// [_applyLocalSeed] — хеш сохраняется в manifest
+  /// (`content.manifest.sha256`) и проверяется при следующем
+  /// bootstrap'е через [_verifyStoredPayload].
+  Future<String> _sha256OfAsset() async {
+    final raw = await rootBundle.loadString(localSeed.assetPath);
+    final digest = crypto.sha256.convert(utf8.encode(raw));
+    return digest.toString();
+  }
+
+  /// Сравнивает SHA256, сохранённый в manifest'е после последнего
+  /// apply, с SHA256 текущего asset'а. Если не совпадает —
+  /// значит, APK переустановили с другим payload'ом, или
+  /// bundle был повреждён на диске. В обоих случаях нужен
+  /// re-apply.
+  Future<bool> _verifyStoredPayload() async {
+    final stored = await manifestRepository.appliedPayloadSha256();
+    if (stored == null) return true; // ничего не сохранено — не с чем сравнивать
+    final actual = await _sha256OfAsset();
+    return stored == actual;
+  }
+
+  Future<void> _applyLocalSeed(
+    ContentDownloadResult result, {
+    String? payloadSha256,
+  }) async {
     // Один-единственный transaction на весь bootstrap. Если что-то
     // упадёт (например, диск заполнится на 3000-м аяте) — Drift
     // откатит все вставки, и БД останется в pre-bootstrap состоянии.
@@ -159,7 +211,10 @@ class ContentBootstrapper {
     // count-check'ом (`_seedWordsFromResult` / `_seedAlFatihaWords`
     // сначала смотрят `if (count > 0) return`), так что
     // повторный запуск после частичного успеха — no-op.
-    await manifestRepository.apply(defaultManifest());
+    await manifestRepository.apply(
+      defaultManifest(),
+      payloadSha256: payloadSha256,
+    );
     await recitersRepository.ensureSeeded();
     await _seedAlFatihaWords();
     await _seedWordsFromResult(result);
@@ -216,10 +271,27 @@ class ContentBootstrapper {
   }
 
   /// В фоне: проверка обновлений через сеть. Не критично.
-  Future<void> _fetchFromNetworkInBackground() async {
+  ///
+  /// На MVP v0.1 — просто `downloader.downloadAll()` для прогрева
+  /// audio-кеша. В Tier 3-11 — переключаем на
+  /// `ContentUpdateService.checkAndApply()`, который скачивает
+  /// manifest → SHA256 verify → ED25519 verify → min_app_version →
+  /// apply, и только при успехе делает `downloader.downloadAll()`.
+  ///
+  /// Передаётся [contentUpdateService] через DI (см. bootstrap()
+  /// — вызывающий передаёт опциональный сервис). Если `null`
+  /// (на свежей установке, где провайдер ещё не инициализирован)
+  /// — fallback к `downloader.downloadAll()`.
+  Future<void> _fetchFromNetworkInBackground({
+    ContentUpdateService? contentUpdateService,
+  }) async {
     try {
       networkProgress.value = const NetworkFetchProgress.started();
-      await downloader.downloadAll();
+      if (contentUpdateService != null) {
+        await contentUpdateService.checkAndApply();
+      } else {
+        await downloader.downloadAll();
+      }
       networkProgress.value = const NetworkFetchProgress.completed();
     } catch (_) {
       networkProgress.value = const NetworkFetchProgress.failed();

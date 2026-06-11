@@ -224,6 +224,116 @@ class PositionDao extends DatabaseAccessor<AppDatabase>
       return streak;
     });
   }
+
+  /// Сколько сур прочитано хотя бы на 1 аят. Используется для
+  /// `statsSurahsRead` (X из 114) и для "Progress по джузам" (X джузов
+  /// завершено полностью).
+  ///
+  /// `minRatio = 1.0` означает "вся сура прочитана". Меньшие значения
+  /// полезны для "X% суры прочитано".
+  Stream<int> watchSurahsReadCount({double minRatio = 0.0}) {
+    return customSelect(
+      '''
+      SELECT COUNT(*) AS c
+      FROM (
+        SELECT
+          a.surah_id,
+          CAST(SUM(CASE WHEN rh.ayahs_read > 0 THEN 1 ELSE 0 END) AS REAL)
+            / (SELECT COUNT(*) FROM ayahs a2 WHERE a2.surah_id = a.surah_id) AS ratio
+        FROM reading_history rh
+        JOIN ayahs a ON a.id = rh.ayah_id
+        GROUP BY a.surah_id
+      )
+      WHERE ratio >= ?
+      ''',
+      variables: [Variable.withReal(minRatio)],
+      readsFrom: {readingHistory, ayahs},
+    ).watchSingle().map((r) => r.read<int>('c'));
+  }
+
+  /// Progress по каждому из 30 джузов: `(juzNumber, read, total)`.
+  /// `read` — кол-во уникальных аятов этого джуза, на которые есть
+  /// запись в `reading_history`; `total` — общее кол-во аятов джуза.
+  ///
+  /// `progress = read / total` ∈ [0, 1].
+  Stream<List<JuzProgress>> watchJuzProgress() {
+    return customSelect(
+      '''
+      SELECT
+        a.juz        AS juz,
+        COUNT(DISTINCT a.id) AS read_count,
+        (SELECT COUNT(*) FROM ayahs a2 WHERE a2.juz = a.juz) AS total
+      FROM ayahs a
+      WHERE a.juz IS NOT NULL
+        AND a.id IN (
+          SELECT DISTINCT ayah_id FROM reading_history WHERE ayahs_read > 0
+        )
+      GROUP BY a.juz
+      ''',
+      readsFrom: {ayahs, readingHistory},
+    ).watch().map((rows) {
+      final byJuz = <int, JuzProgress>{};
+      for (final r in rows) {
+        final juz = r.read<int>('juz');
+        final read = r.read<int>('read_count');
+        final total = r.read<int>('total');
+        byJuz[juz] = JuzProgress(
+          juz: juz,
+          read: read,
+          total: total,
+          ratio: total == 0 ? 0.0 : (read / total).clamp(0.0, 1.0),
+        );
+      }
+      return byJuz;
+    }).map((byJuz) {
+      // Дополняем пустыми записями для джузов, по которым ещё нет
+      // чтения (на свежем install — все 30 джузов с ratio 0).
+      return List<JuzProgress>.generate(30, (i) {
+        final n = i + 1;
+        return byJuz[n] ?? JuzProgress(juz: n, read: 0, total: 0, ratio: 0.0);
+      });
+    });
+  }
+
+  /// Текущий «рекорд по дням» — максимальное кол-во аятов,
+  /// прочитанных за один день за всё время. Используется для
+  /// achievement «New record».
+  Stream<int> watchMaxAyahsInADay() {
+    return customSelect(
+      'SELECT COALESCE(MAX(daily_sum), 0) AS m FROM '
+      '(SELECT date, SUM(ayahs_read) AS daily_sum '
+      'FROM reading_history GROUP BY date)',
+      readsFrom: {readingHistory},
+    ).watchSingle().map((r) => r.read<int>('m'));
+  }
+
+  /// Общее время чтения (в секундах). На MVP v0.1
+  /// `reading_history` хранит только `ayahs_read`, без
+  /// `duration_seconds` — поэтому время чтения **оценивается**
+  /// как `ayahs_read * 3 секунды` (среднее время чтения одного
+  /// аята, ~20 слов по 0.15с/слово). В будущем — заменить на
+  /// реальный замер (см. ARCHITECTURE §19: "длительность
+  /// чтения").
+  Stream<int> watchReadingTimeSeconds() {
+    return customSelect(
+      'SELECT COALESCE(SUM(ayahs_read), 0) * 3 AS s FROM reading_history',
+      readsFrom: {readingHistory},
+    ).watchSingle().map((r) => r.read<int>('s'));
+  }
+}
+
+/// Прогресс по одному джузу.
+class JuzProgress {
+  const JuzProgress({
+    required this.juz,
+    required this.read,
+    required this.total,
+    required this.ratio,
+  });
+  final int juz; // 1..30
+  final int read;
+  final int total;
+  final double ratio; // [0.0, 1.0]
 }
 
 /// Format a [DateTime] as `YYYY-MM-DD` in local time. The
