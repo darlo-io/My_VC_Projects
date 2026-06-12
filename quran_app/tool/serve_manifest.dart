@@ -1,15 +1,26 @@
-// Минимальный HTTP-сервер для тестирования `ContentUpdateService`.
+// Минимальный HTTPS-сервер для тестирования `ContentUpdateService`.
+//
 // Отдаёт статические файлы из `--root` (по умолчанию `tool/signed`).
 // Запустите на машине разработчика:
 //
-//   dart run tool/serve_manifest.dart --root tool/signed --port 8765
+//   dart run tool/serve_manifest.dart --root tool/signed --port 8443
 //
-// Из эмулятора Android: `http://10.0.2.2:8765` (host-loopback).
-// Из физического устройства: `http://<your-LAN-IP>:8765`.
-// Из web/desktop: `http://localhost:8765`.
+// Перед первым запуском сгенерируйте self-signed cert:
+//
+//   pwsh -c "New-SelfSignedCertificate -DnsName 'quran-app.local','localhost' -CertStoreLocation 'Cert:\CurrentUser\My' ..."
+//
+//   & 'C:\Program Files\Git\bin\bash.exe' -c \
+//     "openssl pkcs12 -in tool/certs/server.pfx -nocerts -nodes -passin pass:quranapp \
+//      | openssl rsa -out tool/certs/server.key && \
+//      openssl pkcs12 -in tool/certs/server.pfx -clcerts -nokeys -passin pass:quranapp \
+//      > tool/certs/server.crt"
+//
+// Из эмулятора Android: `https://quran-app.local:8443` (нужно
+// добавить в `/etc/hosts` через `adb` или настроить `network_security_config.xml`).
+// Из физического устройства: `https://<your-LAN-IP>:8443`.
 //
 // Передайте URL в приложение через `--dart-define`:
-//   flutter run --dart-define=QURAN_MANIFEST_BASE=http://10.0.2.2:8765/v1
+//   flutter run --dart-define=QURAN_MANIFEST_BASE=https://quran-app.local:8443/v1
 //
 // (см. [quranManifestFallbackEndpoints] в `quran_api.dart` —
 // значение по умолчанию для продового endpoint'а, перебивается
@@ -20,10 +31,37 @@ import 'dart:io';
 Future<void> main(List<String> args) async {
   final root = args.length > 1 && args[0] == '--root' ? args[1] : 'tool/signed';
   final portArg = args.indexOf('--port');
-  final port = portArg >= 0 ? int.parse(args[portArg + 1]) : 8765;
+  final port = portArg >= 0 ? int.parse(args[portArg + 1]) : 8443;
+  final certPath = args.indexOf('--cert') >= 0
+      ? args[args.indexOf('--cert') + 1]
+      : 'tool/certs/server.crt';
+  final keyPath = args.indexOf('--key') >= 0
+      ? args[args.indexOf('--key') + 1]
+      : 'tool/certs/server.key';
 
-  final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
-  print('Serving ${Directory(root).absolute.path} on http://${server.address.host}:${server.port}');
+  // Загружаем self-signed cert + private key в `SecurityContext`.
+  final ctx = SecurityContext();
+  try {
+    ctx.useCertificateChain(certPath);
+    ctx.usePrivateKey(keyPath);
+  } catch (e) {
+    print('Failed to load TLS cert/key: $e');
+    print('Cert: $certPath (exists: ${File(certPath).existsSync()})');
+    print('Key:  $keyPath (exists: ${File(keyPath).existsSync()})');
+    print('Generate one with:');
+    print('  pwsh -c "New-SelfSignedCertificate -DnsName quran-app.local,localhost"');
+    print('  See header comments for full instructions.');
+    exit(1);
+  }
+
+  final server = await HttpServer.bindSecure(
+    InternetAddress.anyIPv4,
+    port,
+    ctx,
+  );
+  print(
+    'Serving ${Directory(root).absolute.path} on https://${server.address.host}:${server.port}',
+  );
   print('Press Ctrl+C to stop.');
 
   await for (final req in server) {
@@ -45,10 +83,12 @@ Future<void> main(List<String> args) async {
       req.response.headers.contentType = contentType;
       req.response.headers.add('Access-Control-Allow-Origin', '*');
       req.response.add(bytes);
+      // ignore: avoid_print
       print('  ${req.method} $path → 200 (${bytes.length} bytes)');
     } else {
       req.response.statusCode = HttpStatus.notFound;
       req.response.write('Not found: $path');
+      // ignore: avoid_print
       print('  ${req.method} $path → 404');
     }
     await req.response.close();

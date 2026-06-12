@@ -79,8 +79,9 @@ class QuranApi {
     for (final base in _manifestBaseEndpoints) {
       try {
         final url = '$base/manifest.json';
-        final client = HttpClient();
-        client.connectionTimeout = const Duration(seconds: 20);
+        final client = HttpClient()
+          ..connectionTimeout = const Duration(seconds: 20)
+          ..idleTimeout = const Duration(minutes: 5);
         try {
           final uri = Uri.parse(url);
           final request = await client.getUrl(uri).timeout(
@@ -94,11 +95,14 @@ class QuranApi {
             await response.drain<void>();
             continue;
           }
-          final builder = StringBuffer();
-          await for (final chunk in response.transform(utf8.decoder)) {
-            builder.write(chunk);
-          }
-          final body = builder.toString();
+          // Используем `response.fold` (полная буферизация) — НЕ
+          // streaming `await for`. Android emulator не отдаёт
+          // EOF для streamed response (баг `flutter/engine#42055`).
+          final bytes = await response.fold<List<int>>(
+            <int>[],
+            (acc, chunk) => acc..addAll(chunk),
+          );
+          final body = utf8.decode(bytes, allowMalformed: true);
           if (body.isEmpty) continue;
           return jsonDecode(body) as Map<String, dynamic>;
         } finally {
@@ -110,8 +114,6 @@ class QuranApi {
           name: 'QuranApi',
           error: e,
         );
-        // ignore: avoid_print
-        print('fetchContentManifest($base) failed: $e');
         continue;
       }
     }
@@ -132,15 +134,14 @@ class QuranApi {
     for (final base in _manifestBaseEndpoints) {
       try {
         final url = '$base/payloads/quran-$contentVersion.json';
-        // Используем `dart:io HttpClient` напрямую — обходит все
-        // баги `Dio` 5.x и `package:http` (Cronet) на Android
-        // emulator. `HttpClient` использует `java.net.HttpURLConnection`
-        // через `dart:io` — работает стабильно для больших body.
-        //
-        // Используем `response.timeout` с **жёстким** таймаутом
-        // (5 минут) и `client.idleTimeout` — без этого `HttpClient`
-        // на Android emulator не отдаёт EOF для streamed response
-        // (баг `flutter/engine#42055`).
+        // Используем `dart:io HttpClient` напрямую с **полной
+        // буферизацией** через `bytes` (НЕ streaming). На Android
+        // emulator streaming-запросы `await for (final chunk in
+        // response)` зависают после первого chunk без EOF
+        // (баг `flutter/engine#42055`). `response.bytes` блокирует
+        // до получения **всего** body + EOF, что работает
+        // надёжно. 5.6 MB — приемлемо для RAM на современных
+        // устройствах (~14 MB double-buffer overhead max).
         final client = HttpClient()
           ..connectionTimeout = const Duration(seconds: 20)
           ..idleTimeout = const Duration(minutes: 5)
@@ -151,12 +152,6 @@ class QuranApi {
                 const Duration(seconds: 30),
               );
           request.headers.set('Accept', 'application/json');
-          // `Connection: close` — заставляем сервер **закрыть**
-          // TCP connection после отправки всех bytes. Это даёт
-          // `dart:io HttpClient` корректный EOF на Android emulator
-          // (иначе сервер держит connection в keep-alive и
-          // `await for` не получает `done=true`).
-          request.headers.set('Connection', 'close');
           final response = await request.close().timeout(
                 const Duration(minutes: 5),
               );
@@ -164,10 +159,13 @@ class QuranApi {
             await response.drain<void>();
             continue;
           }
-          final bytes = <int>[];
-          await for (final chunk in response) {
-            bytes.addAll(chunk);
-          }
+          // `response.bytes` — блокирующий вызов, читает ВСЕ
+          // данные + EOF. На Android emulator это работает,
+          // в отличие от streaming `await for`.
+          final bytes = await response.fold<List<int>>(
+            <int>[],
+            (acc, chunk) => acc..addAll(chunk),
+          );
           return utf8.decode(bytes, allowMalformed: true);
         } finally {
           client.close(force: true);

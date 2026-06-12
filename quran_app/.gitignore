@@ -50,3 +50,10 @@ app.*.map.json
 /tool/signed/
 /tool/signedmanifest.json
 /tool/signedpayloads/
+
+# Self-signed TLS certs (regenerate locally via
+# `tool/gen_cert.sh` which uses `tool/certs/openssl.cnf`).
+/tool/certs/*.crt
+/tool/certs/*.key
+/tool/certs/*.pfx
+/tool/certs/openssl.cnf
