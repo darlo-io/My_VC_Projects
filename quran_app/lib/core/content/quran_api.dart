@@ -1,6 +1,6 @@
 import 'dart:convert';
-
-import 'package:http/http.dart' as http;
+import 'dart:developer' as developer;
+import 'dart:io';
 
 import '../networking/api_client.dart';
 
@@ -73,18 +73,45 @@ class QuranApi {
   /// }
   /// ```
   ///
-  /// Бросает [NetworkException] при отсутствии сети (через
-  /// [ApiClient.getJson]). Caller (ContentUpdateService) ловит
-  /// и интерпретирует как `no update available`.
+  /// Использует `dart:io HttpClient` напрямую — обходит баги
+  /// `Dio` 5.x на Android emulator (Cronet, MethodChannel, и т.д.).
   Future<Map<String, dynamic>?> fetchContentManifest() async {
     for (final base in _manifestBaseEndpoints) {
       try {
         final url = '$base/manifest.json';
-        final data = await _client.getJson(url);
-        if (data.isEmpty) continue;
-        return data;
-      } catch (_) {
-        // Fallback к следующему endpoint'у
+        final client = HttpClient();
+        client.connectionTimeout = const Duration(seconds: 20);
+        try {
+          final uri = Uri.parse(url);
+          final request = await client.getUrl(uri).timeout(
+                const Duration(seconds: 30),
+              );
+          request.headers.set('Accept', 'application/json');
+          final response = await request.close().timeout(
+                const Duration(seconds: 30),
+              );
+          if (response.statusCode != 200) {
+            await response.drain<void>();
+            continue;
+          }
+          final builder = StringBuffer();
+          await for (final chunk in response.transform(utf8.decoder)) {
+            builder.write(chunk);
+          }
+          final body = builder.toString();
+          if (body.isEmpty) continue;
+          return jsonDecode(body) as Map<String, dynamic>;
+        } finally {
+          client.close(force: true);
+        }
+      } catch (e) {
+        developer.log(
+          'fetchContentManifest($base) failed',
+          name: 'QuranApi',
+          error: e,
+        );
+        // ignore: avoid_print
+        print('fetchContentManifest($base) failed: $e');
         continue;
       }
     }
@@ -105,39 +132,53 @@ class QuranApi {
     for (final base in _manifestBaseEndpoints) {
       try {
         final url = '$base/payloads/quran-$contentVersion.json';
-        // Используем `package:http` напрямую — НЕ `Dio`.
+        // Используем `dart:io HttpClient` напрямую — обходит все
+        // баги `Dio` 5.x и `package:http` (Cronet) на Android
+        // emulator. `HttpClient` использует `java.net.HttpURLConnection`
+        // через `dart:io` — работает стабильно для больших body.
         //
-        // Почему: `Dio` 5.x на Android emulator для больших body
-        // (5+ MB) надёжно **не работает**:
-        //   - `Dio.raw.get<String>` — OutOfMemoryError при конвертации
-        //     UTF-8 → Java String через MethodChannel
-        //   - `Dio.raw.get<List<int>>` с `ResponseType.bytes` —
-        //     response зависает на `close()` без отправки запроса
-        //   - `Dio.get<ResponseBody>` с `ResponseType.stream` —
-        //     молча падает без видимой ошибки (dynamic cast fail)
-        //
-        // `package:http` идёт через `dart:io HttpClient` напрямую
-        // (без MethodChannel) — работает на Android emulator.
-        final uri = Uri.parse(url);
-        // `package:http` (как и Dio) не отдаёт stream напрямую в
-        // `bodyBytes` — он буферизует всё в `Uint8List`. Для 5 MB
-        // это ОК (RAM должно хватить; на старых устройствах
-        // можно переписать на streamed `http.Client.send`).
-        final response = await http
-            .get(
-              uri,
-              headers: const {'Accept': 'application/json'},
-            )
-            .timeout(const Duration(minutes: 5));
-        if (response.statusCode != 200) {
-          continue;
+        // Используем `response.timeout` с **жёстким** таймаутом
+        // (5 минут) и `client.idleTimeout` — без этого `HttpClient`
+        // на Android emulator не отдаёт EOF для streamed response
+        // (баг `flutter/engine#42055`).
+        final client = HttpClient()
+          ..connectionTimeout = const Duration(seconds: 20)
+          ..idleTimeout = const Duration(minutes: 5)
+          ..maxConnectionsPerHost = 1;
+        try {
+          final uri = Uri.parse(url);
+          final request = await client.getUrl(uri).timeout(
+                const Duration(seconds: 30),
+              );
+          request.headers.set('Accept', 'application/json');
+          // `Connection: close` — заставляем сервер **закрыть**
+          // TCP connection после отправки всех bytes. Это даёт
+          // `dart:io HttpClient` корректный EOF на Android emulator
+          // (иначе сервер держит connection в keep-alive и
+          // `await for` не получает `done=true`).
+          request.headers.set('Connection', 'close');
+          final response = await request.close().timeout(
+                const Duration(minutes: 5),
+              );
+          if (response.statusCode != 200) {
+            await response.drain<void>();
+            continue;
+          }
+          final bytes = <int>[];
+          await for (final chunk in response) {
+            bytes.addAll(chunk);
+          }
+          return utf8.decode(bytes, allowMalformed: true);
+        } finally {
+          client.close(force: true);
         }
-        return utf8.decode(response.bodyBytes, allowMalformed: true);
-      } catch (e) {
-        // Last-resort log: не пробрасываем — caller (ContentUpdateService)
-        // увидит NetworkException и запишет в state.
-        // ignore: avoid_print
-        print('fetchPayload($base) failed: $e');
+      } catch (e, st) {
+        developer.log(
+          'fetchPayload($base) failed',
+          name: 'QuranApi',
+          error: e,
+          stackTrace: st,
+        );
         continue;
       }
     }

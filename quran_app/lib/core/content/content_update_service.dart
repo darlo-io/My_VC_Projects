@@ -124,13 +124,19 @@ class ContentUpdateService {
         state.value = const ContentUpdateState(
           stage: ContentUpdateStage.downloadingPayload,
         );
+        // ignore: avoid_print
+        print('=== ContentUpdate: starting fetchPayload');
         final String raw;
         try {
           raw = await api.fetchPayload(
             contentVersion: remoteManifest.contentVersion,
             expectedSha256: remoteManifest.payloadSha256!,
           );
+          // ignore: avoid_print
+          print('=== ContentUpdate: fetchPayload OK, ${raw.length} bytes');
         } catch (e, st) {
+          // ignore: avoid_print
+          print('=== ContentUpdate: fetchPayload FAILED: $e');
           // Диагностика: часто падает на больших body (Dio + Android
           // MethodChannel), либо на timeout'е. Без логирования
           // мы видим только `state.value = failed: $e` без stack'а.
