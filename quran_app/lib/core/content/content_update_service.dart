@@ -124,10 +124,24 @@ class ContentUpdateService {
         state.value = const ContentUpdateState(
           stage: ContentUpdateStage.downloadingPayload,
         );
-        final raw = await api.fetchPayload(
-          contentVersion: remoteManifest.contentVersion,
-          expectedSha256: remoteManifest.payloadSha256!,
-        );
+        final String raw;
+        try {
+          raw = await api.fetchPayload(
+            contentVersion: remoteManifest.contentVersion,
+            expectedSha256: remoteManifest.payloadSha256!,
+          );
+        } catch (e, st) {
+          // Диагностика: часто падает на больших body (Dio + Android
+          // MethodChannel), либо на timeout'е. Без логирования
+          // мы видим только `state.value = failed: $e` без stack'а.
+          developer.log(
+            'fetchPayload failed',
+            name: 'ContentUpdateService',
+            error: e,
+            stackTrace: st,
+          );
+          rethrow;
+        }
         actualPayloadSha =
             crypto.sha256.convert(utf8.encode(raw)).toString();
         if (actualPayloadSha != remoteManifest.payloadSha256) {

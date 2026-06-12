@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
 import '../networking/api_client.dart';
 
 /// API Quran (alquran.cloud v1) — публичное API с возможностью
@@ -8,16 +12,28 @@ class QuranApi {
   final ApiClient _client;
   static const _base = 'https://api.alquran.cloud/v1';
 
-  /// Базовый URL для content-update endpoint'а (отдельный от
-  /// alquran.cloud). На MVP v0.1 — фиктивный; в проде заменяется
-  /// на `https://content.quran-app.com/v1/`.
+  /// Базовые URL'ы для content-update endpoint'а (отдельный от
+  /// alquran.cloud). Override через
+  /// `--dart-define=QURAN_MANIFEST_BASE=http://localhost:8765/v1`
+  /// — вставляется **первым** в список. Используется
+  /// `String.fromEnvironment` (compile-time const) + manual
+  /// list-concat, чтобы override был первым в порядке fallback.
   ///
-  /// Поддерживает fallback через `quranManifestFallbackEndpoints`
-  /// (см. [quranManifestFallbackEndpoints]) — если primary
-  /// endpoint возвращает 404/5xx, пробуем backup'ы.
-  static const _manifestBase =
-      String.fromEnvironment('QURAN_MANIFEST_BASE',
-          defaultValue: 'https://content.quran-app.com/v1');
+  /// Имя env var **без пробелов** (`QURAN_MANIFEST_BASE`) — иначе
+  /// PowerShell и dart-define не парсят.
+  static const _manifestBaseOverride = String.fromEnvironment(
+    'QURAN_MANIFEST_BASE',
+    defaultValue: '',
+  );
+
+  /// Список endpoint'ов для content-manifest. Первый — primary
+  /// (override через `--dart-define=QURAN_MANIFEST_BASE` или
+  /// встроенный `https://content.quran-app.com/v1`). Остальные —
+  /// fallback'и (см. [quranManifestFallbackEndpoints]).
+  static final List<String> _manifestBaseEndpoints = [
+    if (_manifestBaseOverride.isNotEmpty) _manifestBaseOverride,
+    ...quranManifestFallbackEndpoints,
+  ];
 
   /// Загрузить список сур (114 сур с метаданными).
   Future<List<Map<String, dynamic>>> fetchSurahs() async {
@@ -61,7 +77,7 @@ class QuranApi {
   /// [ApiClient.getJson]). Caller (ContentUpdateService) ловит
   /// и интерпретирует как `no update available`.
   Future<Map<String, dynamic>?> fetchContentManifest() async {
-    for (final base in quranManifestFallbackEndpoints) {
+    for (final base in _manifestBaseEndpoints) {
       try {
         final url = '$base/manifest.json';
         final data = await _client.getJson(url);
@@ -86,16 +102,42 @@ class QuranApi {
     required String contentVersion,
     required String expectedSha256,
   }) async {
-    for (final base in quranManifestFallbackEndpoints) {
+    for (final base in _manifestBaseEndpoints) {
       try {
         final url = '$base/payloads/quran-$contentVersion.json';
-        // Используем `Dio` напрямую (raw GET) — нам нужен
-        // полный body как String для SHA256, а не JSON-парсинг.
-        final resp = await _client.raw.get<String>(url);
-        if (resp.statusCode == 200 && resp.data != null) {
-          return resp.data!;
+        // Используем `package:http` напрямую — НЕ `Dio`.
+        //
+        // Почему: `Dio` 5.x на Android emulator для больших body
+        // (5+ MB) надёжно **не работает**:
+        //   - `Dio.raw.get<String>` — OutOfMemoryError при конвертации
+        //     UTF-8 → Java String через MethodChannel
+        //   - `Dio.raw.get<List<int>>` с `ResponseType.bytes` —
+        //     response зависает на `close()` без отправки запроса
+        //   - `Dio.get<ResponseBody>` с `ResponseType.stream` —
+        //     молча падает без видимой ошибки (dynamic cast fail)
+        //
+        // `package:http` идёт через `dart:io HttpClient` напрямую
+        // (без MethodChannel) — работает на Android emulator.
+        final uri = Uri.parse(url);
+        // `package:http` (как и Dio) не отдаёт stream напрямую в
+        // `bodyBytes` — он буферизует всё в `Uint8List`. Для 5 MB
+        // это ОК (RAM должно хватить; на старых устройствах
+        // можно переписать на streamed `http.Client.send`).
+        final response = await http
+            .get(
+              uri,
+              headers: const {'Accept': 'application/json'},
+            )
+            .timeout(const Duration(minutes: 5));
+        if (response.statusCode != 200) {
+          continue;
         }
-      } catch (_) {
+        return utf8.decode(response.bodyBytes, allowMalformed: true);
+      } catch (e) {
+        // Last-resort log: не пробрасываем — caller (ContentUpdateService)
+        // увидит NetworkException и запишет в state.
+        // ignore: avoid_print
+        print('fetchPayload($base) failed: $e');
         continue;
       }
     }
@@ -104,12 +146,15 @@ class QuranApi {
 }
 
 /// Fallback endpoint'ы для content manifest'а. Primary
-/// закомментирован (фиктивный URL); в проде раскомментировать
-/// `https://content.quran-app.com` или указать через
-/// `--dart-define=QURAN_MANIFEST_BASE=https://...`.
+/// по умолчанию — `https://content.quran-app.com/v1`; в проде
+/// убедитесь, что домен резолвится. Backup — GitHub Pages
+/// (статический manifest.json, можно деплоить через
+/// `gh-pages` branch). Первый endpoint'override через
+/// `--dart-define=QURAN_MANIFEST_BASE=...` (см.
+/// `QuranApi._manifestBaseEndpoints`).
 const quranManifestFallbackEndpoints = <String>[
-  // Primary
-  // 'https://content.quran-app.com/v1',
+  // Primary (default)
+  'https://content.quran-app.com/v1',
   // Backup: GitHub Pages
   'https://quran-app.github.io/content/v1',
 ];

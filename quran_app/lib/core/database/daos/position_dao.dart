@@ -57,8 +57,11 @@ class PositionDao extends DatabaseAccessor<AppDatabase>
       WHERE lp.id = 1
       ''',
       readsFrom: {lastPosition, surahs, ayahs},
-    ).watchSingle().map(
+    ).watchSingleOrNull().map(
       (row) {
+        if (row == null) {
+          return const LastReadPosition.empty();
+        }
         final lpSurahId = row.readNullable<int>('lp_surah_id');
         if (lpSurahId == null) {
           return const LastReadPosition.empty();

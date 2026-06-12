@@ -194,11 +194,12 @@ class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
             SnackBar(
               content: Text(
                 isIntegrity
-                    ? t.contentUpdateIntegrity
-                    : t.contentUpdateFailed,
+                    ? '${t.contentUpdateIntegrity}\n${next.message ?? ''}'
+                    : '${t.contentUpdateFailed}\n${next.message ?? ''}',
+                style: const TextStyle(fontSize: 12),
               ),
               backgroundColor: AppColors.error,
-              duration: const Duration(seconds: 4),
+              duration: const Duration(seconds: 8),
             ),
           );
         }

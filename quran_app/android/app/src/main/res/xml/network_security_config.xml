@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network security config для приложения.
+
+  В Android 9+ (API 28+) cleartext HTTP запрещён по умолчанию.
+  Dio-вызовы на `http://...` молча отбрасываются.
+
+  На dev-этапе разрешаем cleartext **глобально** через
+  `cleartextTrafficPermitted="true"` в base-config — это
+  включает все домены, в т.ч. `10.0.2.2` (host-loopback
+  Android Emulator), `localhost`, `127.0.0.1`.
+
+  В проде этот файл **нужно** переключить на:
+    - `cleartextTrafficPermitted="false"` в base-config
+    - явный whitelist только для loopback'ов, либо
+    - выпустить продовый endpoint под HTTPS.
+
+  Продовые endpoint'ы (`api.alquran.cloud`, `quran-app.github.io`,
+  `content.quran-app.com`) — только HTTPS. Продовый manifest
+  всегда подписан Ed25519, так что MITM-атаки на cleartext
+  были бы детектируемы даже без TLS — но в проде всё равно
+  используем HTTPS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

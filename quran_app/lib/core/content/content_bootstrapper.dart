@@ -80,26 +80,30 @@ class ContentBootstrapper {
         await _applyLocalSeed(result, payloadSha256: await _sha256OfAsset());
       }
       progress.value = const BootstrapProgress.complete(offline: true);
-      return true;
+    } else {
+      // 1) Локальный seed — гарантированно, без сети.
+      progress.value = const BootstrapProgress.loadingLocal();
+      final result = await localSeed.load();
+      // SHA256-verification payload'а (см. ARCHITECTURE §16):
+      // считаем хеш бандла из APK, и если он не совпадает с
+      // ранее сохранённым, считаем что данные повреждены —
+      // rollback manifest, и при следующем bootstrap'е пере-применим
+      // с нуля (на этом запуске — мы уже в mid-bootstrap, поэтому
+      // просто перезатираем).
+      final payloadSha256 = await _sha256OfAsset();
+      await _applyLocalSeed(result, payloadSha256: payloadSha256);
+
+      progress.value = const BootstrapProgress.complete(offline: true);
     }
 
-    // 1) Локальный seed — гарантированно, без сети.
-    progress.value = const BootstrapProgress.loadingLocal();
-    final result = await localSeed.load();
-    // SHA256-verification payload'а (см. ARCHITECTURE §16):
-    // считаем хеш бандла из APK, и если он не совпадает с
-    // ранее сохранённым, считаем что данные повреждены —
-    // rollback manifest, и при следующем bootstrap'е пере-применим
-    // с нуля (на этом запуске — мы уже в mid-bootstrap, поэтому
-    // просто перезатираем).
-    final payloadSha256 = await _sha256OfAsset();
-    await _applyLocalSeed(result, payloadSha256: payloadSha256);
-
-    progress.value = const BootstrapProgress.complete(offline: true);
-
-    // 2) Сетевой fetch — best-effort, не блокирует UI. Если не получится —
-    //    приложение работает на local seed.
-    unawaited(_fetchFromNetworkInBackground());
+    // 2) Сетевой fetch — best-effort, не блокирует UI. Если не
+    // получится — приложение работает на local seed. Запускаем
+    // в ОБОИХ ветках (cold install + warm start) — это критично:
+    // без него ContentUpdateService никогда не сработает на
+    // устройствах, где seed-bootstrap уже завершился.
+    unawaited(_fetchFromNetworkInBackground(
+      contentUpdateService: contentUpdateService,
+    ));
 
     return true;
   }

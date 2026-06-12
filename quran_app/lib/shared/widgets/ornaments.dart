@@ -719,11 +719,9 @@ class ArabesqueBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: IgnorePointer(
-        child: CustomPaint(
-          painter: _ArabesquePainter(opacity: opacity),
-        ),
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _ArabesquePainter(opacity: opacity),
       ),
     );
   }

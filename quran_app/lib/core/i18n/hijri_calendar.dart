@@ -123,9 +123,9 @@ String formatHijriDate(HijriDate d, String localeCode) {
     case 'ar':
       return '${d.day} $month ${d.year} هـ';
     case 'ru':
-      return '$d.day $month $d.year г. х.';
+      return '${d.day} $month ${d.year} г. х.';
     case 'en':
     default:
-      return '$d.day $month $d.year AH';
+      return '${d.day} $month ${d.year} AH';
   }
 }

@@ -18,7 +18,7 @@ class HomeScreen extends ConsumerWidget {
     final t = AppLocalizations.of(context);
     final loc = Localizations.localeOf(context);
     final lastAsync = ref.watch(lastReadPositionProvider);
-    final last = lastAsync.value ?? const LastReadPosition.empty();
+    final last = lastAsync.valueOrNull ?? const LastReadPosition.empty();
     final isEmpty = last.surahId == 0;
     // In Arabic UI we keep the Arabic name as the primary visible
     // label; in any other locale we look up the ARB translation
@@ -133,7 +133,7 @@ class _Greeting extends StatelessWidget {
               Text(
                 greeting,
                 style: const TextStyle(
-                  fontSize: 36,
+                  fontSize: 32,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFFEDE6D3),
                   height: 1.05,

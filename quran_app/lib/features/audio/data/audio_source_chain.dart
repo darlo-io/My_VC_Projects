@@ -185,9 +185,13 @@ class AudioSourceResolver {
       final resp = await dio.head<dynamic>(
         url,
         options: Options(
-          responseType: ResponseType.plain,
-          // `validateStatus: null` — мы сами решаем, что ОК.
-          validateStatus: (s) => s != null && s < 500,
+          // `ResponseType.stream` — критично: для пустого HEAD-ответа
+          // `FusedTransformer.transformResponse` иначе выкидывает
+          // `DioExceptionType.unknown` (см. dio#1512). Нам не нужен
+          // body — только headers и status.
+          responseType: ResponseType.stream,
+          // Не бросаем на 4xx/5xx — обрабатываем fallback сами.
+          validateStatus: (s) => s != null && s < 600,
           sendTimeout: chain.perSourceTimeout,
           receiveTimeout: chain.perSourceTimeout,
         ),
@@ -199,6 +203,10 @@ class AudioSourceResolver {
       if (code >= 200 && code < 300) {
         return _contentLength(resp);
       }
+      return null;
+    } on DioException catch (_) {
+      // Любая Dio-ошибка (network, timeout, transform) — трактуем
+      // как failure этого источника; переходим к следующему.
       return null;
     } catch (_) {
       return null;
@@ -215,7 +223,9 @@ class AudioSourceResolver {
           // (200 или 206 Partial Content) и достать `Content-Range`
           // для общего размера файла.
           headers: {'Range': 'bytes=0-0'},
-          responseType: ResponseType.plain,
+          // `stream` вместо `plain` — обход Dio 5.9 bug c пустым
+          // body в transformer'е.
+          responseType: ResponseType.stream,
           validateStatus: (s) => s != null && s < 400,
           sendTimeout: chain.perSourceTimeout,
           receiveTimeout: chain.perSourceTimeout,
@@ -232,6 +242,8 @@ class AudioSourceResolver {
       }
       // Fallback: `Content-Length` самой range-выдачи (1 байт).
       return _contentLength(resp);
+    } on DioException catch (_) {
+      return null;
     } catch (_) {
       return null;
     }
