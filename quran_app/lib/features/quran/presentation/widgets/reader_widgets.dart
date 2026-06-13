@@ -19,6 +19,7 @@ class AyahTile extends ConsumerStatefulWidget {
     required this.isBookmarked,
     required this.onToggleBookmark,
     this.lineByLine = true,
+    this.tileKey,
     super.key,
   });
 
@@ -27,6 +28,18 @@ class AyahTile extends ConsumerStatefulWidget {
   final double fontSize;
   final bool isBookmarked;
   final VoidCallback onToggleBookmark;
+
+  /// Опциональный [GlobalKey], прокинутый из `_SingleScrollMushaf`
+  /// для трекинга реальной высоты / позиции каждого аята в
+  /// viewport'е. Используется `findRenderObject()` → `localToGlobal(Offset.zero)`
+  /// в `_onScroll` для точного определения "какой аят сейчас
+  /// в нижней части viewport'а" (вместо предположения `tileExtent = 220`).
+  ///
+  /// Передаётся **только** в lineByLine-режиме (где каждый аят —
+  /// отдельный `AyahTile` widget). В book-режиме все аяты
+  /// объединены в один `Text`-поток, и RenderBox-логика
+  /// недоступна.
+  final GlobalKey? tileKey;
 
   /// Режим чтения: `true` (по умолчанию) — арабские слова идут
   /// в `Wrap` с `WrapAlignment.center`, визуально выровнены
@@ -91,6 +104,12 @@ class _AyahTileState extends ConsumerState<AyahTile> {
     //   2. [_ArabicTextBody] — арабский (Wrap/Text) + words
     //   3. [_AyahTranslation] — перевод (опционально)
     return Padding(
+      // [widget.tileKey] прокидывается в **обёртку** Padding, чтобы
+      // `findRenderObject()` вернул правильный RenderBox аята
+      // (без ключа `localToGlobal` считал бы координаты самого
+      // Padding'а, что даёт тот же результат — обёртка здесь для
+      // семантической ясности: «key отмечает именно tile»).
+      key: widget.tileKey,
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

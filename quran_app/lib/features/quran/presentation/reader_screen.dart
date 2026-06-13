@@ -329,6 +329,25 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                     surahId: a.surahId,
                                   ));
                                 },
+                                // Финальная запись при выходе с
+                                // экрана (через `dispose()` в
+                                // `_SingleScrollMushaf`). Гарантирует,
+                                // что **последний видимый** аят
+                                // попадёт в БД, даже если
+                                // scroll-tick не успел записать
+                                // из-за throttle 200ms или если
+                                // пользователь не скроллил
+                                // (тогда `_lastReportedAyahId`
+                                // ещё `null` — пишем
+                                // `widget.initialAyah`).
+                                onFinalAyah: (int ayahId) {
+                                  final repo =
+                                      ref.read(quranRepositoryProvider);
+                                  unawaited(repo.recordLastRead(
+                                    surahId: widget.surahId,
+                                    ayahId: ayahId,
+                                  ));
+                                },
                                 onToggleBookmark:
                                     (Ayah a, bool isBookmarked) =>
                                         toggleBookmark(
@@ -866,6 +885,7 @@ class _SingleScrollMushaf extends StatefulWidget {
     required this.lineByLine,
     this.onScrollDelta,
     this.onInitialLoad,
+    this.onFinalAyah,
   });
 
   final List<Ayah> ayahs;
@@ -892,6 +912,14 @@ class _SingleScrollMushaf extends StatefulWidget {
   /// индексу.
   final void Function(List<Ayah> ayahs)? onInitialLoad;
 
+  /// Callback, вызываемый в `dispose()` с `id` последнего
+  /// видимого аята. Позволяет родителю сделать **финальную**
+  /// запись `recordLastRead` даже если последний scroll-tick
+  /// не успел записать из-за throttle 200ms или быстрого
+  /// fling'а (когда `_onScroll` зовётся редко, и `_lastReportedAyahId`
+  /// может отставать от фактического положения).
+  final void Function(int ayahId)? onFinalAyah;
+
   @override
   State<_SingleScrollMushaf> createState() => _SingleScrollMushafState();
 }
@@ -908,9 +936,18 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
   // auto-hide панелей). -1 = ещё не сэмплировано.
   double _lastOffset = -1;
 
+  // [GlobalKey] для каждого `AyahTile` в `lineByLine` режиме.
+  // Используется в [_onScroll] через `findRenderObject` →
+  // `localToGlobal(Offset.zero)` для **точного** определения
+  // позиции аята в viewport'е. В `book` режиме (арабский поток
+  // в одном `Text`) ключи не создаются, fallback на
+  // `tileExtent`-эвристику.
+  late List<GlobalKey> _tileKeys;
+
   @override
   void initState() {
     super.initState();
+    _tileKeys = List.generate(widget.ayahs.length, (_) => GlobalKey());
     widget.scrollCtrl.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -932,6 +969,26 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
 
   @override
   void dispose() {
+    // Финальная запись `last_position`: если пользователь дочитал
+    // до аята X и сразу вышел (например, нажал `KEYCODE_BACK`
+    // или тапнул в bottom-nav), последний scroll-tick мог **не**
+    // записать X из-за throttle 200ms. Здесь мы знаем
+    // `_lastReportedAyahId` — записываем его явно.
+    //
+    // **Fallback**: если `_lastReportedAyahId == null` (пользователь
+    // не скроллил вообще — открыл Reader и сразу вышел), пишем
+    // `widget.initialAyah`. В этом случае `_lastReportedAyahId`
+    // остаётся `null` потому что scroll-tick'и не сработали;
+    // но `recordLastRead(ayahId: initialAyah.id)` уже сделал
+    // parent'овский initState (см. `_ReaderScreenState.initState`),
+    // — **дополнительная** запись в `dispose()` не повредит:
+    // она просто повторит то же значение, что безопасно
+    // (если `last_position` уже записан, `insertOnConflictUpdate`
+    // просто обновит timestamp).
+    final fallbackAyahId = _lastReportedAyahId;
+    if (fallbackAyahId != null && widget.onFinalAyah != null) {
+      widget.onFinalAyah!(fallbackAyahId);
+    }
     widget.scrollCtrl.removeListener(_onScroll);
     super.dispose();
   }
@@ -954,33 +1011,103 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
     final now = DateTime.now();
     if (now.difference(_lastReportAt).inMilliseconds < 200) return;
 
-    final offset = widget.scrollCtrl.offset;
+    // Определяем активный аят по **реальным** координатам
+    // RenderBox'ов (если есть GlobalKey'и). В `lineByLine`-режиме
+    // ключи `_tileKeys[i]` ведут на `AyahTile` с i-м аятом;
+    // используем `localToGlobal(Offset.zero)` чтобы узнать
+    // верхнюю глобальную Y каждого аята, и сравниваем с
+    // `bottomY` viewport'а.
     final viewport = widget.scrollCtrl.position.viewportDimension;
-    final centerY = offset + viewport / 2;
+    final found = _findActiveAyahByRenderBox(currentOffset, viewport);
+    if (found == null) return;
+    if (found.id != _lastReportedAyahId) {
+      _lastReportedAyahId = found.id;
+      _lastReportAt = now;
+      widget.onAyahVisible(found);
+    }
+  }
 
-    // Активный аят — тот, у которого `startY <= centerY < endY`.
-    // `startY` берём из RenderBox'а через globalToLocal —
-    // проще через `NotificationListener<ScrollNotification>`,
-    // но мы внутри `addListener`, где нет контекста. Поэтому
-    // итерируем и сравниваем accumulated height по
-    // `AyahTile.estimatedExtent` (≈ 220 лог. пикс. при
-    // fontSize=28). Для точного срабатывания нужен
-    // GlobalKey, но throttling + estimated extent даёт
-    // ±1 аят, что для записи прогресса вполне достаточно.
+  /// Возвращает аят, у которого `topY <= bottomY < bottomY + viewport`.
+  /// Использует `GlobalKey.findRenderObject` + `RenderBox.localToGlobal`
+  /// для **точных** координат (в отличие от эвристики `tileExtent = 220`).
+  /// Если ключи не привязаны (book-режим) — fallback на
+  /// `tileExtent`-эвристику.
+  Ayah? _findActiveAyahByRenderBox(double currentOffset, double viewport) {
+    if (widget.lineByLine && _tileKeys.isNotEmpty) {
+      // Скролл-контейнер находится **выше** экрана (его origin
+      // в глобальных координатах отрицательный, потому что
+      // `SingleChildScrollView` смещён вверх на `currentOffset`).
+      //
+      // `currentOffset` — это **локальный** Y скролла в его
+      // собственном координатном пространстве (top = 0,
+      // bottom = scrollableHeight). `viewport` — высота видимой
+      // части. `bottomY = currentOffset + viewport` — Y нижней
+      // границы viewport'а в координатах scrollable-контента.
+      //
+      // Чтобы перевести `bottomY` в **глобальные** координаты
+      // (с которыми работает `localToGlobal`), используем
+      // RenderBox самого `SingleChildScrollView`:
+      //   `bottomY_global = scrollBox.globalY + viewport`
+      //
+      // Затем для каждого tile: `tile.globalY < bottomY_global` —
+      // tile **в viewport'е** (его верхняя граница выше нижней
+      // границы viewport'а).
+      final scrollBox = _findScrollRenderBox();
+      if (scrollBox == null) return null;
+      final scrollGlobalY = scrollBox.localToGlobal(Offset.zero).dy;
+      final bottomYGlobal = scrollGlobalY + viewport;
+
+      // Проходим по tile'ам в обратном порядке (от конца) и
+      // возвращаем **первый**, чей верх (`topY < bottomYGlobal`).
+      // Это даёт **последний видимый** аят — пользователь только
+      // что читал его (или дочитывает сейчас).
+      for (var i = _tileKeys.length - 1; i >= 0; i--) {
+        final key = _tileKeys[i];
+        final ctx = key.currentContext;
+        if (ctx == null) continue;
+        final box = ctx.findRenderObject();
+        if (box is! RenderBox) continue;
+        final tileTopGlobalY = box.localToGlobal(Offset.zero).dy;
+        if (tileTopGlobalY < bottomYGlobal) {
+          return widget.ayahs[i];
+        }
+      }
+      // Ни один tile не попал в viewport (например, все tile'ы
+      // выше top'а scroll'а) — возвращаем первый.
+      return widget.ayahs.first;
+    }
+    // Fallback: book-режим (один Text-поток) или edge-case.
+    // Используем `tileExtent`-эвристику как раньше.
     var cumulative = 0.0;
     const tileExtent = 220.0;
+    final centerY = currentOffset + viewport / 2;
     for (final a in widget.ayahs) {
       final next = cumulative + tileExtent;
       if (centerY >= cumulative && centerY < next) {
-        if (_lastReportedAyahId != a.id) {
-          _lastReportedAyahId = a.id;
-          _lastReportAt = now;
-          widget.onAyahVisible(a);
-        }
-        return;
+        return a;
       }
       cumulative = next;
     }
+    return null;
+  }
+
+  /// Ищет [RenderBox] для `SingleChildScrollView` в subtree текущего
+  /// widget'а. Используется для вычисления глобальной Y нижней
+  /// границы viewport'а.
+  RenderBox? _findScrollRenderBox() {
+    final ctx = context;
+    RenderBox? result;
+    void visitor(Element el) {
+      final ro = el.renderObject;
+      if (ro is RenderBox && el.widget is SingleChildScrollView) {
+        result = ro;
+        return;
+      }
+      el.visitChildren(visitor);
+    }
+
+    ctx.visitChildElements(visitor);
+    return result;
   }
 
   @override
@@ -1009,6 +1136,11 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
             // аят идёт сразу после ornament-рамочки заголовка.
             if (i > 0) const _AyahSeparator(),
             AyahTile(
+              // `tileKey` прокидывается из `_tileKeys[i]` — см.
+              // [_findActiveAyahByRenderBox]. Используется для
+              // точного определения активного аята через
+              // `RenderBox.localToGlobal`.
+              tileKey: i < _tileKeys.length ? _tileKeys[i] : null,
               ayah: widget.ayahs[i],
               translation: widget.translations[widget.ayahs[i].id],
               fontSize: widget.fontSize,
