@@ -69,6 +69,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // визуально неотличим от «идеального» scroll'а.
   final ScrollController _pageCtrl = ScrollController();
 
+  /// Стабильный [GlobalKey] для `_SingleScrollMushaf` — через
+  /// `mushafKey.currentState` parent может дёргать
+  /// `scrollToAyahByIndex(idx)` для deep-link scroll (Continue
+  /// button → `/reader/1?ayah=5` ставит аят 5 в центр viewport'а).
+  ///
+  /// Ключ пересоздаётся на каждый `surahId` (через `ValueKey(surahId)`),
+  /// чтобы избежать конфликтов при смене сурah'а — иначе старый
+  /// `_SingleScrollMushafState` остался бы привязан к новому
+  /// widget'у (типичный Flutter pitfall с `GlobalKey`).
+  final GlobalKey _mushafKey = GlobalKey();
+
   // Видимость control-панелей (верхняя + нижняя). По умолчанию
   // `true` — пользователь сразу видит заголовок суры. Тап по
   // Mushaf-области → toggle. Auto-hide при scroll-down — через
@@ -126,7 +137,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       // См. [_scrollToAyah] для подробностей про tileExtent.
       if (widget.initialAyah > 1) {
         // Ищем ayah по number в текущем кеше. Если ayahs ещё
-        // не загружены (StreamBuilder в loading), _scrollToAyah
+        // не загружены (StreamBuilder в loading), scroll
         // no-op'ом выйдет. Следующая загрузка в build() сама
         // вызовет scroll через [onAyahsLoaded] callback.
         final idx = _lastAyahs?.indexWhere(
@@ -134,7 +145,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             ) ??
             -1;
         if (idx >= 0) {
-          _scrollToAyah(idx);
+          // Определяем режим: lineByLine → `_SingleScrollMushaf`
+          // (через GlobalKey), book → локальный `_scrollToAyah`.
+          if (_readingMode == 'lineByLine') {
+            final state = _mushafKey.currentState;
+            if (state is _SingleScrollMushafState) {
+              state.scrollToAyahByIndex(idx);
+            }
+          } else {
+            _scrollToAyah(idx);
+          }
         }
       }
     });
@@ -293,6 +313,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                   // stack на Home.
                                   'mushaf-$_readingMode-${ayahs.length}',
                                 ),
+                                // `mushafKey` — стабильный `GlobalKey`
+                                // для доступа к `scrollToAyahByIndex` из
+                                // parent'а (через `mushafKey.currentState`).
+                                // Без него parent не может приказать
+                                // `Mushaf` прокрутиться к нужному аяту
+                                // при deep-link (Continue button
+                                // → `/reader/1?ayah=5`).
+                                mushafKey: _mushafKey,
                                 ayahs: ayahs,
                                 translations:
                                     dataAsync.value?.translations ?? const {},
@@ -315,7 +343,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                           a.ayahNumber ==
                                           widget.initialAyah,
                                     );
-                                    if (idx >= 0) _scrollToAyah(idx);
+                                    if (idx >= 0) {
+                                      // Точный scroll через RenderBox
+                                      // (для lineByLine) или tileExtent
+                                      // fallback (для book).
+                                      if (_readingMode == 'lineByLine') {
+                                        final state =
+                                            _mushafKey.currentState;
+                                        if (state
+                                            is _SingleScrollMushafState) {
+                                          state.scrollToAyahByIndex(idx);
+                                        }
+                                      } else {
+                                        _scrollToAyah(idx);
+                                      }
+                                    }
                                   }
                                 },
                                 onAyahVisible: (Ayah a) {
@@ -883,6 +925,7 @@ class _SingleScrollMushaf extends StatefulWidget {
     required this.onAyahVisible,
     required this.onToggleBookmark,
     required this.lineByLine,
+    this.mushafKey,
     this.onScrollDelta,
     this.onInitialLoad,
     this.onFinalAyah,
@@ -898,7 +941,11 @@ class _SingleScrollMushaf extends StatefulWidget {
       onToggleBookmark;
   final bool lineByLine;
 
-  /// Callback, вызываемый при каждом изменении scroll-position
+  /// Опциональный [GlobalKey] для доступа к
+  /// `scrollToAyahByIndex` из parent'а. Parent передаёт `_mushafKey`,
+  /// через `currentState` может дёргать scroll к нужному аяту при
+  /// deep-link (Continue → `/reader/:id?ayah=N`).
+  final GlobalKey? mushafKey;  /// Callback, вызываемый при каждом изменении scroll-position
   /// (в пикселях). Положительные значения = scroll down
   /// (контент идёт вверх, пользователь читает сверху вниз);
   /// отрицательные = scroll up. Используется родительским
@@ -1025,6 +1072,52 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
       _lastReportAt = now;
       widget.onAyahVisible(found);
     }
+  }
+
+  /// Прокручивает Mushaf так, чтобы аят с индексом [index] оказался
+  /// **в центре** viewport'а. Используется для deep-link scroll
+  /// (Continue → `/reader/1?ayah=5`).
+  ///
+  /// Точность: берёт **реальную** высоту RenderBox'а tile'а (через
+  /// `localToGlobal(Offset.zero)`), вычисляет `targetOffset` так,
+  /// чтобы **центр** аята совпал с **центром** viewport'а.
+  /// Fallback на `tileExtent`-эвристику для book-режима (где
+  /// GlobalKey'и на tile'ы не прокидываются — все аяты в одном
+  /// `Text`-потоке).
+  void scrollToAyahByIndex(int index) {
+    if (index < 0 || index >= widget.ayahs.length) return;
+    final viewport = widget.scrollCtrl.position.viewportDimension;
+    final maxOffset = widget.scrollCtrl.position.maxScrollExtent;
+
+    double? target;
+    if (widget.lineByLine && index < _tileKeys.length) {
+      // Используем реальные координаты tile'а: `topY` в
+      // **локальных** координатах скролла = `globalY_tile -
+      // globalY_scrollview`. Затем `targetOffset = topY - viewport/2
+      // + tileHeight/2` — так **центр** tile'а окажется в
+      // **центре** viewport'а.
+      final scrollBox = _findScrollRenderBox();
+      final tileCtx = _tileKeys[index].currentContext;
+      if (scrollBox != null && tileCtx != null) {
+        final tileBox = tileCtx.findRenderObject();
+        if (tileBox is RenderBox) {
+          final scrollGlobalY = scrollBox.localToGlobal(Offset.zero).dy;
+          final tileGlobalY = tileBox.localToGlobal(Offset.zero).dy;
+          final tileTopInScroll = tileGlobalY - scrollGlobalY;
+          final tileHeight = tileBox.size.height;
+          target = tileTopInScroll - viewport / 2 + tileHeight / 2;
+        }
+      }
+    }
+    // Fallback: book-режим или edge-case (RenderBox ещё не attached).
+    target ??= index * 220.0;
+    // Clamp в допустимые пределы скролла.
+    final clamped = target.clamp(0.0, maxOffset);
+    widget.scrollCtrl.jumpTo(clamped);
+    // После `jumpTo` сразу обновляем `_lastReportedAyahId` —
+    // пользователь сразу видит аят `index`, и нет смысла ждать
+    // первый scroll-tick.
+    _lastReportedAyahId = widget.ayahs[index].id;
   }
 
   /// Возвращает аят, у которого `topY <= bottomY < bottomY + viewport`.
