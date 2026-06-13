@@ -14,7 +14,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/common_widgets.dart';
 import '../../../shared/widgets/ornaments.dart';
-import '../../../shared/widgets/screen_header.dart';
 import 'widgets/reader_widgets.dart';
 
 /// Surah + translations для конкретного открытия. Закэшировано до смены
@@ -915,12 +914,17 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
     widget.scrollCtrl.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // После первого frame'а сообщаем о первом аяте (deep-link
-      // на суру начинается с него).
+      // Не вызываем `onAyahVisible(ayahs.first)` здесь — родитель
+      // уже сделал корректный `recordLastRead(ayahId: initialAyah.id)`
+      // в своём initState (см. `_ReaderScreenState.initState`).
+      // Дополнительный вызов с `ayahs.first` (= id=1 для Аль-Фатиха)
+      // перезаписывал бы правильный `last_position` на первый аят
+      // — пользователь возвращался бы на Home и видел "ayah 1"
+      // вместо "ayah 7" (или того, на который был deep-link).
+      //
+      // Сообщаем родителю о полном списке ayahs — для
+      // deep-link scroll (см. _scrollToAyah).
       if (widget.ayahs.isNotEmpty) {
-        widget.onAyahVisible(widget.ayahs.first);
-        // Сообщаем родителю о полном списке ayahs — для
-        // deep-link scroll (см. _scrollToAyah).
         widget.onInitialLoad?.call(widget.ayahs);
       }
     });
