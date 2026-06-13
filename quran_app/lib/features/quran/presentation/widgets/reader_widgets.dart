@@ -104,14 +104,22 @@ class _AyahTileState extends ConsumerState<AyahTile> {
     //   2. [_ArabicTextBody] — арабский (Wrap/Text) + words
     //   3. [_AyahTranslation] — перевод (опционально)
     return Padding(
-      // [widget.tileKey] прокидывается в **обёртку** Padding, чтобы
-      // `findRenderObject()` вернул правильный RenderBox аята
-      // (без ключа `localToGlobal` считал бы координаты самого
-      // Padding'а, что даёт тот же результат — обёртка здесь для
-      // семантической ясности: «key отмечает именно tile»).
-      key: widget.tileKey,
+      // [widget.tileKey] НЕ должен быть на обёртке Padding — иначе
+      // `Scrollable.ensureVisible(alignment: 0.5)` отцентрирует
+      // **весь Padding-блок** (с `vertical: 8`), и аят (внутри
+      // Column) сдвинется **вниз** на 8px + высота header'а
+      // (_AyahHeader, _ArabicTextBody). Это даёт систематическое
+      // смещение ±(headerHeight + 8px) — аят 10 отображается как
+      // аят 8, аят 5 как аят 3, и т.д.
+      //
+      // Переносим `key` на **внутренний** Column — именно он
+      // содержит визуальный «центр тяжести» аята (header + текст
+      // + translation). `Scrollable.ensureVisible(alignment: 0.5)`
+      // отцентрирует Column в viewport'е, и аят появится точно
+      // в центре.
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
+        key: widget.tileKey,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _AyahHeader(
