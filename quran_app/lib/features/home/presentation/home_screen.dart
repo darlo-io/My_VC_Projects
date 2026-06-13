@@ -10,15 +10,38 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/common_widgets.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  /// `true` после того, как пользователь явно закрыл панель
+  /// "Продолжить чтение" через кнопку «Закрыть» на текущей
+  /// сессии. Сбрасывается на cold start приложения (новая
+  /// сессия = новая возможность показать панель снова).
+  ///
+  /// Хранится **только в памяти**, не в shared_prefs — иначе после
+  /// reset-data панель осталась бы скрытой навсегда, пока
+  /// пользователь не пройдёт через Settings.
+  bool _continueCardDismissed = false;
+
+  @override
+  Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     final loc = Localizations.localeOf(context);
     final lastAsync = ref.watch(lastReadPositionProvider);
     final last = lastAsync.valueOrNull ?? const LastReadPosition.empty();
+    // Панель показывается **только** если:
+    //   1. `last.surahId != 0` — пользователь хоть раз открывал
+    //      Reader и `setLast` записал позицию (а не дефолтный
+    //      empty snapshot).
+    //   2. `last.progress < 1.0` — сура прочитана **не до конца**.
+    //   3. Пользователь не закрыл панель в этой сессии.
+    final shouldShowContinue =
+        last.surahId != 0 && last.progress < 1.0 && !_continueCardDismissed;
     final isEmpty = last.surahId == 0;
     // In Arabic UI we keep the Arabic name as the primary visible
     // label; in any other locale we look up the ARB translation
@@ -44,15 +67,34 @@ class HomeScreen extends ConsumerWidget {
               loc.languageCode,
             ),
           ),
-          const SizedBox(height: 24),
-          _ContinueCard(
-            surahName: displaySurah,
-            ayahLabel: t.surahAndAyah(displaySurah, displayAyah),
-            progress: last.progress,
-            onContinue: () => context.go(
-              '/reader/${isEmpty ? 1 : last.surahId}?ayah=${isEmpty ? 1 : last.ayahNumber}',
-            ),
-            ctaLabel: t.continueAction,
+          // `AnimatedSize` + `AnimatedSwitcher` дают плавное
+          // появление/скрытие: меняется высота контейнера +
+          // opacity дочернего через fade-transition. Остальные
+          // панели (`SizedBox(height: 24)` + `_FeatureGrid`)
+          // плавно "съезжают" вниз за счёт того, что ListView
+          // перераспределяет высоту между элементами — анимированно.
+          AnimatedSize(
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeInOutCubic,
+            alignment: Alignment.topCenter,
+            child: shouldShowContinue
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 24),
+                    child: _ContinueCard(
+                      surahName: displaySurah,
+                      ayahLabel: t.surahAndAyah(displaySurah, displayAyah),
+                      progress: last.progress,
+                      onContinue: () => context.go(
+                        '/reader/$last.surahId?ayah=$last.ayahNumber',
+                      ),
+                      onDismiss: () => setState(() {
+                        _continueCardDismissed = true;
+                      }),
+                      continueLabel: t.continueAction,
+                      dismissLabel: t.cancel,
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
           const SizedBox(height: 24),
           _FeatureGrid(
@@ -251,31 +293,38 @@ class _MosquePainter extends CustomPainter {
   bool shouldRepaint(_MosquePainter old) => false;
 }
 
+/// Панель «Продолжить чтение» — компактная, с двумя кнопками:
+/// «Продолжить» (открывает Reader) и «Закрыть» (× — скрывает
+/// панель через `_HomeScreenState._continueCardDismissed`).
 class _ContinueCard extends StatelessWidget {
   const _ContinueCard({
     required this.surahName,
     required this.ayahLabel,
     required this.progress,
     required this.onContinue,
-    required this.ctaLabel,
+    required this.onDismiss,
+    required this.continueLabel,
+    required this.dismissLabel,
   });
 
   final String surahName;
   final String ayahLabel;
   final double progress;
   final VoidCallback onContinue;
-  final String ctaLabel;
+  final VoidCallback onDismiss;
+  final String continueLabel;
+  final String dismissLabel;
 
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      padding: const EdgeInsets.fromLTRB(20, 20, 12, 20),
+      padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
       child: Row(
         children: [
-          // Миниатюра Корана на подставке
+          // Миниатюра Корана
           Container(
-            width: 72,
-            height: 72,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.surfaceElevated,
@@ -284,44 +333,115 @@ class _ContinueCard extends StatelessWidget {
             child: const Icon(
               Icons.auto_stories_rounded,
               color: AppColors.gold,
-              size: 32,
+              size: 22,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
+          // Текстовый блок (`Expanded` занимает всё оставшееся
+          // место между миниатюрой и кнопками) — текст
+          // автоматически усекается, не перекрывая кнопки.
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   AppLocalizations.of(context).continueReading,
                   style: const TextStyle(
-                    fontSize: 15,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 2),
                 Text(
                   ayahLabel,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: AppColors.textSecondary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 _ProgressBar(value: progress),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          GoldPillButton(
-            label: ctaLabel,
-            icon: Icons.chevron_right,
-            onPressed: onContinue,
+          // Две кнопки справа: «Продолжить» (chevron-right) и
+          // «Закрыть» (×). Вертикальный стек — компактнее
+          // горизонтального, помещается на одной линии с прогрессом.
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _IconChipButton(
+                icon: Icons.chevron_right,
+                background: AppColors.gold,
+                foreground: AppColors.backgroundDeep,
+                tooltip: continueLabel,
+                onPressed: onContinue,
+              ),
+              const SizedBox(height: 6),
+              _IconChipButton(
+                icon: Icons.close_rounded,
+                background: Colors.transparent,
+                foreground: AppColors.textSecondary,
+                border: AppColors.border,
+                tooltip: dismissLabel,
+                onPressed: onDismiss,
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Маленькая иконочная кнопка-«чип»: 36×36 квадрат со скруглёнными
+/// углами, иконка по центру. Используется для Continue/Close
+/// действий на компактной панели «Продолжить чтение».
+class _IconChipButton extends StatelessWidget {
+  const _IconChipButton({
+    required this.icon,
+    required this.background,
+    required this.foreground,
+    required this.tooltip,
+    required this.onPressed,
+    this.border,
+  });
+
+  final IconData icon;
+  final Color background;
+  final Color foreground;
+  final Color? border;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: background,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: border != null
+              ? BorderSide(color: border!, width: 1)
+              : BorderSide.none,
+        ),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(10),
+          child: SizedBox(
+            width: 36,
+            height: 36,
+            child: Icon(icon, color: foreground, size: 20),
+          ),
+        ),
       ),
     );
   }
@@ -333,29 +453,14 @@ class _ProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
-              value: value.clamp(0.0, 1.0),
-              minHeight: 6,
-              backgroundColor: AppColors.borderSubtle,
-              valueColor: const AlwaysStoppedAnimation(AppColors.gold),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          '${(value * 100).round()}%',
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.gold,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(3),
+      child: LinearProgressIndicator(
+        value: value.clamp(0.0, 1.0),
+        minHeight: 4,
+        backgroundColor: AppColors.borderSubtle,
+        valueColor: const AlwaysStoppedAnimation(AppColors.gold),
+      ),
     );
   }
 }
@@ -409,9 +514,3 @@ class _FeatureGrid extends StatelessWidget {
     );
   }
 }
-
-/// Снимок последней позиции чтения для главной. Moved to
-/// `lib/core/database/models/last_read_position.dart` and exposed
-/// via the `lastReadPositionProvider` in `app/providers.dart`.
-/// Kept this comment as a breadcrumb in case a future reader
-/// greps for the old class name.
