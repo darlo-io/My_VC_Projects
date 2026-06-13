@@ -85,7 +85,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ayahLabel: t.surahAndAyah(displaySurah, displayAyah),
                       progress: last.progress,
                       onContinue: () => context.go(
-                        '/reader/$last.surahId?ayah=$last.ayahNumber',
+                        '/reader/${last.surahId}?ayah=${last.ayahNumber}',
                       ),
                       onDismiss: () => setState(() {
                         _continueCardDismissed = true;
