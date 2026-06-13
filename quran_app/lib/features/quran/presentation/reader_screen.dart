@@ -1078,45 +1078,42 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
   /// **в центре** viewport'а. Используется для deep-link scroll
   /// (Continue → `/reader/1?ayah=5`).
   ///
-  /// Точность: берёт **реальную** высоту RenderBox'а tile'а (через
-  /// `localToGlobal(Offset.zero)`), вычисляет `targetOffset` так,
-  /// чтобы **центр** аята совпал с **центром** viewport'а.
-  /// Fallback на `tileExtent`-эвристику для book-режима (где
-  /// GlobalKey'и на tile'ы не прокидываются — все аяты в одном
-  /// `Text`-потоке).
+  /// Использует `Scrollable.ensureVisible` с `alignment: 0.5` —
+  /// **стандартный** Flutter-механизм для scroll-to-element,
+  /// который корректно учитывает padding'и scrollable-контейнера,
+  /// `minScrollExtent`/`maxScrollExtent`, и обеспечивает попадание
+  /// элемента **точно в центр** viewport'а (`alignment: 0.5`).
+  /// Работает даже если `RenderBox` ещё не fully laid out —
+  /// `Scrollable.ensureVisible` сам вызывает `postFrameCallback`.
   void scrollToAyahByIndex(int index) {
     if (index < 0 || index >= widget.ayahs.length) return;
-    final viewport = widget.scrollCtrl.position.viewportDimension;
-    final maxOffset = widget.scrollCtrl.position.maxScrollExtent;
-
-    double? target;
     if (widget.lineByLine && index < _tileKeys.length) {
-      // Используем реальные координаты tile'а: `topY` в
-      // **локальных** координатах скролла = `globalY_tile -
-      // globalY_scrollview`. Затем `targetOffset = topY - viewport/2
-      // + tileHeight/2` — так **центр** tile'а окажется в
-      // **центре** viewport'а.
-      final scrollBox = _findScrollRenderBox();
       final tileCtx = _tileKeys[index].currentContext;
-      if (scrollBox != null && tileCtx != null) {
-        final tileBox = tileCtx.findRenderObject();
-        if (tileBox is RenderBox) {
-          final scrollGlobalY = scrollBox.localToGlobal(Offset.zero).dy;
-          final tileGlobalY = tileBox.localToGlobal(Offset.zero).dy;
-          final tileTopInScroll = tileGlobalY - scrollGlobalY;
-          final tileHeight = tileBox.size.height;
-          target = tileTopInScroll - viewport / 2 + tileHeight / 2;
-        }
+      if (tileCtx != null) {
+        // `duration: Duration.zero` — мгновенный scroll (не
+        // анимация); `alignment: 0.5` — **центр** viewport'а.
+        // `curve: Curves.linear` — без easing для мгновенного snap.
+        Scrollable.ensureVisible(
+          tileCtx,
+          duration: Duration.zero,
+          curve: Curves.linear,
+          alignment: 0.5,
+          alignmentPolicy:
+              ScrollPositionAlignmentPolicy.explicit,
+        );
+        _lastReportedAyahId = widget.ayahs[index].id;
+        return;
       }
     }
-    // Fallback: book-режим или edge-case (RenderBox ещё не attached).
-    target ??= index * 220.0;
-    // Clamp в допустимые пределы скролла.
-    final clamped = target.clamp(0.0, maxOffset);
-    widget.scrollCtrl.jumpTo(clamped);
-    // После `jumpTo` сразу обновляем `_lastReportedAyahId` —
-    // пользователь сразу видит аят `index`, и нет смысла ждать
-    // первый scroll-tick.
+    // Fallback: book-режим (один Text-поток) или edge-case
+    // (RenderBox ещё не attached). Используем tileExtent-эвристику
+    // + центрирование.
+    const tileExtent = 220.0;
+    final viewport = widget.scrollCtrl.position.viewportDimension;
+    final maxOffset = widget.scrollCtrl.position.maxScrollExtent;
+    final target = (index * tileExtent - viewport / 2 + tileExtent / 2)
+        .clamp(0.0, maxOffset);
+    widget.scrollCtrl.jumpTo(target);
     _lastReportedAyahId = widget.ayahs[index].id;
   }
 
