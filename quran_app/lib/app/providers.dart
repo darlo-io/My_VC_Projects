@@ -256,11 +256,13 @@ final contentBootstrapperProvider = Provider<ContentBootstrapper>(
 Future<void> resetAllUserData(WidgetRef ref) async {
   await ref.read(appDatabaseProvider).wipeUserData();
   await ref.read(audioCacheProvider).clearAll();
-  // `clearAll` стирает префы, потом notifier инвалидируется →
-  // все подписчики (`ref.watch(appPreferencesProvider)`) видят
-  // пустые значения. Затем `contentReadyProvider` тоже сбрасывается
-  // — комбинация этих двух эффектов перекидывает пользователя на
-  // /bootstrap, откуда он попадёт на /onboarding.
+  // `AppPreferences.clearAll` стирает `app.*` / `reader.*` / `audio.*`
+  // ключи в SharedPreferences (включая `app.firstLaunchDone`).
+  // Без этого `isFirstLaunchDone` остаётся `true` после reset и
+  // пользователь НЕ попадает на /onboarding, а сразу на / —
+  // см. `app_router.dart:_run()`. Затем `invalidate` форсирует
+  // новый `AppPreferences` instance поверх очищенных префов.
+  await ref.read(appPreferencesProvider).clearAll();
   ref.invalidate(appPreferencesProvider);
   // Пересоздаём готовое состояние — теперь isReady() == true
   // (контент есть), но last_position == null, закладки пустые и т.д.

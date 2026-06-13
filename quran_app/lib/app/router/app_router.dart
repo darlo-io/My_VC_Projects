@@ -30,13 +30,17 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       // Если контент ещё не загружен — сначала идём на онбординг
       final ready = ref.read(contentReadyProvider);
-      final isOnboarding = state.matchedLocation == '/onboarding';
       final isBootstrap = state.matchedLocation == '/bootstrap';
 
       return ready.when(
         data: (ok) {
           if (!ok && !isBootstrap) return '/bootstrap';
-          if (ok && (isOnboarding || isBootstrap)) return '/';
+          // Только `/bootstrap` редиректим на `/` когда контент
+          // готов. `/onboarding` оставляем в покое — онбординг
+          // это пользовательский выбор языка, а не гейт к
+          // контенту, и пользователь должен иметь возможность
+          // вернуться к нему из Settings (`/profile`).
+          if (ok && isBootstrap) return '/';
           return null;
         },
         loading: () => isBootstrap ? null : '/bootstrap',
