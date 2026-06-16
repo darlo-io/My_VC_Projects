@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 /// Used by the Statistics screen for the "Quran read %" hero
 /// card and for the 30 Juz circles row.
 class ProgressRing extends StatelessWidget {
-  const ProgressRing({
+  const ProgressRing({super.key, 
     required this.progress,
     required this.value,
     this.suffix,

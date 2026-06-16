@@ -197,7 +197,7 @@ class _MemorizationHeroCard extends ConsumerWidget {
                 ),
             builder: (context, snap) {
               final read = snap.data ?? 0;
-              final target = 10;
+              const target = 10;
               final pct = (read * 100 / target).clamp(0, 100).toInt();
               return ProgressRing(
                 progress: pct / 100,
@@ -240,7 +240,7 @@ class _MemorizationHeroCard extends ConsumerWidget {
           Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () => context.go('/learn/review'),
+              onTap: () => context.push('/learn/review'),
               borderRadius: BorderRadius.circular(20),
               child: Container(
                 padding: const EdgeInsets.symmetric(

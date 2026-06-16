@@ -368,7 +368,7 @@ class _TranslationHitRow extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: () =>
-            context.go('/reader/${hit.surahId}?ayah=${hit.ayahNumber}'),
+            context.push('/reader/${hit.surahId}?ayah=${hit.ayahNumber}'),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(

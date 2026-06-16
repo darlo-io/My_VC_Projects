@@ -197,7 +197,7 @@ class SettingsScreen extends ConsumerWidget {
                       ? const Icon(Icons.check, color: AppColors.gold)
                       : null,
                   onTap: () async {
-                    await ref.read(appPreferencesProvider).setFontSize(s);
+                    await ref.read(appPreferencesProvider.notifier).setFontSize(s);
                     if (context.mounted) Navigator.pop(context);
                   },
                 ),
@@ -892,7 +892,7 @@ class _ReciterTile extends ConsumerWidget {
                 ? const Icon(Icons.check, color: AppColors.gold)
                 : null,
             onTap: () async {
-              await ref.read(appPreferencesProvider).setReciterId(r.id);
+                await ref.read(appPreferencesProvider.notifier).setReciterId(r.id);
               if (!sheetCtx.mounted) return;
               Navigator.pop(sheetCtx);
             },

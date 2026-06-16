@@ -46,7 +46,7 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
       // Пишем в SharedPreferences только при реальной смене чтеца,
       // а не на каждый position-tick (~60 раз/сек).
       if (next.reciter != null && prev?.reciter?.id != next.reciter!.id) {
-        ref.read(appPreferencesProvider).setReciterId(next.reciter!.id);
+        ref.read(appPreferencesProvider.notifier).setReciterId(next.reciter!.id);
       }
       // Показываем SnackBar при переходе из `loading -> error` или
       // при первой установке `error` после успешной сессии. Раньше
@@ -75,11 +75,11 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
         children: [
           ScreenHeader(
             title: t.navListen,
-            onBack: () => context.go('/'),
+            onBack: () => context.pop(),
             actions: [
               CircleIconButton(
                 icon: Icons.settings_outlined,
-                onTap: () => context.go('/profile'),
+                onTap: () => context.push('/profile'),
               ),
             ],
           ),

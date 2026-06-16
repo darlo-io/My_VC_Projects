@@ -127,7 +127,7 @@ class _SurahHit extends _SearchHit {
 
   @override
   void openReader(BuildContext context) =>
-      context.go('/reader/${data.surahId}?ayah=1');
+      context.push('/reader/${data.surahId}?ayah=1');
 }
 
 class _AyahHit extends _SearchHit {
@@ -146,7 +146,7 @@ class _AyahHit extends _SearchHit {
 
   @override
   void openReader(BuildContext context) =>
-      context.go('/reader/${data.surahId}?ayah=${data.ayahNumber}');
+      context.push('/reader/${data.surahId}?ayah=${data.ayahNumber}');
 }
 
 class _TranslationHit extends _SearchHit {
@@ -165,7 +165,7 @@ class _TranslationHit extends _SearchHit {
 
   @override
   void openReader(BuildContext context) =>
-      context.go('/reader/${data.surahId}?ayah=${data.ayahNumber}');
+      context.push('/reader/${data.surahId}?ayah=${data.ayahNumber}');
 }
 
 /// Поиск с debounce 250 мс. Routes through the FTS5-backed DAO

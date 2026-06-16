@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/i18n/arabic_digits.dart';
 import '../../core/theme/app_colors.dart';
 
 /// Декоративный уголок (арабеска) в одном из углов рамки.
@@ -387,7 +388,7 @@ class _SurahTitlePainter extends CustomPainter {
     // между outerR и innerR. Заполняется + обводится для
     // «медальон»-вида.
     const starR = 14.0;
-    final starInnerR = starR * 0.45;
+    const starInnerR = starR * 0.45;
     final starPath = Path();
     for (var i = 0; i < 16; i++) {
       final r = i.isEven ? starR : starInnerR;
@@ -516,6 +517,11 @@ class _StarHighlightPainter extends CustomPainter {
 /// молитвенных чётках). У каждой вершины — острый луч наружу,
 /// что отличает звезду от 8-угольника (`_OctagonPainter` ниже
 /// оставлен на случай других нужд).
+///
+/// Внутри — стандартный типографский знак конца аята `۝` (U+06DD)
+/// + арабская цифра (U+0660..U+0669). Это соответствует
+/// канонической Mushaf-вёрстке, где плашка с номером аята
+/// всегда идёт после знака `۝`.
 class AyahNumberBadge extends StatelessWidget {
   const AyahNumberBadge({required this.number, this.size = 36, super.key});
 
@@ -531,7 +537,7 @@ class AyahNumberBadge extends StatelessWidget {
         painter: _OctagramPainter(),
         child: Center(
           child: Text(
-            '$number',
+            '۝${toArabicDigits(number)}',
             style: const TextStyle(
               fontSize: 13,
               color: AppColors.backgroundDeep, // Тёмный текст на золотой заливке

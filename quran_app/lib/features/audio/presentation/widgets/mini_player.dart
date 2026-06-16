@@ -28,7 +28,7 @@ class MiniPlayer extends ConsumerWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => context.go('/listen'),
+          onTap: () => context.push('/listen'),
           borderRadius: BorderRadius.circular(20),
           child: Ink(
             decoration: BoxDecoration(

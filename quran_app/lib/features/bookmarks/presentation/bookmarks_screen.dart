@@ -63,7 +63,7 @@ class BookmarksScreen extends ConsumerWidget {
                           surahId: bm.surahId,
                           surahName: surah?.nameTransliteration ?? '',
                           surahNameAr: surah?.nameAr ?? '',
-                          onOpen: () => context.go(
+                          onOpen: () => context.push(
                             '/reader/${bm.surahId}?ayah=${bm.ayahNumber}',
                           ),
                           onDelete: () => bookmarksRepo.dao.deleteByAyah(bm.ayahId),

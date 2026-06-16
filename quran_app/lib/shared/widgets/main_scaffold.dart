@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../features/audio/presentation/widgets/mini_player.dart';
 import '../../l10n/generated/app_localizations.dart';
+import '../widgets/exit_confirm_scope.dart';
 import '../widgets/ornaments.dart';
 
 class MainScaffold extends StatelessWidget {
@@ -36,7 +37,10 @@ class MainScaffold extends StatelessWidget {
       body: Stack(
         children: [
           const Positioned.fill(child: ArabesqueBackground(opacity: 0.04)),
-          child,
+          // PopScope-обёртка вокруг tab-экрана: на «Назад» —
+          // диалог подтверждения выхода (если стек GoRouter
+          // пуст) или `router.pop()` (если что-то лежит в стеке).
+          ExitConfirmPopScope(child: child),
         ],
       ),
       bottomNavigationBar: Column(

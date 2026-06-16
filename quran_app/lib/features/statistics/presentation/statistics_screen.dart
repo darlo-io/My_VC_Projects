@@ -461,8 +461,8 @@ class _HeroStatLine extends StatelessWidget {
 String _formatDuration(int seconds) {
   final h = seconds ~/ 3600;
   final m = (seconds % 3600) ~/ 60;
-  if (h > 0) return '${h}ч ${m.toString().padLeft(2, '0')}м';
-  return '${m}м';
+  if (h > 0) return '$hч ${m.toString().padLeft(2, '0')}м';
+  return '$mм';
 }
 
 /// Activity bar chart. Каждый bar — аяты за день в выбранном
@@ -585,9 +585,9 @@ class _Bars extends StatelessWidget {
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
-            Text(
+            const Text(
               '0',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 9,
                 color: AppColors.textTertiary,
                 fontFeatures: [FontFeature.tabularFigures()],

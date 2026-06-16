@@ -5,7 +5,6 @@ import 'dart:developer' as developer;
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart' show ValueNotifier;
 
-import 'content_bootstrapper.dart';
 import 'content_manifest.dart';
 import 'quran_api.dart';
 

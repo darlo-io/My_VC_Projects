@@ -14,6 +14,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/common_widgets.dart';
 import '../../../shared/widgets/ornaments.dart';
+import '../../reader_settings/domain/reader_display_settings.dart';
+import '../../reader_settings/presentation/reader_palette.dart';
 import 'widgets/reader_widgets.dart';
 
 /// Surah + translations для конкретного открытия. Закэшировано до смены
@@ -144,14 +146,47 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               (a) => a.ayahNumber == widget.initialAyah,
             ) ??
             -1;
+        // ignore: avoid_print
+        print(
+          'INIT-STATE-SCROLL: initialAyah=${widget.initialAyah}, '
+          'idx=$idx, _lastAyahs.length=${_lastAyahs?.length ?? -1}, '
+          'readingMode=$_readingMode',
+        );
         if (idx >= 0) {
           // Определяем режим: lineByLine → `_SingleScrollMushaf`
           // (через GlobalKey), book → локальный `_scrollToAyah`.
           if (_readingMode == 'lineByLine') {
-            final state = _mushafKey.currentState;
-            if (state is _SingleScrollMushafState) {
-              state.scrollToAyahByIndex(idx);
-            }
+            // Defer scroll на **следующий** postFrame — иначе
+            // `RenderBox` ещё не laid out. На самом первом
+            // postFrame (этот) `Scrollable` уже создан, но
+            // `_tileKeys[idx].currentContext` может быть null
+            // (тайминг Flutter framework'а). На **следующем**
+            // postFrame — гарантированно готов.
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              // ignore: avoid_print
+              print(
+                'POST-FRAME-CHECK: mounted=$mounted, '
+                'mushafKey.currentState=${_mushafKey.currentState.runtimeType}, '
+                'is _SingleScrollMushafState=${_mushafKey.currentState is _SingleScrollMushafState}',
+              );
+              if (!mounted) return;
+              final state = _mushafKey.currentState;
+              if (state is _SingleScrollMushafState) {
+                state.scrollToAyahByIndex(idx);
+              } else {
+                // ignore: avoid_print
+                print(
+                  'POST-FRAME-FAILED: state is not _SingleScrollMushafState, '
+                  'fallback to jumpTo(idx * tileExtent)',
+                );
+                const tileExtent = 220.0;
+                final viewport = _pageCtrl.position.viewportDimension;
+                final maxOffset = _pageCtrl.position.maxScrollExtent;
+                final target = (idx * tileExtent - viewport / 2 + tileExtent / 2)
+                    .clamp(0.0, maxOffset);
+                _pageCtrl.jumpTo(target);
+              }
+            });
           } else {
             _scrollToAyah(idx);
           }
@@ -219,6 +254,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     final prefs = ref.watch(appPreferencesProvider);
+    final display = ref.watch(readerDisplaySettingsProvider);
     final readerKey = ReaderKey(
       surahId: widget.surahId,
       translationLang: prefs.translationLang,
@@ -229,6 +265,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         ref.watch(bookmarkedAyahIdsProvider).value ?? const <int>{};
 
     return Scaffold(
+      // `themeVariant` влияет на фон зоны чтения, не на глобальную
+      // тему (навигация остаётся тёмной). Через `ReaderPalette.of`.
+      backgroundColor: ReaderPalette.of(display.themeVariant).background,
       body: Stack(
         children: [
           // Задний план: Mushaf (занимает весь экран). Тап по
@@ -324,7 +363,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                 ayahs: ayahs,
                                 translations:
                                     dataAsync.value?.translations ?? const {},
-                                fontSize: prefs.fontSize,
+                                fontSize: display.fontSize,
+                                display: display,
                                 bookmarkedIds: bookmarkedIds,
                                 scrollCtrl: _pageCtrl,
                                 lineByLine: _readingMode == 'lineByLine',
@@ -348,12 +388,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                       // (для lineByLine) или tileExtent
                                       // fallback (для book).
                                       if (_readingMode == 'lineByLine') {
-                                        final state =
-                                            _mushafKey.currentState;
-                                        if (state
-                                            is _SingleScrollMushafState) {
-                                          state.scrollToAyahByIndex(idx);
-                                        }
+                                        // Defer scroll на **следующий**
+                                        // postFrame — иначе
+                                        // `_tileKeys[idx].currentContext`
+                                        // ещё null (RenderBox не laid out
+                                        // при первом frame после mount).
+                                        // `curves.linear` + `Duration.zero`
+                                        // — мгновенный snap без анимации.
+                                        WidgetsBinding.instance
+                                            .addPostFrameCallback((_) {
+                                          if (!mounted) return;
+                                          final state =
+                                              _mushafKey.currentState;
+                                          if (state
+                                              is _SingleScrollMushafState) {
+                                            state.scrollToAyahByIndex(idx);
+                                          }
+                                        });
                                       } else {
                                         _scrollToAyah(idx);
                                       }
@@ -452,7 +503,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               readingModeLabel: _readingMode == 'lineByLine'
                   ? t.readingModeLineByLine
                   : t.readingModeBook,
-              onBack: () => context.go('/read'),
+              readingModeTooltip: t.readingModeTooltip,
+              onBack: () => context.pop(),
               onToggleReadingMode: () {
                 // Пишем в SharedPreferences и обновляем **локальный**
                 // `_readingMode` state через `setState` ниже — без
@@ -464,17 +516,27 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 final next = _readingMode == 'lineByLine'
                     ? 'book'
                     : 'lineByLine';
-                unawaited(ref.read(appPreferencesProvider).setReadingMode(next));
+                unawaited(ref.read(appPreferencesProvider.notifier).setReadingMode(next));
                 setState(() {
                   _readingMode = next;
                 });
               },
               onSettings: () {
-                // Открываем settings через dialog/bottom-sheet —
-                // пока пусть проксирует на /settings (как раньше).
-                context.go('/settings');
+                // Сразу открываем **полный экран** настроек
+                // отображения (`/reader-settings/display`) — он
+                // содержит все 4 группы (Текст/Макет/Тема/
+                // Дополнительно) и даёт sticky-preview с
+                // live-обновлением. Bottom-sheet с quick-
+                // настройками (размер арабского / режим / язык)
+                // убран — все эти параметры либо уже в экране
+                // (размер шрифта), либо доступны через bottom-nav
+                // `/profile` (язык, режим чтения).
+                //
+                // `push` (не `go`): back возвращает в Reader
+                // с уже применёнными изменениями; пользователь
+                // остаётся в контексте чтения.
+                context.push('/reader-settings/display');
               },
-              readingModeTooltip: t.readingModeTooltip,
             ),
           ),
           // Передний план: нижняя control-панель — mini-player.
@@ -704,7 +766,7 @@ class _AnimatedBottomBar extends ConsumerWidget {
                   return Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: () => context.go('/listen'),
+                      onTap: () => context.push('/listen'),
                       borderRadius: BorderRadius.circular(20),
                       child: Ink(
                         decoration: BoxDecoration(
@@ -925,6 +987,7 @@ class _SingleScrollMushaf extends StatefulWidget {
     required this.onAyahVisible,
     required this.onToggleBookmark,
     required this.lineByLine,
+    required this.display,
     this.mushafKey,
     this.onScrollDelta,
     this.onInitialLoad,
@@ -940,6 +1003,12 @@ class _SingleScrollMushaf extends StatefulWidget {
   final Future<bool> Function(Ayah ayah, bool isCurrentlyBookmarked)
       onToggleBookmark;
   final bool lineByLine;
+
+  /// Display-настройки (`ReaderDisplaySettings`) — lineHeight,
+  /// letterSpacing, wordSpacing, fontFamily, padding, textWidth.
+  /// Применяются к арабскому и переводу в обоих режимах
+  /// (lineByLine / book) и к `ConstrainedBox` по ширине полосы.
+  final ReaderDisplaySettings display;
 
   /// Опциональный [GlobalKey] для доступа к
   /// `scrollToAyahByIndex` из parent'а. Parent передаёт `_mushafKey`,
@@ -1088,19 +1157,71 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
   void scrollToAyahByIndex(int index) {
     if (index < 0 || index >= widget.ayahs.length) return;
     if (widget.lineByLine && index < _tileKeys.length) {
+      // Проверяем, что Scrollable **уже привязан** к `scrollCtrl` —
+      // иначе `widget.scrollCtrl.position` бросит assertion.
+      if (!widget.scrollCtrl.hasClients) {
+        // Scrollable ещё не привязан к controller (pre-mount).
+        // Defer на следующий postFrame — к тому моменту
+        // `Scrollable` уже будет attached.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          scrollToAyahByIndex(index);
+        });
+        return;
+      }
       final tileCtx = _tileKeys[index].currentContext;
       if (tileCtx != null) {
-        // `duration: Duration.zero` — мгновенный scroll (не
-        // анимация); `alignment: 0.5` — **центр** viewport'а.
-        // `curve: Curves.linear` — без easing для мгновенного snap.
-        Scrollable.ensureVisible(
-          tileCtx,
-          duration: Duration.zero,
-          curve: Curves.linear,
-          alignment: 0.5,
-          alignmentPolicy:
-              ScrollPositionAlignmentPolicy.explicit,
-        );
+        // Точный расчёт offset'а через `localToGlobal` —
+        // устраняет дрейф `Scrollable.ensureVisible` (который
+        // находит ближайший `Scrollable` через parent'овский
+        // `Scaffold`/`Padding`, и из-за padding'ов аят оказывается
+        // не в центре, а смещён).
+        //
+        // Алгоритм:
+        //  1. Получаем **реальные** глобальные Y для tile'а и
+        //     SingleChildScrollView.
+        //  2. `tileTopInScroll = tileGlobalY - scrollGlobalY` — это
+        //     позиция **верха** tile'а в **координатах scroll-контента**
+        //     (т.е. offset'ы, которые нам нужно подать в `jumpTo`).
+        //  3. `tileHeight` — реальная высота tile'а (через
+        //     `RenderBox.size.height`).
+        //  4. **Центр** tile'а: `tileTopInScroll + tileHeight/2`.
+        //  5. Чтобы он совпал с центром viewport'а (на позиции
+        //     `currentOffset + viewport/2` в scroll-контенте),
+        //     нужно: `jumpTo(center - viewport/2)`.
+        final scrollBox = _findScrollRenderBox();
+        final tileBox = tileCtx.findRenderObject();
+        if (scrollBox is RenderBox && tileBox is RenderBox) {
+          final scrollGlobalY = scrollBox.localToGlobal(Offset.zero).dy;
+          final tileGlobalY = tileBox.localToGlobal(Offset.zero).dy;
+          final tileTopInScroll = tileGlobalY - scrollGlobalY;
+          final tileHeight = tileBox.size.height;
+          final viewport = widget.scrollCtrl.position.viewportDimension;
+          final maxOffset = widget.scrollCtrl.position.maxScrollExtent;
+          // Центр tile'а в координатах scroll-контента.
+          final tileCenterInScroll = tileTopInScroll + tileHeight / 2;
+          // Нужен offset, при котором tileCenterInScroll попадает
+          // в центр viewport'а.
+          final target = (tileCenterInScroll - viewport / 2)
+              .clamp(0.0, maxOffset);
+          widget.scrollCtrl.jumpTo(target);
+          print(
+            'scrollToAyahByIndex: index=$index, '
+            'tileTop=$tileTopInScroll, tileHeight=$tileHeight, '
+            'tileCenter=$tileCenterInScroll, '
+            'viewport=$viewport, maxOffset=$maxOffset, '
+            'target=$target',
+          );
+        } else {
+          // RenderBox не готов (pre-attach) — defer и retry.
+          print(
+            'scrollToAyahByIndex: tileBox is not RenderBox, deferring',
+          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            scrollToAyahByIndex(index);
+          });
+        }
         _lastReportedAyahId = widget.ayahs[index].id;
         return;
       }
@@ -1234,6 +1355,7 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
               ayah: widget.ayahs[i],
               translation: widget.translations[widget.ayahs[i].id],
               fontSize: widget.fontSize,
+              display: widget.display,
               isBookmarked: widget.bookmarkedIds.contains(
                 widget.ayahs[i].id,
               ),
@@ -1258,12 +1380,13 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
   /// текст перетекает от края до края, перевод — после».
   Widget _buildBookStyle() {
     // Собираем арабский текст с inline-нумерацией. Круглые
-    // скобки и арабские цифры (U+0660..U+0669) — стандартная
-    // Mushaf-вёрстка: «(١) بِسْمِ ٱللَّهِ ... (٢) ٱلْحَمْدُ ...».
+    // Стандартный символ конца аята U+06DD (۝) + арабские цифры
+    // (U+0660..U+0669) — Mushaf-вёрстка:
+    // «۝١ بِسْمِ ٱللَّهِ ... ۝٢ ٱلْحَمْدُ ...».
     final ayahs = widget.ayahs;
     final ayahNumberStrings = <String>[];
     for (final a in ayahs) {
-      ayahNumberStrings.add('(${toArabicDigits(a.ayahNumber)})');
+      ayahNumberStrings.add('۝${toArabicDigits(a.ayahNumber)}');
     }
 
     // Конкатенация через пробелы между номерами и текстами.
@@ -1280,11 +1403,17 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
     return SingleChildScrollView(
       controller: widget.scrollCtrl,
       physics: const ClampingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Непрерывный арабский поток: все аяты подряд с
+      padding: EdgeInsets.symmetric(vertical: widget.display.paddingVertical),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final pct = widget.display.textWidthPercent;
+          final maxW = constraints.maxWidth.isFinite
+              ? constraints.maxWidth * pct / 100.0
+              : double.infinity;
+          final content = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Непрерывный арабский поток: все аяты подряд с
           // номерами в круглых скобках между ними. Текст
           // `justify` — строки тянутся от левого до правого
           // края (как в печатной Mushaf). Параметры:
@@ -1312,9 +1441,15 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
             textAlign: TextAlign.justify,
             style: TextStyle(
               fontSize: widget.fontSize,
-              height: 2.4,
-              color: AppColors.textPrimary,
+              // 2.4 — дефолт, `display.lineHeight` переопределяет.
+              height: widget.display.lineHeight,
+              letterSpacing: widget.display.letterSpacing,
+              wordSpacing: widget.display.wordSpacing,
+              color: ReaderPalette.of(widget.display.themeVariant).text,
               fontFamily: 'Amiri',
+              fontWeight: widget.display.fontFamily == 'AmiriBold'
+                  ? FontWeight.w700
+                  : FontWeight.w400,
             ),
           ),
           const SizedBox(height: 16),
@@ -1331,13 +1466,24 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
           // арабским оригиналом.
           for (var i = 0; i < ayahs.length; i++) ...[
             if (i > 0) const SizedBox(height: 6),
-            if (widget.translations[ayahs[i].id] != null)
+            if (widget.translations[ayahs[i].id] != null &&
+                (widget.display.showTranslation))
               _BookTranslationBlock(
                 number: ayahs[i].ayahNumber,
                 text: widget.translations[ayahs[i].id]!,
+                display: widget.display,
               ),
           ],
-        ],
+            ],
+          );
+          if (pct >= 100.0) return content;
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxW),
+              child: content,
+            ),
+          );
+        },
       ),
     );
   }
@@ -1353,26 +1499,40 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
 /// печатной Mushaf, где под основным текстом идёт
 /// расширенный комментарий переводчика.
 class _BookTranslationBlock extends StatelessWidget {
-  const _BookTranslationBlock({required this.number, required this.text});
+  const _BookTranslationBlock({
+    required this.number,
+    required this.text,
+    this.display,
+  });
   final int number;
   final String text;
+  final ReaderDisplaySettings? display;
 
   @override
   Widget build(BuildContext context) {
+    final d = display;
+    final textColor = d != null
+        ? ReaderPalette.of(d.themeVariant).text.withValues(alpha: 0.7)
+        : AppColors.textSecondary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: RichText(
         textAlign: TextAlign.justify,
         text: TextSpan(
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppColors.textSecondary,
-            height: 1.55,
-            letterSpacing: 0.1,
+          style: TextStyle(
+            // В book-mode перевод исторически был ~85% от
+            // пользовательского `translationFontSize`, чтобы
+            // длинный поток аятов оставался компактным. Default
+            // 14 * 0.85 ≈ 12 px — соответствует legacy.
+            fontSize: (d?.translationFontSize ?? 14) * 0.85,
+            color: textColor,
+            height: d != null ? d.lineHeight - 0.85 : 1.55,
+            letterSpacing: d?.letterSpacing ?? 0.1,
+            wordSpacing: d?.wordSpacing ?? 0,
           ),
           children: [
             TextSpan(
-              text: '(${toArabicDigits(number)}) ',
+              text: '۝${toArabicDigits(number)} ',
               style: const TextStyle(
                 color: AppColors.gold,
                 fontWeight: FontWeight.w600,
@@ -1457,3 +1617,4 @@ final _ayahsStreamProvider = StreamProvider.autoDispose.family<List<Ayah>, int>(
     return ref.watch(ayahDaoProvider).watchBySurah(surahId);
   },
 );
+

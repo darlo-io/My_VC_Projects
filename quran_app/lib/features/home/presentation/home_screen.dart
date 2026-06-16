@@ -84,7 +84,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       surahName: displaySurah,
                       ayahLabel: t.surahAndAyah(displaySurah, displayAyah),
                       progress: last.progress,
-                      onContinue: () => context.go(
+                      onContinue: () => context.push(
                         '/reader/${last.surahId}?ayah=${last.ayahNumber}',
                       ),
                       onDismiss: () => setState(() {
@@ -109,31 +109,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 icon: Icons.headphones_rounded,
                 title: t.cardListen,
                 color: AppColors.cardListen,
-                onTap: () => context.go('/listen'),
+                onTap: () => context.push('/listen'),
               ),
               _FeatureItem(
                 icon: Icons.school_rounded,
                 title: t.cardLearn,
                 color: AppColors.cardLearn,
-                onTap: () => context.go('/learn'),
+                onTap: () => context.push('/learn'),
               ),
               _FeatureItem(
                 icon: Icons.assignment_turned_in_rounded,
                 title: t.cardTest,
                 color: AppColors.cardTest,
-                onTap: () => context.go('/test'),
+                onTap: () => context.push('/test'),
               ),
               _FeatureItem(
                 icon: Icons.bubble_chart_rounded,
                 title: t.cardTasbih,
                 color: AppColors.cardRead,
-                onTap: () => context.go('/tasbih'),
+                onTap: () => context.push('/tasbih'),
               ),
               _FeatureItem(
                 icon: Icons.insights_rounded,
                 title: t.cardStats,
                 color: AppColors.cardListen,
-                onTap: () => context.go('/statistics'),
+                onTap: () => context.push('/statistics'),
               ),
             ],
           ),

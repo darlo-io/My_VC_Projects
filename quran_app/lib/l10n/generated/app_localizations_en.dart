@@ -1223,4 +1223,127 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get readingModeTooltip => 'Reading mode';
+
+  @override
+  String get exitConfirmTitle => 'Exit app?';
+
+  @override
+  String get exitConfirmBody => 'Are you sure you want to close the app?';
+
+  @override
+  String get exitConfirmYes => 'Exit';
+
+  @override
+  String get exitConfirmNo => 'Stay';
+
+  @override
+  String get displaySettingsTitle => 'Reading display settings';
+
+  @override
+  String get displaySettingsPreview => 'Preview';
+
+  @override
+  String get displaySettingsGroupText => 'Text';
+
+  @override
+  String get displaySettingsGroupLayout => 'Layout';
+
+  @override
+  String get displaySettingsGroupTheme => 'Theme';
+
+  @override
+  String get displaySettingsGroupExtras => 'Extras';
+
+  @override
+  String get displaySettingsFontSize => 'Arabic font size';
+
+  @override
+  String get displaySettingsLineHeight => 'Line height';
+
+  @override
+  String get displaySettingsLetterSpacing => 'Letter spacing';
+
+  @override
+  String get displaySettingsWordSpacing => 'Word spacing';
+
+  @override
+  String get displaySettingsFontFamily => 'Font';
+
+  @override
+  String get displaySettingsTextWidth => 'Text width';
+
+  @override
+  String get displaySettingsPaddingHorizontal => 'Horizontal padding';
+
+  @override
+  String get displaySettingsPaddingVertical => 'Vertical padding';
+
+  @override
+  String get displaySettingsBrightness => 'Screen brightness';
+
+  @override
+  String get displaySettingsTranslationFontSize => 'Translation font size';
+
+  @override
+  String get displaySettingsShowTranslation => 'Show translation';
+
+  @override
+  String get displaySettingsShowWordByWord => 'Show word-by-word (beta)';
+
+  @override
+  String get displaySettingsKeepScreenOn => 'Keep screen on while reading';
+
+  @override
+  String get displaySettingsReset => 'Reset';
+
+  @override
+  String get displaySettingsResetConfirmTitle => 'Reset all display settings?';
+
+  @override
+  String get displaySettingsResetConfirmBody =>
+      'All reading display parameters will return to defaults. Your last position and bookmarks are kept.';
+
+  @override
+  String get displaySettingsDiscardTitle => 'Discard changes?';
+
+  @override
+  String get displaySettingsDiscardBody =>
+      'Your changes to the display settings were not saved. Leave anyway?';
+
+  @override
+  String get displaySettingsSave => 'Done';
+
+  @override
+  String get displaySettingsDiscard => 'Discard';
+
+  @override
+  String get displaySettingsCancel => 'Cancel';
+
+  @override
+  String get displaySettingsUnitPx => 'px';
+
+  @override
+  String get displaySettingsUnitPercent => '%';
+
+  @override
+  String get displaySettingsFontFamilyAmiriRegular => 'Amiri Regular';
+
+  @override
+  String get displaySettingsFontFamilyAmiriBold => 'Amiri Bold';
+
+  @override
+  String get displaySettingsThemeDark => 'Dark';
+
+  @override
+  String get displaySettingsThemeSepia => 'Sepia';
+
+  @override
+  String get displaySettingsThemeLight => 'Light';
+
+  @override
+  String get displaySettingsThemeParchment => 'Parchment';
+
+  @override
+  String get displaySettingsPreviewTranslation =>
+      'In the name of Allah, the Most Gracious, the Most Merciful.';
 }

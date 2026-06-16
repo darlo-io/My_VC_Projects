@@ -30,7 +30,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                   CircleIconButton(
                     icon: Icons.arrow_back_ios_new,
                     iconSize: 18,
-                    onTap: () => context.go('/'),
+                    onTap: () => context.pop(),
                   ),
                   const SizedBox(width: 8),
                   Text(

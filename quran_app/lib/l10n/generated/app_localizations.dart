@@ -2391,6 +2391,246 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reading mode'**
   String get readingModeTooltip;
+
+  /// No description provided for @exitConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit app?'**
+  String get exitConfirmTitle;
+
+  /// No description provided for @exitConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to close the app?'**
+  String get exitConfirmBody;
+
+  /// No description provided for @exitConfirmYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit'**
+  String get exitConfirmYes;
+
+  /// No description provided for @exitConfirmNo.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay'**
+  String get exitConfirmNo;
+
+  /// No description provided for @displaySettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading display settings'**
+  String get displaySettingsTitle;
+
+  /// No description provided for @displaySettingsPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get displaySettingsPreview;
+
+  /// No description provided for @displaySettingsGroupText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get displaySettingsGroupText;
+
+  /// No description provided for @displaySettingsGroupLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Layout'**
+  String get displaySettingsGroupLayout;
+
+  /// No description provided for @displaySettingsGroupTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get displaySettingsGroupTheme;
+
+  /// No description provided for @displaySettingsGroupExtras.
+  ///
+  /// In en, this message translates to:
+  /// **'Extras'**
+  String get displaySettingsGroupExtras;
+
+  /// No description provided for @displaySettingsFontSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic font size'**
+  String get displaySettingsFontSize;
+
+  /// No description provided for @displaySettingsLineHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Line height'**
+  String get displaySettingsLineHeight;
+
+  /// No description provided for @displaySettingsLetterSpacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Letter spacing'**
+  String get displaySettingsLetterSpacing;
+
+  /// No description provided for @displaySettingsWordSpacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Word spacing'**
+  String get displaySettingsWordSpacing;
+
+  /// No description provided for @displaySettingsFontFamily.
+  ///
+  /// In en, this message translates to:
+  /// **'Font'**
+  String get displaySettingsFontFamily;
+
+  /// No description provided for @displaySettingsTextWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Text width'**
+  String get displaySettingsTextWidth;
+
+  /// No description provided for @displaySettingsPaddingHorizontal.
+  ///
+  /// In en, this message translates to:
+  /// **'Horizontal padding'**
+  String get displaySettingsPaddingHorizontal;
+
+  /// No description provided for @displaySettingsPaddingVertical.
+  ///
+  /// In en, this message translates to:
+  /// **'Vertical padding'**
+  String get displaySettingsPaddingVertical;
+
+  /// No description provided for @displaySettingsBrightness.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen brightness'**
+  String get displaySettingsBrightness;
+
+  /// No description provided for @displaySettingsTranslationFontSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation font size'**
+  String get displaySettingsTranslationFontSize;
+
+  /// No description provided for @displaySettingsShowTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Show translation'**
+  String get displaySettingsShowTranslation;
+
+  /// No description provided for @displaySettingsShowWordByWord.
+  ///
+  /// In en, this message translates to:
+  /// **'Show word-by-word (beta)'**
+  String get displaySettingsShowWordByWord;
+
+  /// No description provided for @displaySettingsKeepScreenOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep screen on while reading'**
+  String get displaySettingsKeepScreenOn;
+
+  /// No description provided for @displaySettingsReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get displaySettingsReset;
+
+  /// No description provided for @displaySettingsResetConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all display settings?'**
+  String get displaySettingsResetConfirmTitle;
+
+  /// No description provided for @displaySettingsResetConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'All reading display parameters will return to defaults. Your last position and bookmarks are kept.'**
+  String get displaySettingsResetConfirmBody;
+
+  /// No description provided for @displaySettingsDiscardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes?'**
+  String get displaySettingsDiscardTitle;
+
+  /// No description provided for @displaySettingsDiscardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your changes to the display settings were not saved. Leave anyway?'**
+  String get displaySettingsDiscardBody;
+
+  /// No description provided for @displaySettingsSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get displaySettingsSave;
+
+  /// No description provided for @displaySettingsDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get displaySettingsDiscard;
+
+  /// No description provided for @displaySettingsCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get displaySettingsCancel;
+
+  /// No description provided for @displaySettingsUnitPx.
+  ///
+  /// In en, this message translates to:
+  /// **'px'**
+  String get displaySettingsUnitPx;
+
+  /// No description provided for @displaySettingsUnitPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'%'**
+  String get displaySettingsUnitPercent;
+
+  /// No description provided for @displaySettingsFontFamilyAmiriRegular.
+  ///
+  /// In en, this message translates to:
+  /// **'Amiri Regular'**
+  String get displaySettingsFontFamilyAmiriRegular;
+
+  /// No description provided for @displaySettingsFontFamilyAmiriBold.
+  ///
+  /// In en, this message translates to:
+  /// **'Amiri Bold'**
+  String get displaySettingsFontFamilyAmiriBold;
+
+  /// No description provided for @displaySettingsThemeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get displaySettingsThemeDark;
+
+  /// No description provided for @displaySettingsThemeSepia.
+  ///
+  /// In en, this message translates to:
+  /// **'Sepia'**
+  String get displaySettingsThemeSepia;
+
+  /// No description provided for @displaySettingsThemeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get displaySettingsThemeLight;
+
+  /// No description provided for @displaySettingsThemeParchment.
+  ///
+  /// In en, this message translates to:
+  /// **'Parchment'**
+  String get displaySettingsThemeParchment;
+
+  /// No description provided for @displaySettingsPreviewTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'In the name of Allah, the Most Gracious, the Most Merciful.'**
+  String get displaySettingsPreviewTranslation;
 }
 
 class _AppLocalizationsDelegate

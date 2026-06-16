@@ -13,6 +13,7 @@ import '../../features/learning/presentation/learn_session_screen.dart';
 import '../../features/onboarding/presentation/language_picker_screen.dart';
 import '../../features/quran/presentation/reader_screen.dart';
 import '../../features/quran/presentation/surah_list_screen.dart';
+import '../../features/reader_settings/presentation/reader_display_settings_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/statistics/presentation/statistics_screen.dart';
@@ -93,6 +94,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           initialAyah:
               int.tryParse(state.uri.queryParameters['ayah'] ?? '') ?? 1,
         ),
+      ),
+      GoRoute(
+        // Push из Reader'а (кнопка settings). НЕ лежит в ShellRoute —
+        // у него своя AppBar, без bottom-nav. После `Готово` возврат
+        // pop'ом назад в Reader с применёнными настройками.
+        //
+        // URL выбран **вне** namespace `/reader/...` — иначе GoRouter
+        // пытается распарсить `display-settings` как `surahId`
+        // (radix-10 number) и бросает FormatException. Альтернативы
+        // типа `/reader/settings` тоже конфликтуют: для них нужен
+        // статический сегмент вместо параметра, и GoRouter 14.x
+        // не всегда корректно резолвит порядок.
+        path: '/reader-settings/display',
+        builder: (_, _) => const ReaderDisplaySettingsScreen(),
       ),
       GoRoute(
         path: '/listen',
@@ -235,7 +250,7 @@ class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
       final firstLaunch =
           !ref.read(appPreferencesProvider).isFirstLaunchDone;
       if (firstLaunch) {
-        await ref.read(appPreferencesProvider).setFirstLaunchDone(true);
+        await ref.read(appPreferencesProvider.notifier).setFirstLaunchDone(true);
         if (mounted) context.go('/onboarding');
       } else {
         if (mounted) context.go('/');

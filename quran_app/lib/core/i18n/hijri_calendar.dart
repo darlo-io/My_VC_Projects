@@ -61,7 +61,10 @@ HijriDate hijriFromGregorian(DateTime g) {
 
 /// Локализованное название месяца хиджрийского календаря.
 String hijriMonthName(int month, String localeCode) {
-  assert(month >= 1 && month <= 12, 'month must be 1..12');
+  // Не `assert` — он отключается в release-сборках, и
+  // out-of-range month роняет Home с `RangeError 0..11`
+  // (замечено 16.06.2026: Ал-Хиджа = month 12, индекс 11).
+  final i = (month - 1).clamp(0, 11);
   const ru = [
     'Мухаррам',
     'Сафар',
@@ -104,7 +107,6 @@ String hijriMonthName(int month, String localeCode) {
     'ذو القعدة',
     'ذو الحجة',
   ];
-  final i = month - 1;
   switch (localeCode) {
     case 'ar':
       return ar[i];

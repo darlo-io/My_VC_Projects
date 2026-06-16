@@ -23,6 +23,7 @@ import '../core/database/daos/surah_dao.dart';
 import '../core/database/daos/translation_dao.dart';
 import '../core/database/daos/word_timings_dao.dart';
 import '../core/database/daos/words_dao.dart';
+import '../features/reader_settings/domain/reader_display_settings.dart';
 import '../core/database/models/last_read_position.dart';
 import '../features/audio/data/quran_audio_handler.dart';
 import '../features/test/data/quiz_service.dart';
@@ -59,10 +60,105 @@ final sharedPreferencesProvider = Provider<SharedPreferences>(
 /// синхронизирует с `appPreferencesProvider` через mount/refresh.
 ///
 /// Глобально зависящие от prefs экраны (Settings, Onboarding)
-/// делают `ref.refresh(appPreferencesProvider)` после записи —
-/// см. `LanguageNotifier.set` / `setTranslationLang` в Settings.
-final appPreferencesProvider = Provider<AppPreferences>(
-  (ref) => AppPreferences(ref.watch(sharedPreferencesProvider)),
+/// `StateNotifierProvider` для `AppPreferences` — при любой записи
+/// (`setFontSize`, `setDisplaySettings`, `setLanguageCode`, ...) все
+/// `ref.watch(appPreferencesProvider)` dependents автоматически
+/// получают свежий instance и ребилдятся. **Не нужен**
+/// `ref.invalidate(appPreferencesProvider)` после записи — `state =`
+/// триггерит notify сам.
+///
+/// До этого был `Provider<AppPreferences>` (без уведомлений) — запись
+/// через `set*()` мутировала `SharedPreferences`, но Riverpod не знал
+/// о необходимости ребилда dependents, и `readerDisplaySettingsProvider`
+/// (который читает `appPreferencesProvider.displaySettings` геттер)
+/// отдавал **старый** snapshot, пока кто-то явно не вызывал
+/// `ref.invalidate`. См. bug report: «настройки не применяются к
+/// тексту Корана ни в одном режиме».
+class AppPreferencesNotifier extends StateNotifier<AppPreferences> {
+  AppPreferencesNotifier(SharedPreferences prefs, this._ref)
+      : _prefs = prefs,
+        super(AppPreferences(prefs));
+  final SharedPreferences _prefs;
+  final Ref _ref;
+
+  // `set*` методы (кроме `setDisplaySettings`) обновляют state
+  // новым instance'ом — dependents (`LanguageNotifier`,
+  // `reciterIdProvider`, ...) триггерят ребилд. Используется
+  // редко (при смене языка / темы / чтеца), и app-wide rebuild
+  // в этих сценариях безопасен (нет push-роутов на стеке).
+  //
+  // `setDisplaySettings` **не** триггерит state = new — это
+  // локально изменяет displaySettings, и dependents (`displaySettingsProvider`)
+  // подхватывают через собственный `StateNotifier`. Это нужно,
+  // потому что смена displaySettings происходит на пути с push-роутом
+  // (settings поверх Reader), и app-wide rebuild ломает стек
+  // GoRouter (пользователь оказывается на пустом Home — см. bug).
+
+  Future<void> setDisplaySettings(ReaderDisplaySettings s) async {
+    await state.setDisplaySettings(s);
+    // Без `state = ...` — НЕ notify dependents. Отдельный
+    // `displaySettingsProvider` сам notify'ит свои dependents
+    // (Reader, Preview) сразу после записи.
+    _ref.read(displaySettingsProvider.notifier).refresh();
+  }
+
+  Future<void> setFontSize(double v) async {
+    await state.setFontSize(v);
+    state = AppPreferences(_prefs);
+  }
+
+  Future<void> setLanguageCode(String? code) async {
+    await state.setLanguageCode(code);
+    state = AppPreferences(_prefs);
+  }
+
+  Future<void> setReadingMode(String mode) async {
+    // **НЕ** триггерим `state = ...` — это вызвало бы app-wide
+    // rebuild, который ломает навигацию GoRouter (пользователь
+    // оказывается на пустом Home). Локальный `setState` в
+    // `ReaderScreenState` (через `_readingMode`) уже обновляет
+    // UI. В SharedPreferences запись нужна для сохранения
+    // между сессиями — её делает ниже `_prefs.setReadingMode`.
+    // На следующем mount / refresh Reader прочитает свежее
+    // значение через `appPreferencesProvider.readingMode` (старт
+    // сессии).
+    await state.setReadingMode(mode);
+  }
+
+  Future<void> setTranslationLang(String lang) async {
+    await state.setTranslationLang(lang);
+    state = AppPreferences(_prefs);
+  }
+
+  Future<void> setReciterId(String id) async {
+    await state.setReciterId(id);
+    state = AppPreferences(_prefs);
+  }
+
+  Future<void> setThemeMode(String mode) async {
+    await state.setThemeMode(mode);
+    state = AppPreferences(_prefs);
+  }
+
+  Future<void> setFirstLaunchDone(bool v) async {
+    await state.setFirstLaunchDone(v);
+    state = AppPreferences(_prefs);
+  }
+
+  Future<void> setCacheLimitMb(int mb) async {
+    await state.setCacheLimitMb(mb);
+    state = AppPreferences(_prefs);
+  }
+
+  Future<void> clearAll() async {
+    await state.clearAll();
+    state = AppPreferences(_prefs);
+  }
+}
+
+final appPreferencesProvider =
+    StateNotifierProvider<AppPreferencesNotifier, AppPreferences>(
+  (ref) => AppPreferencesNotifier(ref.watch(sharedPreferencesProvider), ref),
 );
 
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
@@ -99,6 +195,73 @@ final positionDaoProvider = Provider<PositionDao>(
 final lastReadPositionProvider =
     StreamProvider<LastReadPosition>((ref) {
   return ref.watch(quranRepositoryProvider).watchLastReadPosition();
+});
+
+/// **Изолированный** StateNotifier для display-настроек Reader'а.
+///
+/// `appPreferencesProvider` — глобальный, от него зависят десятки
+/// провайдеров (`LanguageNotifier`, `reciterIdProvider`, ...). При
+/// его обновлении (`state = new AppPreferences`) Riverpod делает
+/// app-wide rebuild, что в race с `context.pop()` ломает стек
+/// GoRouter — пользователь оказывается на пустом Home (см. bug
+/// report от 16.06.2026: «настройки не применяются к тексту Корана»).
+///
+/// `displaySettingsProvider` — **локальный** StateNotifier с
+/// собственным `state`. Запись `set*` обновляет только его
+/// dependents (`Reader`, `PreviewAyah`), без каскада на остальной
+/// app. Поэтому `setDisplaySettings` из settings-экрана безопасно
+/// триггерит ребилд `Reader`'а (он на стеке ниже) и не ломает
+/// `GoRouter`.
+class DisplaySettingsNotifier extends StateNotifier<ReaderDisplaySettings> {
+  DisplaySettingsNotifier(Ref ref)
+      : _ref = ref,
+        super(_loadInitial(ref));
+
+  final Ref _ref;
+
+  static ReaderDisplaySettings _loadInitial(Ref ref) {
+    final prefs = ref.read(appPreferencesProvider);
+    return prefs.displaySettings;
+  }
+
+  Future<void> set(ReaderDisplaySettings s) async {
+    // `set` в `appPreferencesProvider` (через `setDisplaySettings`)
+    // НЕ вызывает `state = new AppPreferences(...)` — только пишет
+    // в SharedPreferences и кладёт новый snapshot в `state`
+    // (через `refresh()`). Здесь мы делаем **локальное** обновление
+    // — `state = s` — что триггерит ребилд только dependents
+    // `displaySettingsProvider` (Reader, Preview).
+    await _ref.read(appPreferencesProvider.notifier).setDisplaySettings(s);
+    state = s;
+  }
+
+  /// Принудительный refresh — вызывается из `AppPreferencesNotifier.setDisplaySettings`
+  /// если что-то (например, `clearAll`) изменило displaySettings в
+  /// SharedPreferences извне нашего прямого flow.
+  void refresh() {
+    final current = _ref.read(appPreferencesProvider).displaySettings;
+    if (current != state) {
+      state = current;
+    }
+  }
+}
+
+final displaySettingsProvider =
+    StateNotifierProvider<DisplaySettingsNotifier, ReaderDisplaySettings>(
+  (ref) => DisplaySettingsNotifier(ref),
+);
+
+/// Снимок display-настроек Reader'а (fontSize, lineHeight,
+/// themeVariant, ...). Источник истины — **`displaySettingsProvider`**
+/// (изолированный StateNotifier), а НЕ `appPreferencesProvider` —
+/// чтобы избежать app-wide rebuild при записи.
+///
+/// Запись из `appPreferencesProvider.setDisplaySettings` теперь
+/// делает **локальный** `state =` в `displaySettingsProvider`,
+/// и только dependents (`Reader`, `Preview`) ребилдятся.
+final readerDisplaySettingsProvider =
+    Provider<ReaderDisplaySettings>((ref) {
+  return ref.watch(displaySettingsProvider);
 });
 
 /// [QuizService] tied to the singleton [AppDatabase]. The Quiz
@@ -260,10 +423,10 @@ Future<void> resetAllUserData(WidgetRef ref) async {
   // ключи в SharedPreferences (включая `app.firstLaunchDone`).
   // Без этого `isFirstLaunchDone` остаётся `true` после reset и
   // пользователь НЕ попадает на /onboarding, а сразу на / —
-  // см. `app_router.dart:_run()`. Затем `invalidate` форсирует
-  // новый `AppPreferences` instance поверх очищенных префов.
-  await ref.read(appPreferencesProvider).clearAll();
-  ref.invalidate(appPreferencesProvider);
+  // см. `app_router.dart:_run()`. `clearAll` теперь сам
+  // уведомляет dependents через `state = AppPreferences(_prefs)`
+  // в `AppPreferencesNotifier`.
+  await ref.read(appPreferencesProvider.notifier).clearAll();
   // Пересоздаём готовое состояние — теперь isReady() == true
   // (контент есть), но last_position == null, закладки пустые и т.д.
   ref.invalidate(contentReadyProvider);
@@ -353,11 +516,9 @@ class LanguageNotifier extends Notifier<String?> {
     // уведомления Riverpod-подписчиков. Глобальный refresh
     // `appPreferencesProvider` нужен, потому что
     // `LanguageNotifier.state` — это derived value, и любой
-    // widget, делающий `ref.watch(appPreferencesProvider)`
-    // (например, Settings или Onboarding), должен увидеть
-    // новое значение languageCode.
-    await ref.read(appPreferencesProvider).setLanguageCode(code);
-    ref.invalidate(appPreferencesProvider);
+    // `setLanguageCode` сам notify'ит dependents через
+    // `state = AppPreferences(_prefs)` в `AppPreferencesNotifier`.
+    await ref.read(appPreferencesProvider.notifier).setLanguageCode(code);
   }
 }
 

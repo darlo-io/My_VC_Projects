@@ -84,6 +84,7 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (m, from, to) async {
       // MIGRATION CONTRACT — read before bumping schemaVersion.
       //
+      
       // Pre-v5 installs (dev-era, never shipped): we drop and re-create.
       //   Acceptable because the app has not been released and no users
       //   have data worth preserving.

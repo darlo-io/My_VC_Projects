@@ -80,7 +80,7 @@ class SurahRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => context.go('/reader/${surah.id}'),
+        onTap: () => context.push('/reader/${surah.id}'),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -194,10 +194,10 @@ class JuzList extends ConsumerWidget {
               if (!context.mounted) return;
               if (first.isNotEmpty) {
                 final a = first.first;
-                context.go('/reader/${a.surahId}?ayah=${a.ayahNumber}');
+                context.push('/reader/${a.surahId}?ayah=${a.ayahNumber}');
               } else {
                 final start = juzStart(juzNumber);
-                context.go(
+                context.push(
                   '/reader/${start.surahId}?ayah=${start.ayahNumber}',
                 );
               }

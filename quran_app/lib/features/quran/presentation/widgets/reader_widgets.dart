@@ -9,6 +9,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/ornaments.dart';
 import '../../../audio/presentation/word_timing_provider.dart';
 import '../../../learning/presentation/word_card.dart';
+import '../../../reader_settings/domain/reader_display_settings.dart';
+import '../../../reader_settings/presentation/reader_palette.dart';
 import 'notes_panel.dart';
 
 class AyahTile extends ConsumerStatefulWidget {
@@ -20,6 +22,7 @@ class AyahTile extends ConsumerStatefulWidget {
     required this.onToggleBookmark,
     this.lineByLine = true,
     this.tileKey,
+    this.display,
     super.key,
   });
 
@@ -28,6 +31,11 @@ class AyahTile extends ConsumerStatefulWidget {
   final double fontSize;
   final bool isBookmarked;
   final VoidCallback onToggleBookmark;
+
+  /// Display-настройки. Если переданы — применяются к арабскому
+  /// и переводу (lineHeight, letterSpacing, wordSpacing, fontFamily,
+  /// padding). Иначе fallback к legacy-значениям (fontSize only).
+  final ReaderDisplaySettings? display;
 
   /// Опциональный [GlobalKey], прокинутый из `_SingleScrollMushaf`
   /// для трекинга реальной высоты / позиции каждого аята в
@@ -117,29 +125,62 @@ class _AyahTileState extends ConsumerState<AyahTile> {
       // + translation). `Scrollable.ensureVisible(alignment: 0.5)`
       // отцентрирует Column в viewport'е, и аят появится точно
       // в центре.
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        key: widget.tileKey,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _AyahHeader(
-            ayah: widget.ayah,
-            isBookmarked: widget.isBookmarked,
-            onToggleBookmark: widget.onToggleBookmark,
-          ),
-          const SizedBox(height: 12),
+      //
+      // Padding из `display.paddingVertical` (8..32); `horizontal`
+      // применяется к Column ниже, чтобы ширина полосы
+      // (`textWidthPercent`) считалась от inner-content, а не
+      // от края Padding'а.
+      padding: EdgeInsets.symmetric(vertical: widget.display?.paddingVertical ?? 8),
+      // `ConstrainedBox` ограничивает ширину строки по
+      // `display.textWidthPercent` от текущей ширины viewport'а.
+      // При 100% (дефолт) `maxWidth = double.infinity` — рендеринг
+      // идёт во всю ширину; при <100% текст центрируется внутри
+      // ограниченной полосы (через `Center`).
+      //
+      // `LayoutBuilder` нужен, чтобы получить `constraints.maxWidth`
+      // для вычисления процента.
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final pct = widget.display?.textWidthPercent ?? 100.0;
+          final maxW = constraints.maxWidth.isFinite
+              ? constraints.maxWidth * pct / 100.0
+              : double.infinity;
+          final content = Column(
+            key: widget.tileKey,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _AyahHeader(
+                ayah: widget.ayah,
+                isBookmarked: widget.isBookmarked,
+                onToggleBookmark: widget.onToggleBookmark,
+              ),
+              const SizedBox(height: 12),
           _ArabicTextBody(
             ayah: widget.ayah,
             fontSize: widget.fontSize,
             words: _words,
             loading: _loadingWords,
             lineByLine: widget.lineByLine,
+            display: widget.display,
           ),
-          if (widget.translation != null) ...[
-            const SizedBox(height: 14),
-            _AyahTranslation(text: widget.translation!),
-          ],
-        ],
+              if (widget.translation != null &&
+                  (widget.display?.showTranslation ?? true)) ...[
+                const SizedBox(height: 14),
+                _AyahTranslation(
+                  text: widget.translation!,
+                  display: widget.display,
+                ),
+              ],
+            ],
+          );
+          if (pct >= 100.0) return content;
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxW),
+              child: content,
+            ),
+          );
+        },
       ),
     );
   }
@@ -181,19 +222,35 @@ class _AyahHeader extends StatelessWidget {
 /// translationLang) мы рендерим только `if`-секцию без
 /// разделителя.
 class _AyahTranslation extends StatelessWidget {
-  const _AyahTranslation({required this.text});
+  const _AyahTranslation({
+    required this.text,
+    this.display,
+  });
   final String text;
+  final ReaderDisplaySettings? display;
 
   @override
   Widget build(BuildContext context) {
+    final d = display;
+    // Цвет перевода: берём основной текст-цвет палитры и
+    // делаем прозрачность 0.7 — secondary-look на любой теме.
+    final textColor = d != null
+        ? ReaderPalette.of(d.themeVariant).text.withValues(alpha: 0.7)
+        : AppColors.textSecondary;
+    // Перевод: размер — независимый `translationFontSize` из
+    // display-настроек (default 14). Межстрочный — чуть меньше
+    // арабского (`lineHeight - 0.8`), letter/word spacing — те
+    // же, что у арабского (пользователь настраивает общую
+    // ритмику).
     return Text(
       text,
       textAlign: TextAlign.center,
-      style: const TextStyle(
-        fontSize: 14,
-        color: AppColors.textSecondary,
-        height: 1.6,
-        letterSpacing: 0.1,
+      style: TextStyle(
+        fontSize: d?.translationFontSize ?? 14,
+        color: textColor,
+        height: d != null ? d.lineHeight - 0.8 : 1.6,
+        letterSpacing: d?.letterSpacing ?? 0.1,
+        wordSpacing: d?.wordSpacing ?? 0,
       ),
     );
   }
@@ -206,6 +263,7 @@ class _ArabicTextBody extends ConsumerWidget {
     required this.words,
     required this.loading,
     required this.lineByLine,
+    this.display,
   });
 
   final Ayah ayah;
@@ -213,6 +271,7 @@ class _ArabicTextBody extends ConsumerWidget {
   final List<Word>? words;
   final bool loading;
   final bool lineByLine;
+  final ReaderDisplaySettings? display;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -262,6 +321,7 @@ class _ArabicTextBody extends ConsumerWidget {
             word: w,
             fontSize: fontSize,
             highlighted: isCurrent,
+            display: display,
             onTap: () {
               // Если сейчас играет аудио этой суры — перематываем
               // плеер на тапнутое слово, чтобы подсветка и озвучка
@@ -285,6 +345,11 @@ class _ArabicTextBody extends ConsumerWidget {
     // панелей не срабатывает поверх текста. В Mushaf выделение
     // не нужно (в печатной Mushaf текст тоже не выделяется),
     // поэтому `Text` — лучший компромисс.
+    final d = display;
+    final isBold = d?.fontFamily == 'AmiriBold';
+    final textColor = d != null
+        ? ReaderPalette.of(d.themeVariant).text
+        : AppColors.textPrimary;
     return Text(
       text,
       textDirection: TextDirection.rtl,
@@ -296,11 +361,14 @@ class _ArabicTextBody extends ConsumerWidget {
       textAlign: lineByLine ? TextAlign.center : TextAlign.justify,
       style: TextStyle(
         fontSize: fontSize,
-        // 2.2 — соответствует референсу: вертикальный
-        // межстрочный интервал ~1.2x от размера шрифта.
-        height: 2.2,
-        color: AppColors.textPrimary,
+        // 2.2 — дефолт; `display.lineHeight` переопределяет
+        // через экран настроек.
+        height: d?.lineHeight ?? 2.2,
+        letterSpacing: d?.letterSpacing ?? 0,
+        wordSpacing: d?.wordSpacing ?? 0,
+        color: textColor,
         fontFamily: 'Amiri',
+        fontWeight: isBold ? FontWeight.w700 : FontWeight.w400,
       ),
     );
   }
@@ -311,16 +379,34 @@ class _WordSpan extends StatelessWidget {
     required this.word,
     required this.fontSize,
     required this.highlighted,
+    this.display,
     this.onTap,
   });
 
   final Word word;
   final double fontSize;
   final bool highlighted;
+
+  /// Display-настройки (для цвета текста из палитры). Если не
+  /// переданы — fallback на `AppColors.textPrimary` (тёмная
+  /// тема). В lineByLine-режиме **обязательно** передавать
+  /// `display`, иначе на light-палитре текст слова будет
+  /// кремовым (`AppColors.textPrimary`) на белом фоне —
+  /// невидимый/едва-видимый.
+  final ReaderDisplaySettings? display;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final d = display;
+    // Цвет **не-подсвеченного** слова берём из `display.themeVariant`
+    // палитры, чтобы совпадать с `_plainText` (book-mode) и
+    // `_BookTranslationBlock` (book-mode перевод). Иначе при
+    // light-палитре `AppColors.textPrimary` (кремовый) на белом
+    // фоне = невидимый текст.
+    final baseColor = d != null
+        ? ReaderPalette.of(d.themeVariant).text
+        : AppColors.textPrimary;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -342,7 +428,7 @@ class _WordSpan extends StatelessWidget {
           style: TextStyle(
             fontSize: fontSize,
             height: 2.0,
-            color: highlighted ? AppColors.gold : AppColors.textPrimary,
+            color: highlighted ? AppColors.gold : baseColor,
             fontFamily: 'Amiri',
             fontWeight: highlighted ? FontWeight.w700 : FontWeight.w400,
           ),

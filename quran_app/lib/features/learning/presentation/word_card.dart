@@ -236,7 +236,7 @@ class _RelatedWordTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         onTap: () {
           Navigator.of(context).maybePop();
-          context.go('/reader/${hit.surahId}?ayah=${hit.ayahNumber}');
+          context.push('/reader/${hit.surahId}?ayah=${hit.ayahNumber}');
         },
         child: Container(
           margin: const EdgeInsets.only(bottom: 4),

@@ -1,5 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../features/reader_settings/domain/reader_display_settings.dart';
+import '../../features/reader_settings/domain/reader_display_settings_codec.dart';
+
 /// Обёртка над SharedPreferences для простых пользовательских настроек
 /// (тема, размер шрифта, выбранный чтец и т.д.).
 class AppPreferences {
@@ -15,6 +18,12 @@ class AppPreferences {
   static const _kThemeMode = 'app.themeMode';
   static const _kCacheLimitMb = 'audio.cacheLimitMb';
   static const _kReadingMode = 'reader.readingMode';
+
+  /// Снимок всех display-настроек Reader'а в виде JSON-строки.
+  /// Сюда пишет [setDisplaySettings]; на чтение — [displaySettings]
+  /// собирает объект из legacy-ключей + этого снимка (чтобы старые
+  /// пользователи с `reader.fontSize = 24` не потеряли значение).
+  static const _kDisplaySettings = 'reader.displaySettings';
 
   String? get languageCode => _prefs.getString(_kLanguageCode);
 
@@ -60,6 +69,40 @@ class AppPreferences {
   Future<void> setString(String key, String value) =>
       _prefs.setString(key, value);
   Future<void> remove(String key) => _prefs.remove(key);
+
+  // ─── ReaderDisplaySettings ────────────────────────────────────
+
+  /// Снимок всех display-настроек. Источник истины для
+  /// `readerDisplaySettingsProvider`. На чтение мигрирует со
+  /// старых по-полевых ключей (`reader.fontSize` и т.п.), чтобы
+  /// не потерять значения, выставленные до v0.4.
+  ReaderDisplaySettings get displaySettings {
+    const codec = ReaderDisplaySettingsCodec();
+    final raw = _prefs.getString(_kDisplaySettings);
+    if (raw != null && raw.isNotEmpty) {
+      return codec.decode(raw);
+    }
+    // Миграция: собираем из legacy-ключей + defaults для всего
+    // остального. Один раз; на следующей записи в `_kDisplaySettings`
+    // legacy-ключи перестают быть источником истины.
+    return codec.decode(null).copyWith(
+      fontSize: fontSize,
+      readingMode: readingMode,
+      themeVariant: themeMode,
+    );
+  }
+
+  Future<void> setDisplaySettings(ReaderDisplaySettings s) async {
+    const codec = ReaderDisplaySettingsCodec();
+    await _prefs.setString(_kDisplaySettings, codec.encode(s));
+    // Дублируем в legacy-ключи поля, которые читаются напрямую
+    // из других мест (bottom-sheet, тест, ...). Остальные поля
+    // (`lineHeight`, `letterSpacing`, `themeVariant` из палитры
+    // Reader'а, ...) — только в `displaySettings`.
+    await _prefs.setDouble(_kFontSize, s.fontSize);
+    await _prefs.setString(_kReadingMode, s.readingMode);
+    await _prefs.setString(_kThemeMode, s.themeVariant);
+  }
 
   /// Удалить все ключи, которые `AppPreferences` создаёт. Используется
   /// «Reset all data» в настройках. Ключи вроде `content.manifest.*`,

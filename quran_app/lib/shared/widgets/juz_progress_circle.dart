@@ -13,7 +13,7 @@ import 'progress_ring.dart';
 /// [size] по умолчанию 56 — компактнее, чем hero-ring, чтобы
 /// поместилось 6-8 штук на одном экране.
 class JuzProgressCircle extends StatelessWidget {
-  const JuzProgressCircle({
+  const JuzProgressCircle({super.key, 
     required this.juz,
     required this.progress,
     required this.label,

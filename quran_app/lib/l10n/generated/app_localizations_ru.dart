@@ -1229,4 +1229,127 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get readingModeTooltip => 'Режим чтения';
+
+  @override
+  String get exitConfirmTitle => 'Выйти из приложения?';
+
+  @override
+  String get exitConfirmBody => 'Вы уверены, что хотите закрыть приложение?';
+
+  @override
+  String get exitConfirmYes => 'Выйти';
+
+  @override
+  String get exitConfirmNo => 'Остаться';
+
+  @override
+  String get displaySettingsTitle => 'Настройки отображения чтения';
+
+  @override
+  String get displaySettingsPreview => 'Предпросмотр';
+
+  @override
+  String get displaySettingsGroupText => 'Текст';
+
+  @override
+  String get displaySettingsGroupLayout => 'Макет';
+
+  @override
+  String get displaySettingsGroupTheme => 'Тема';
+
+  @override
+  String get displaySettingsGroupExtras => 'Дополнительно';
+
+  @override
+  String get displaySettingsFontSize => 'Размер арабского шрифта';
+
+  @override
+  String get displaySettingsLineHeight => 'Межстрочный интервал';
+
+  @override
+  String get displaySettingsLetterSpacing => 'Расст. между буквами';
+
+  @override
+  String get displaySettingsWordSpacing => 'Расст. между словами';
+
+  @override
+  String get displaySettingsFontFamily => 'Шрифт';
+
+  @override
+  String get displaySettingsTextWidth => 'Ширина полосы';
+
+  @override
+  String get displaySettingsPaddingHorizontal => 'Горизонтальный отступ';
+
+  @override
+  String get displaySettingsPaddingVertical => 'Вертикальный отступ';
+
+  @override
+  String get displaySettingsBrightness => 'Яркость экрана';
+
+  @override
+  String get displaySettingsTranslationFontSize => 'Размер шрифта перевода';
+
+  @override
+  String get displaySettingsShowTranslation => 'Показывать перевод';
+
+  @override
+  String get displaySettingsShowWordByWord => 'Подстрочный перевод слов (бета)';
+
+  @override
+  String get displaySettingsKeepScreenOn => 'Держать экран включённым';
+
+  @override
+  String get displaySettingsReset => 'Сброс';
+
+  @override
+  String get displaySettingsResetConfirmTitle => 'Сбросить настройки чтения?';
+
+  @override
+  String get displaySettingsResetConfirmBody =>
+      'Все параметры отображения вернутся к стандартным. Прогресс и закладки сохранятся.';
+
+  @override
+  String get displaySettingsDiscardTitle => 'Отменить изменения?';
+
+  @override
+  String get displaySettingsDiscardBody =>
+      'Изменения настроек не сохранены. Выйти без сохранения?';
+
+  @override
+  String get displaySettingsSave => 'Готово';
+
+  @override
+  String get displaySettingsDiscard => 'Не сохранять';
+
+  @override
+  String get displaySettingsCancel => 'Отмена';
+
+  @override
+  String get displaySettingsUnitPx => 'пикс.';
+
+  @override
+  String get displaySettingsUnitPercent => '%';
+
+  @override
+  String get displaySettingsFontFamilyAmiriRegular => 'Amiri Regular';
+
+  @override
+  String get displaySettingsFontFamilyAmiriBold => 'Amiri Bold';
+
+  @override
+  String get displaySettingsThemeDark => 'Тёмная';
+
+  @override
+  String get displaySettingsThemeSepia => 'Сепия';
+
+  @override
+  String get displaySettingsThemeLight => 'Светлая';
+
+  @override
+  String get displaySettingsThemeParchment => 'Пергамент';
+
+  @override
+  String get displaySettingsPreviewTranslation =>
+      'Во имя Аллаха, Милостивого, Милосердного.';
 }

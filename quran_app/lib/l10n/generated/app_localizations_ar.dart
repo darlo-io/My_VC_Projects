@@ -1222,4 +1222,128 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get readingModeTooltip => 'وضع القراءة';
+
+  @override
+  String get exitConfirmTitle => 'الخروج من التطبيق؟';
+
+  @override
+  String get exitConfirmBody => 'هل أنت متأكد من رغبتك في إغلاق التطبيق؟';
+
+  @override
+  String get exitConfirmYes => 'خروج';
+
+  @override
+  String get exitConfirmNo => 'البقاء';
+
+  @override
+  String get displaySettingsTitle => 'إعدادات عرض القراءة';
+
+  @override
+  String get displaySettingsPreview => 'معاينة';
+
+  @override
+  String get displaySettingsGroupText => 'النص';
+
+  @override
+  String get displaySettingsGroupLayout => 'التخطيط';
+
+  @override
+  String get displaySettingsGroupTheme => 'السمة';
+
+  @override
+  String get displaySettingsGroupExtras => 'إضافات';
+
+  @override
+  String get displaySettingsFontSize => 'حجم الخط العربي';
+
+  @override
+  String get displaySettingsLineHeight => 'ارتفاع السطر';
+
+  @override
+  String get displaySettingsLetterSpacing => 'المسافة بين الحروف';
+
+  @override
+  String get displaySettingsWordSpacing => 'المسافة بين الكلمات';
+
+  @override
+  String get displaySettingsFontFamily => 'الخط';
+
+  @override
+  String get displaySettingsTextWidth => 'عرض النص';
+
+  @override
+  String get displaySettingsPaddingHorizontal => 'هامش أفقي';
+
+  @override
+  String get displaySettingsPaddingVertical => 'هامش عمودي';
+
+  @override
+  String get displaySettingsBrightness => 'سطوع الشاشة';
+
+  @override
+  String get displaySettingsTranslationFontSize => 'حجم خط الترجمة';
+
+  @override
+  String get displaySettingsShowTranslation => 'إظهار الترجمة';
+
+  @override
+  String get displaySettingsShowWordByWord => 'الترجمة تحت كل كلمة (تجريبي)';
+
+  @override
+  String get displaySettingsKeepScreenOn => 'إبقاء الشاشة مضاءة أثناء القراءة';
+
+  @override
+  String get displaySettingsReset => 'إعادة التعيين';
+
+  @override
+  String get displaySettingsResetConfirmTitle =>
+      'إعادة تعيين جميع إعدادات العرض؟';
+
+  @override
+  String get displaySettingsResetConfirmBody =>
+      'ستعود جميع معاملات العرض إلى الافتراضي. يُحفظ تقدّمك وعلاماتك.';
+
+  @override
+  String get displaySettingsDiscardTitle => 'تجاهل التغييرات؟';
+
+  @override
+  String get displaySettingsDiscardBody =>
+      'لم يتم حفظ تغييراتك على إعدادات العرض. المغادرة على أي حال؟';
+
+  @override
+  String get displaySettingsSave => 'تم';
+
+  @override
+  String get displaySettingsDiscard => 'تجاهل';
+
+  @override
+  String get displaySettingsCancel => 'إلغاء';
+
+  @override
+  String get displaySettingsUnitPx => 'بكسل';
+
+  @override
+  String get displaySettingsUnitPercent => '٪';
+
+  @override
+  String get displaySettingsFontFamilyAmiriRegular => 'Amiri عادي';
+
+  @override
+  String get displaySettingsFontFamilyAmiriBold => 'Amiri عريض';
+
+  @override
+  String get displaySettingsThemeDark => 'داكنة';
+
+  @override
+  String get displaySettingsThemeSepia => 'سيبيا';
+
+  @override
+  String get displaySettingsThemeLight => 'فاتحة';
+
+  @override
+  String get displaySettingsThemeParchment => 'رق';
+
+  @override
+  String get displaySettingsPreviewTranslation =>
+      'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
 }
