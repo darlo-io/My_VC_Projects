@@ -48,11 +48,28 @@ class _ReaderDisplaySettingsScreenState
   late ReaderDisplaySettings _initial;
   late ReaderDisplaySettings _draft;
 
+  /// Scroll-контроллер для ListView с группами. Нужен для
+  /// scroll-forwarding с preview (см. [_PreviewScrollForwarder]):
+  /// свайп по preview прокручивает тело на ту же дельту Y.
+  /// Без этого preview «поглощает» вертикальный drag — пользователь
+  /// не может скроллить группы, начав свайп с области preview.
+  final ScrollController _bodyScrollCtrl = ScrollController();
+
+  /// Точка, в которой текущий drag начался (используется для
+  /// определения, что свайп пошёл именно по preview).
+  double? _dragStartY;
+
   @override
   void initState() {
     super.initState();
     _initial = ref.read(readerDisplaySettingsProvider);
     _draft = _initial;
+  }
+
+  @override
+  void dispose() {
+    _bodyScrollCtrl.dispose();
+    super.dispose();
   }
 
   bool get _isDirty => _draft != _initial;
@@ -180,6 +197,7 @@ class _ReaderDisplaySettingsScreenState
             children: [
               // ── Скроллируемый body (группы) ─────────────────
               ListView(
+                controller: _bodyScrollCtrl,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24).copyWith(
                   top: kPreviewHeight + 12,
                 ),
@@ -408,7 +426,29 @@ class _ReaderDisplaySettingsScreenState
                 // GroupHeader (~16) + SizedBox 8 + preview (~200) +
                 // padding (8 снизу). Top = 0, body под ним.
                 height: kPreviewHeight,
-                child: Container(
+                // `Listener` ловит raw-pointer-события и прокидывает
+                // вертикальный drag в `_bodyScrollCtrl`. Без этого
+                // preview-поглощает свайп — пользователь не может
+                // скроллить группы, начав жест с preview-области.
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: (event) {
+                    _dragStartY = event.position.dy;
+                  },
+                  onPointerMove: (event) {
+                    if (_dragStartY == null) return;
+                    final deltaY = event.delta.dy;
+                    if (deltaY == 0) return;
+                    final current = _bodyScrollCtrl.position.pixels;
+                    final maxScroll =
+                        _bodyScrollCtrl.position.maxScrollExtent;
+                    final newOffset = (current + deltaY)
+                        .clamp(0.0, maxScroll);
+                    _bodyScrollCtrl.jumpTo(newOffset);
+                  },
+                  onPointerUp: (_) => _dragStartY = null,
+                  onPointerCancel: (_) => _dragStartY = null,
+                  child: Container(
                   decoration: BoxDecoration(
                     color: AppColors.backgroundDeep,
                     boxShadow: [
@@ -436,6 +476,7 @@ class _ReaderDisplaySettingsScreenState
                         ),
                       ),
                     ],
+                  ),
                   ),
                 ),
               ),
