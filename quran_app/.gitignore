@@ -47,6 +47,9 @@ app.*.map.json
 # Dev-only artifacts
 /tool/apk_inspect/
 /tool/*.png
+/tool/*.xml
+/tool/*.bin
+/tool/*.sqlite
 /tool/signed/
 /tool/signedmanifest.json
 /tool/signedpayloads/

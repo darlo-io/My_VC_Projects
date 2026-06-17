@@ -32,10 +32,10 @@ Future<void> main(List<String> args) async {
   final root = args.length > 1 && args[0] == '--root' ? args[1] : 'tool/signed';
   final portArg = args.indexOf('--port');
   final port = portArg >= 0 ? int.parse(args[portArg + 1]) : 8443;
-  final certPath = args.indexOf('--cert') >= 0
+  final certPath = args.contains('--cert')
       ? args[args.indexOf('--cert') + 1]
       : 'tool/certs/server.crt';
-  final keyPath = args.indexOf('--key') >= 0
+  final keyPath = args.contains('--key')
       ? args[args.indexOf('--key') + 1]
       : 'tool/certs/server.key';
 
