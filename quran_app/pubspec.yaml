@@ -64,6 +64,17 @@ flutter:
         - asset: assets/fonts/amiri/Amiri-Regular.ttf
         - asset: assets/fonts/amiri/Amiri-Bold.ttf
           weight: 700
+    - family: ScheherazadeNew
+      fonts:
+        - asset: assets/fonts/scheherazadenew/ScheherazadeNew-Variable.ttf
+    - family: NotoNaskhArabic
+      fonts:
+        - asset: assets/fonts/notonaskh/NotoNaskhArabic.ttf
+    - family: ArefRuqaa
+      fonts:
+        - asset: assets/fonts/arefruqaa/ArefRuqaa-Regular.ttf
+        - asset: assets/fonts/arefruqaa/ArefRuqaa-Bold.ttf
+          weight: 700
     - family: Inter
       fonts:
         - asset: assets/fonts/inter/Inter-Variable.ttf

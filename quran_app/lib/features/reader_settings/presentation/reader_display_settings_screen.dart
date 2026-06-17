@@ -7,7 +7,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../domain/reader_display_settings.dart';
 import 'preview_ayah.dart';
-import 'reader_palette.dart';
 import 'widgets/choice_chips_row.dart';
 import 'widgets/slider_row.dart';
 import 'widgets/switch_row.dart';
@@ -277,14 +276,18 @@ class _ReaderDisplaySettingsScreenState
                         ),
                       ),
                     ),
-                    ChoiceChipsRow<String>(
-                      options: const [
-                        (value: 'AmiriRegular', label: 'Amiri R'),
-                        (value: 'AmiriBold', label: 'Amiri B'),
-                      ],
-                      selected: _draft.fontFamily,
-                      onChanged: (v) => _update(_draft.copyWith(fontFamily: v)),
-                      fullWidth: true,
+                    // DropdownMenuItem-стиль выпадающего списка,
+                    // реализованный через `showMenu` (НЕ DropdownButton
+                    // — последний создаёт overlay route, который
+                    // конфликтует с GoRouter Navigator в нашем
+                    // Stack+Positioned preview).
+                    //
+                    // Кнопка показывает текущий выбор, по тапу
+                    // открывает `showMenu` со списком 4 шрифтов.
+                    _FontFamilyMenu(
+                      current: _draft.fontFamily,
+                      onChanged: (v) =>
+                          _update(_draft.copyWith(fontFamily: v)),
                     ),
                   ],
                 ),
@@ -599,3 +602,128 @@ class _ConfirmDialog extends StatelessWidget {
 // slider'ов на 1 frame и обновлялся только при scroll'е. Теперь
 // header рендерится обычным `Positioned` в `Stack`, и `setState`
 // родителя сразу его обновляет.
+
+/// Выпадающий список шрифтов в виде "menu button" —
+/// кнопка показывает текущий шрифт, по тапу открывает
+/// popupmenu со всеми 4 вариантами.
+///
+/// **Почему не `DropdownButton`**: он создаёт overlay route
+/// через Navigator, что конфликтует с GoRouter в нашем
+/// `Stack+Positioned` preview (assertion `keyReservation`
+/// в `navigator.dart:4068`). `showMenu` использует тот же
+/// механизм overlay, но не регистрирует route в Navigator,
+/// а использует `Overlay.of(context).insert` напрямую.
+class _FontFamilyMenu extends StatelessWidget {
+  const _FontFamilyMenu({
+    required this.current,
+    required this.onChanged,
+  });
+
+  final String current;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentIndex =
+        ReaderDisplaySettings.fontFamilyIndex(current);
+    final currentLabel = ReaderDisplaySettings
+        .fontFamilyLabels[currentIndex];
+    final currentFamily = ReaderDisplaySettings
+        .fontFamilies[currentIndex];
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.borderSubtle),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () async {
+            // Получаем позицию кнопки для всплывающего меню.
+            final box = context.findRenderObject() as RenderBox?;
+            if (box == null) return;
+            final overlay = Overlay.of(context).context
+                .findRenderObject() as RenderBox?;
+            if (overlay == null) return;
+            final topLeft = box.localToGlobal(
+              Offset.zero,
+              ancestor: overlay,
+            );
+
+            final selected = await showMenu<String>(
+              context: context,
+              position: RelativeRect.fromLTRB(
+                topLeft.dx,
+                topLeft.dy + box.size.height,
+                overlay.size.width - topLeft.dx - box.size.width,
+                overlay.size.height -
+                    topLeft.dy -
+                    box.size.height,
+              ),
+              color: AppColors.surfaceElevated,
+              items: [
+                for (var i = 0;
+                    i < ReaderDisplaySettings.fontFamilies.length;
+                    i++)
+                  PopupMenuItem<String>(
+                    value: ReaderDisplaySettings.fontFamilies[i],
+                    child: Row(
+                      children: [
+                        if (i == currentIndex)
+                          const Icon(
+                            Icons.check,
+                            color: AppColors.gold,
+                            size: 18,
+                          )
+                        else
+                          const SizedBox(width: 18),
+                        const SizedBox(width: 12),
+                        Text(
+                          ReaderDisplaySettings.fontFamilyLabels[i],
+                          style: TextStyle(
+                            fontFamily: ReaderDisplaySettings
+                                .fontFamilies[i],
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                            fontWeight: i == currentIndex
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+            if (selected != null) onChanged(selected);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
+            child: Row(
+              children: [
+                Text(
+                  currentLabel,
+                  style: TextStyle(
+                    fontFamily: currentFamily,
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                const Icon(
+                  Icons.arrow_drop_down,
+                  color: AppColors.gold,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

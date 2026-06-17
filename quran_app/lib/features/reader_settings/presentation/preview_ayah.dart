@@ -44,7 +44,6 @@ class PreviewAyah extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = ReaderPalette.of(settings.themeVariant);
-    final isBold = settings.fontFamily == 'AmiriBold';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -123,9 +122,8 @@ class PreviewAyah extends StatelessWidget {
                     letterSpacing: settings.letterSpacing,
                     wordSpacing: settings.wordSpacing,
                     color: palette.text,
-                    fontFamily: 'Amiri',
-                    fontWeight:
-                        isBold ? FontWeight.w700 : FontWeight.w400,
+                    fontFamily: settings.fontFamily,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ),

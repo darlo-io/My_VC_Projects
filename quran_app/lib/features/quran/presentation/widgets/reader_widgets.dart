@@ -346,7 +346,6 @@ class _ArabicTextBody extends ConsumerWidget {
     // не нужно (в печатной Mushaf текст тоже не выделяется),
     // поэтому `Text` — лучший компромисс.
     final d = display;
-    final isBold = d?.fontFamily == 'AmiriBold';
     final textColor = d != null
         ? ReaderPalette.of(d.themeVariant).text
         : AppColors.textPrimary;
@@ -367,8 +366,8 @@ class _ArabicTextBody extends ConsumerWidget {
         letterSpacing: d?.letterSpacing ?? 0,
         wordSpacing: d?.wordSpacing ?? 0,
         color: textColor,
-        fontFamily: 'Amiri',
-        fontWeight: isBold ? FontWeight.w700 : FontWeight.w400,
+        fontFamily: d?.fontFamily ?? 'Amiri',
+        fontWeight: FontWeight.w400,
       ),
     );
   }

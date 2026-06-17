@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 /// Immutable набор параметров отображения Reader'а.
 ///
 /// Сериализуется в JSON-строку под ключом `reader.displaySettings`
@@ -86,11 +84,33 @@ class ReaderDisplaySettings {
     'parchment',
   ];
 
-  /// В нашем проекте пока только 2 начертания Amiri.
+  /// 4 арабских шрифта для Quran.
+  /// Каждое значение — это `family` name из `pubspec.yaml` fonts.
+  /// Шрифты с несколькими начертаниями (Amiri, Aref Ruqaa) имеют
+  /// Regular + Bold варианты — Flutter различает их через
+  /// `TextStyle.fontWeight`. Variable fonts (Scheherazade New)
+  /// хранятся в одном файле.
   static const List<String> fontFamilies = [
-    'AmiriRegular',
-    'AmiriBold',
+    'Amiri',
+    'ScheherazadeNew',
+    'NotoNaskhArabic',
+    'ArefRuqaa',
   ];
+
+  /// Локализованные имена шрифтов для UI. Параллельны
+  /// [fontFamilies] по индексу.
+  static const List<String> fontFamilyLabels = [
+    'Amiri',
+    'Scheherazade New',
+    'Noto Naskh Arabic',
+    'Aref Ruqaa',
+  ];
+
+  /// Индекс семейства в [fontFamilies]. 0 для неизвестного.
+  static int fontFamilyIndex(String family) {
+    final i = fontFamilies.indexOf(family);
+    return i < 0 ? 0 : i;
+  }
 
   // ─── Defaults ─────────────────────────────────────────────────
 
@@ -99,7 +119,7 @@ class ReaderDisplaySettings {
     lineHeight: 2.4,
     letterSpacing: 0.1,
     wordSpacing: 0.0,
-    fontFamily: 'AmiriRegular',
+    fontFamily: 'Amiri',
     textWidthPercent: 100.0,
     paddingHorizontal: 16.0,
     paddingVertical: 8.0,

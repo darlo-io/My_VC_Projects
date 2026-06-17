@@ -1410,7 +1410,8 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
           //     растягиваются до полной ширины строки
           //   - textHeight: 2.4 — комфортное вертикальное
           //     «дыхание» для длинного потока
-          //   - fontFamily: 'Amiri' — печатный Naskh
+          //   - fontFamily: динамический, выбирается пользователем
+          //     (Amiri, Scheherazade New, Noto Naskh, Aref Ruqaa)
           //
           // ВАЖНО: используется `Text`, а не `SelectableText`:
           //   - `SelectableText` перехватывает тапы для cursor /
@@ -1433,10 +1434,8 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
               letterSpacing: widget.display.letterSpacing,
               wordSpacing: widget.display.wordSpacing,
               color: ReaderPalette.of(widget.display.themeVariant).text,
-              fontFamily: 'Amiri',
-              fontWeight: widget.display.fontFamily == 'AmiriBold'
-                  ? FontWeight.w700
-                  : FontWeight.w400,
+              fontFamily: widget.display.fontFamily,
+              fontWeight: FontWeight.w400,
             ),
           ),
           const SizedBox(height: 16),

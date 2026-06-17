@@ -10,7 +10,7 @@ void main() {
       expect(s.lineHeight, 2.4);
       expect(s.letterSpacing, 0.1);
       expect(s.wordSpacing, 0.0);
-      expect(s.fontFamily, 'AmiriRegular');
+      expect(s.fontFamily, 'Amiri');
       expect(s.textWidthPercent, 100.0);
       expect(s.paddingHorizontal, 16.0);
       expect(s.paddingVertical, 8.0);
@@ -32,11 +32,29 @@ void main() {
       ]);
     });
 
-    test('fontFamilies contains only supported Amiri weights', () {
+    test('fontFamilies contains 4 supported Quran Arabic fonts', () {
       expect(ReaderDisplaySettings.fontFamilies, [
-        'AmiriRegular',
-        'AmiriBold',
+        'Amiri',
+        'ScheherazadeNew',
+        'NotoNaskhArabic',
+        'ArefRuqaa',
       ]);
+    });
+
+    test('fontFamilyLabels parallels fontFamilies 1-to-1', () {
+      expect(ReaderDisplaySettings.fontFamilyLabels.length,
+          ReaderDisplaySettings.fontFamilies.length);
+    });
+
+    test('fontFamilyIndex returns 0 for unknown family', () {
+      expect(ReaderDisplaySettings.fontFamilyIndex('unknown'), 0);
+    });
+
+    test('fontFamilyIndex returns correct index for known families', () {
+      expect(ReaderDisplaySettings.fontFamilyIndex('Amiri'), 0);
+      expect(ReaderDisplaySettings.fontFamilyIndex('ScheherazadeNew'), 1);
+      expect(ReaderDisplaySettings.fontFamilyIndex('NotoNaskhArabic'), 2);
+      expect(ReaderDisplaySettings.fontFamilyIndex('ArefRuqaa'), 3);
     });
   });
 
@@ -96,9 +114,11 @@ void main() {
     });
 
     test('fontFamily rejects unknown id → keeps current', () {
-      const s = base; // fontFamily='AmiriRegular'
-      expect(s.copyWith(fontFamily: 'ComicSans').fontFamily, 'AmiriRegular');
-      expect(s.copyWith(fontFamily: 'AmiriBold').fontFamily, 'AmiriBold');
+      const s = base; // fontFamily='Amiri'
+      expect(s.copyWith(fontFamily: 'ComicSans').fontFamily, 'Amiri');
+      expect(s.copyWith(fontFamily: 'ScheherazadeNew').fontFamily,
+          'ScheherazadeNew');
+      expect(s.copyWith(fontFamily: 'ArefRuqaa').fontFamily, 'ArefRuqaa');
     });
 
     test('readingMode accepts only book/lineByLine', () {
