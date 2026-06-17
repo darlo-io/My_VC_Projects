@@ -404,8 +404,6 @@
   "displaySettingsBrightness": "Яркость экрана",
   "displaySettingsTranslationFontSize": "Размер шрифта перевода",
   "displaySettingsShowTranslation": "Показывать перевод",
-  "displaySettingsShowWordByWord": "Подстрочный перевод слов (бета)",
-  "displaySettingsKeepScreenOn": "Держать экран включённым",
   "displaySettingsReset": "Сброс",
   "displaySettingsResetConfirmTitle": "Сбросить настройки чтения?",
   "displaySettingsResetConfirmBody": "Все параметры отображения вернутся к стандартным. Прогресс и закладки сохранятся.",

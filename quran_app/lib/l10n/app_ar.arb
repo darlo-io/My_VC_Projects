@@ -404,8 +404,6 @@
   "displaySettingsBrightness": "سطوع الشاشة",
   "displaySettingsTranslationFontSize": "حجم خط الترجمة",
   "displaySettingsShowTranslation": "إظهار الترجمة",
-  "displaySettingsShowWordByWord": "الترجمة تحت كل كلمة (تجريبي)",
-  "displaySettingsKeepScreenOn": "إبقاء الشاشة مضاءة أثناء القراءة",
   "displaySettingsReset": "إعادة التعيين",
   "displaySettingsResetConfirmTitle": "إعادة تعيين جميع إعدادات العرض؟",
   "displaySettingsResetConfirmBody": "ستعود جميع معاملات العرض إلى الافتراضي. يُحفظ تقدّمك وعلاماتك.",

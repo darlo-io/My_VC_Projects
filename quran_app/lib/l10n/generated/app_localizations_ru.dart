@@ -1294,12 +1294,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get displaySettingsShowTranslation => 'Показывать перевод';
 
   @override
-  String get displaySettingsShowWordByWord => 'Подстрочный перевод слов (бета)';
-
-  @override
-  String get displaySettingsKeepScreenOn => 'Держать экран включённым';
-
-  @override
   String get displaySettingsReset => 'Сброс';
 
   @override

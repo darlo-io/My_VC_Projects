@@ -1288,12 +1288,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get displaySettingsShowTranslation => 'Show translation';
 
   @override
-  String get displaySettingsShowWordByWord => 'Show word-by-word (beta)';
-
-  @override
-  String get displaySettingsKeepScreenOn => 'Keep screen on while reading';
-
-  @override
   String get displaySettingsReset => 'Reset';
 
   @override

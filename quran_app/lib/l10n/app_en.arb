@@ -452,8 +452,6 @@
   "displaySettingsBrightness": "Screen brightness",
   "displaySettingsTranslationFontSize": "Translation font size",
   "displaySettingsShowTranslation": "Show translation",
-  "displaySettingsShowWordByWord": "Show word-by-word (beta)",
-  "displaySettingsKeepScreenOn": "Keep screen on while reading",
   "displaySettingsReset": "Reset",
   "displaySettingsResetConfirmTitle": "Reset all display settings?",
   "displaySettingsResetConfirmBody": "All reading display parameters will return to defaults. Your last position and bookmarks are kept.",

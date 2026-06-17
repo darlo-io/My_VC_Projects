@@ -397,21 +397,14 @@ class _ReaderDisplaySettingsScreenState
                       onChanged: (v) =>
                           _update(_draft.copyWith(showTranslation: v)),
                     ),
-                    const _Divider(),
-                    SwitchRow(
-                      label: t.displaySettingsShowWordByWord,
-                      badge: 'BETA',
-                      value: _draft.showWordByWord,
-                      onChanged: (v) =>
-                          _update(_draft.copyWith(showWordByWord: v)),
-                    ),
-                    const _Divider(),
-                    SwitchRow(
-                      label: t.displaySettingsKeepScreenOn,
-                      value: _draft.keepScreenOn,
-                      onChanged: (v) =>
-                          _update(_draft.copyWith(keepScreenOn: v)),
-                    ),
+                    // Параметры showWordByWord и keepScreenOn
+                    // сохранены в [ReaderDisplaySettings] для
+                    // будущего использования (когда обновим
+                    // compileSdk до 34+ и подключим пакеты
+                    // `wakelock_plus` / `screen_brightness` и
+                    // наполним данные по словам). В UI временно
+                    // не выводятся, чтобы не вводить пользователя
+                    // в заблуждение тумблерами без эффекта.
                   ],
                 ),
               ),

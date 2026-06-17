@@ -2518,18 +2518,6 @@ abstract class AppLocalizations {
   /// **'Show translation'**
   String get displaySettingsShowTranslation;
 
-  /// No description provided for @displaySettingsShowWordByWord.
-  ///
-  /// In en, this message translates to:
-  /// **'Show word-by-word (beta)'**
-  String get displaySettingsShowWordByWord;
-
-  /// No description provided for @displaySettingsKeepScreenOn.
-  ///
-  /// In en, this message translates to:
-  /// **'Keep screen on while reading'**
-  String get displaySettingsKeepScreenOn;
-
   /// No description provided for @displaySettingsReset.
   ///
   /// In en, this message translates to:

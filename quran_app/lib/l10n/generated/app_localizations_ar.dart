@@ -1287,12 +1287,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get displaySettingsShowTranslation => 'إظهار الترجمة';
 
   @override
-  String get displaySettingsShowWordByWord => 'الترجمة تحت كل كلمة (تجريبي)';
-
-  @override
-  String get displaySettingsKeepScreenOn => 'إبقاء الشاشة مضاءة أثناء القراءة';
-
-  @override
   String get displaySettingsReset => 'إعادة التعيين';
 
   @override
