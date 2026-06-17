@@ -616,7 +616,17 @@ class _AnimatedTopBar extends StatelessWidget {
       child: AnimatedOpacity(
         opacity: visible ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 200),
-        child: SafeArea(
+        // `IgnorePointer` — стандартный паттерн для hide/show
+        // анимированных панелей. Без него панель **получает**
+        // hit-test **во время анимации** скрытия (260ms), и тапы
+        // по области Mushaf поглощаются панелью → Mushaf
+        // GestureDetector не срабатывает. Это объясняет
+        // нестабильный z-order: иногда тап на TopBar доходит
+        // (Mushaf уже не перехватывает), иногда — нет (TopBar
+        // ещё в hit-test).
+        child: IgnorePointer(
+          ignoring: !visible,
+          child: SafeArea(
           bottom: false,
           child: Container(
             margin: const EdgeInsets.fromLTRB(8, 4, 8, 0),
@@ -695,6 +705,7 @@ class _AnimatedTopBar extends StatelessWidget {
             ),
           ),
         ),
+        ),
       ),
     );
   }
@@ -730,8 +741,10 @@ class _AnimatedBottomBar extends ConsumerWidget {
       child: AnimatedOpacity(
         opacity: visible ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 200),
-        child: SafeArea(
-          top: false,
+        child: IgnorePointer(
+          ignoring: !visible,
+          child: SafeArea(
+            top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
             child: Builder(builder: (innerCtx) {
@@ -890,6 +903,7 @@ class _AnimatedBottomBar extends ConsumerWidget {
               );
             }),
           ),
+        ),
         ),
       ),
     );
