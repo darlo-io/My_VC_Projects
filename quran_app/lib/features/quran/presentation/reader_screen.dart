@@ -146,12 +146,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               (a) => a.ayahNumber == widget.initialAyah,
             ) ??
             -1;
-        // ignore: avoid_print
-        print(
-          'INIT-STATE-SCROLL: initialAyah=${widget.initialAyah}, '
-          'idx=$idx, _lastAyahs.length=${_lastAyahs?.length ?? -1}, '
-          'readingMode=$_readingMode',
-        );
         if (idx >= 0) {
           // Определяем режим: lineByLine → `_SingleScrollMushaf`
           // (через GlobalKey), book → локальный `_scrollToAyah`.
@@ -163,22 +157,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             // (тайминг Flutter framework'а). На **следующем**
             // postFrame — гарантированно готов.
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              // ignore: avoid_print
-              print(
-                'POST-FRAME-CHECK: mounted=$mounted, '
-                'mushafKey.currentState=${_mushafKey.currentState.runtimeType}, '
-                'is _SingleScrollMushafState=${_mushafKey.currentState is _SingleScrollMushafState}',
-              );
               if (!mounted) return;
               final state = _mushafKey.currentState;
               if (state is _SingleScrollMushafState) {
                 state.scrollToAyahByIndex(idx);
               } else {
-                // ignore: avoid_print
-                print(
-                  'POST-FRAME-FAILED: state is not _SingleScrollMushafState, '
-                  'fallback to jumpTo(idx * tileExtent)',
-                );
                 const tileExtent = 220.0;
                 final viewport = _pageCtrl.position.viewportDimension;
                 final maxOffset = _pageCtrl.position.maxScrollExtent;
@@ -1205,18 +1188,8 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
           final target = (tileCenterInScroll - viewport / 2)
               .clamp(0.0, maxOffset);
           widget.scrollCtrl.jumpTo(target);
-          print(
-            'scrollToAyahByIndex: index=$index, '
-            'tileTop=$tileTopInScroll, tileHeight=$tileHeight, '
-            'tileCenter=$tileCenterInScroll, '
-            'viewport=$viewport, maxOffset=$maxOffset, '
-            'target=$target',
-          );
         } else {
           // RenderBox не готов (pre-attach) — defer и retry.
-          print(
-            'scrollToAyahByIndex: tileBox is not RenderBox, deferring',
-          );
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             scrollToAyahByIndex(index);

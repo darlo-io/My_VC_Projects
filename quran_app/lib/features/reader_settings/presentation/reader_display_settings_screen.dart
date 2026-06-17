@@ -58,14 +58,10 @@ class _ReaderDisplaySettingsScreenState
   bool get _isDirty => _draft != _initial;
 
   void _update(ReaderDisplaySettings next) {
-    // ignore: avoid_print
-    print('DRAFT: fontSize=${next.fontSize} lineHeight=${next.lineHeight} themeVariant=${next.themeVariant}');
     setState(() => _draft = next);
   }
 
   Future<void> _save() async {
-    // ignore: avoid_print
-    print('SAVE: fontSize=${_draft.fontSize} themeVariant=${_draft.themeVariant}');
     // `displaySettingsProvider` — **изолированный** StateNotifier;
     // его `state =` триггерит ребилд ТОЛЬКО его dependents
     // (Reader, PreviewAyah) — не app-wide. Никакого
