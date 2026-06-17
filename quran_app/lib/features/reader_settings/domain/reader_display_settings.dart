@@ -102,7 +102,7 @@ class ReaderDisplaySettings {
     fontFamily: 'AmiriRegular',
     textWidthPercent: 100.0,
     paddingHorizontal: 16.0,
-    paddingVertical: 4.0,
+    paddingVertical: 8.0,
     themeVariant: 'dark',
     brightness: 100.0,
     translationFontSize: 14.0,
