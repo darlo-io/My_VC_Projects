@@ -94,61 +94,56 @@ class AppPreferencesNotifier extends StateNotifier<AppPreferences> {
   // (settings поверх Reader), и app-wide rebuild ломает стек
   // GoRouter (пользователь оказывается на пустом Home — см. bug).
 
-  Future<void> setDisplaySettings(ReaderDisplaySettings s) async {
-    await state.setDisplaySettings(s);
-    // Без `state = ...` — НЕ notify dependents. Отдельный
-    // `displaySettingsProvider` сам notify'ит свои dependents
-    // (Reader, Preview) сразу после записи.
-    _ref.read(displaySettingsProvider.notifier).refresh();
-  }
+  /// Helper: записать в SharedPreferences и триггерить rebuild
+/// dependents через `state = new AppPreferences(_prefs)`.
+/// Используется для всех `set*` методов, КРОМЕ тех, которые
+/// не должны вызывать app-wide rebuild (см. [setReadingMode]
+/// и [setDisplaySettings]).
+Future<void> _setAndNotify(Future<void> Function() write) async {
+  await write();
+  state = AppPreferences(_prefs);
+}
 
-  Future<void> setFontSize(double v) async {
-    await state.setFontSize(v);
-    state = AppPreferences(_prefs);
-  }
+Future<void> setDisplaySettings(ReaderDisplaySettings s) async {
+  // Без `state = ...` — НЕ notify dependents. Отдельный
+  // `displaySettingsProvider` сам notify'ит свои dependents
+  // (Reader, Preview) сразу после записи.
+  await state.setDisplaySettings(s);
+  _ref.read(displaySettingsProvider.notifier).refresh();
+}
 
-  Future<void> setLanguageCode(String? code) async {
-    await state.setLanguageCode(code);
-    state = AppPreferences(_prefs);
-  }
+Future<void> setFontSize(double v) =>
+    _setAndNotify(() => state.setFontSize(v));
 
-  Future<void> setReadingMode(String mode) async {
-    // **НЕ** триггерим `state = ...` — это вызвало бы app-wide
-    // rebuild, который ломает навигацию GoRouter (пользователь
-    // оказывается на пустом Home). Локальный `setState` в
-    // `ReaderScreenState` (через `_readingMode`) уже обновляет
-    // UI. В SharedPreferences запись нужна для сохранения
-    // между сессиями — её делает ниже `_prefs.setReadingMode`.
-    // На следующем mount / refresh Reader прочитает свежее
-    // значение через `appPreferencesProvider.readingMode` (старт
-    // сессии).
-    await state.setReadingMode(mode);
-  }
+Future<void> setLanguageCode(String? code) =>
+    _setAndNotify(() => state.setLanguageCode(code));
 
-  Future<void> setTranslationLang(String lang) async {
-    await state.setTranslationLang(lang);
-    state = AppPreferences(_prefs);
-  }
+Future<void> setReadingMode(String mode) async {
+  // **НЕ** триггерим `state = ...` — это вызвало бы app-wide
+  // rebuild, который ломает навигацию GoRouter (пользователь
+  // оказывается на пустом Home). Локальный `setState` в
+  // `ReaderScreenState` (через `_readingMode`) уже обновляет
+  // UI. В SharedPreferences запись нужна для сохранения
+  // между сессиями. На следующем mount / refresh Reader
+  // прочитает свежее значение через
+  // `appPreferencesProvider.readingMode` (старт сессии).
+  await state.setReadingMode(mode);
+}
 
-  Future<void> setReciterId(String id) async {
-    await state.setReciterId(id);
-    state = AppPreferences(_prefs);
-  }
+Future<void> setTranslationLang(String lang) =>
+    _setAndNotify(() => state.setTranslationLang(lang));
 
-  Future<void> setThemeMode(String mode) async {
-    await state.setThemeMode(mode);
-    state = AppPreferences(_prefs);
-  }
+Future<void> setReciterId(String id) =>
+    _setAndNotify(() => state.setReciterId(id));
 
-  Future<void> setFirstLaunchDone(bool v) async {
-    await state.setFirstLaunchDone(v);
-    state = AppPreferences(_prefs);
-  }
+Future<void> setThemeMode(String mode) =>
+    _setAndNotify(() => state.setThemeMode(mode));
 
-  Future<void> setCacheLimitMb(int mb) async {
-    await state.setCacheLimitMb(mb);
-    state = AppPreferences(_prefs);
-  }
+Future<void> setFirstLaunchDone(bool v) =>
+    _setAndNotify(() => state.setFirstLaunchDone(v));
+
+Future<void> setCacheLimitMb(int mb) =>
+    _setAndNotify(() => state.setCacheLimitMb(mb));
 
   Future<void> clearAll() async {
     await state.clearAll();
