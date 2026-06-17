@@ -333,7 +333,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                   // multiple scrollables`, который в
                                   // dev-режиме сбрасывает navigation
                                   // stack на Home.
-                                  'mushaf-$_readingMode-${ayahs.length}',
+                                  // `fontFamily` в key — критично:
+                                  // без него при смене шрифта в settings
+                                  // Flutter переиспользует Element
+                                  // _SingleScrollMushaf, и `widget.display`
+                                  // обновляется, но `displaySettingsProvider`
+                                  // notification может не дойти до
+                                  // `AyahTile` (если _SingleScrollMushaf
+                                  // не ребилдится по какой-то причине).
+                                  // `ValueKey(fontFamily)` форсирует
+                                  // пересоздание State, гарантируя
+                                  // что AyahTile получает новый display.
+                                  'mushaf-$_readingMode-${ayahs.length}-'
+                                  '${display.fontFamily}',
                                 ),
                                 // `mushafKey` — стабильный `GlobalKey`
                                 // для доступа к `scrollToAyahByIndex` из
