@@ -85,16 +85,30 @@ Future<bool> showExitConfirmDialog(BuildContext context) async {
 ///    дошёл сюда через `context.push`) — сначала обычный `pop()`;
 /// 2) иначе, если текущий таб — не Home (`/`) — переходим на `/`;
 /// 3) иначе (пользователь на Home) — показываем диалог подтверждения
-///    выхода.
+///    выхода (или пользовательский `confirmDialog`, если задан).
 ///
 /// Шаг 2 нужен потому, что переключение между табами делается через
 /// `context.go(...)` (а не `push`) — стек GoRouter остаётся пустым,
 /// и без явной проверки текущего роута пользователь видел бы диалог
 /// выхода на любом табе, а не возврат на Home.
+///
+/// **Generic wrapper**: параметр [confirmDialog] позволяет
+/// переиспользовать обёртку для других сценариев
+/// (например, "отменить несохранённые изменения" в формах).
+/// По умолчанию — [showExitConfirmDialog] (выход из приложения).
 class ExitConfirmPopScope extends StatelessWidget {
-  const ExitConfirmPopScope({required this.child, super.key});
+  const ExitConfirmPopScope({
+    required this.child,
+    this.confirmDialog = showExitConfirmDialog,
+    super.key,
+  });
 
   final Widget child;
+
+  /// Функция, которая показывает диалог подтверждения. Должна
+  /// возвращать `Future<bool>`: `true` = пользователь подтвердил,
+  /// `false` = отменил. По умолчанию — системный диалог выхода.
+  final Future<bool> Function(BuildContext) confirmDialog;
 
   @override
   Widget build(BuildContext context) {
@@ -114,8 +128,8 @@ class ExitConfirmPopScope extends StatelessWidget {
           router.go('/');
           return;
         }
-        // 3) На Home — диалог.
-        await showExitConfirmDialog(context);
+        // 3) На Home — диалог (пользовательский или exit-по-умолчанию).
+        await confirmDialog(context);
       },
       child: child,
     );
