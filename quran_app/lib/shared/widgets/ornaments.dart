@@ -523,10 +523,26 @@ class _StarHighlightPainter extends CustomPainter {
 /// канонической Mushaf-вёрстке, где плашка с номером аята
 /// всегда идёт после знака `۝`.
 class AyahNumberBadge extends StatelessWidget {
-  const AyahNumberBadge({required this.number, this.size = 36, super.key});
+  const AyahNumberBadge({
+    required this.number,
+    this.size = 36,
+    this.fontFamily,
+    super.key,
+  });
 
   final int number;
   final double size;
+
+  /// Шрифт для глифа ۝ внутри ornament. По умолчанию `Amiri` —
+  /// в нём U+06DD `۝` имеет уникальный ornament-глиф, который
+  /// выглядит уместно внутри 8-конечной звезды. В других
+  /// шрифтах (Scheherazade New, Aref Ruqaa, Noto Naskh) `۝` —
+  /// обычный строчный глиф, и рендерить ornament-глиф из
+  /// Amiri внутри звезды «чужеродно» — пользователь видит
+  /// номер «справа от разделителя». Передавайте сюда
+  /// `display.fontFamily`, чтобы ornament-глиф соответствовал
+  /// основному тексту (для этих шрифтов будет обычный `۝`).
+  final String? fontFamily;
 
   @override
   Widget build(BuildContext context) {
@@ -538,11 +554,11 @@ class AyahNumberBadge extends StatelessWidget {
         child: Center(
           child: Text(
             '۝${toArabicDigits(number)}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               color: AppColors.backgroundDeep, // Тёмный текст на золотой заливке
               fontWeight: FontWeight.w800,
-              fontFamily: 'Amiri',
+              fontFamily: fontFamily ?? 'Amiri',
             ),
           ),
         ),

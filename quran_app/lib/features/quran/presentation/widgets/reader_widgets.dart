@@ -153,6 +153,7 @@ class _AyahTileState extends ConsumerState<AyahTile> {
                 ayah: widget.ayah,
                 isBookmarked: widget.isBookmarked,
                 onToggleBookmark: widget.onToggleBookmark,
+                display: widget.display,
               ),
               const SizedBox(height: 12),
           _ArabicTextBody(
@@ -193,17 +194,26 @@ class _AyahHeader extends StatelessWidget {
     required this.ayah,
     required this.isBookmarked,
     required this.onToggleBookmark,
+    this.display,
   });
 
   final Ayah ayah;
   final bool isBookmarked;
+  /// Display-настройки. Нужны для `fontFamily` ornament-глифа
+  /// `۝` внутри `AyahNumberBadge` — без этого глиф всегда
+  /// рендерится шрифтом Amiri, что «чужеродно» в Scheherazade /
+  /// Aref Ruqaa / Noto Naskh.
+  final ReaderDisplaySettings? display;
   final VoidCallback onToggleBookmark;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        AyahNumberBadge(number: ayah.ayahNumber),
+        AyahNumberBadge(
+          number: ayah.ayahNumber,
+          fontFamily: display?.fontFamily,
+        ),
         const Spacer(),
         _NoteButton(ayahId: ayah.id),
         const SizedBox(width: 4),
