@@ -546,19 +546,48 @@ class AyahNumberBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Глиф `۝` и цифра — отдельные `Text` в `Stack`, цифра
+    // центрируется по **вертикали** относительно глифа.
+    // В Scheherazade New / Aref Ruqaa / Noto Naskh baseline
+    // арабской цифры не совпадает с центром глифа `۝` —
+    // совместный рендер в `Text('۝N')` давал цифру внизу.
     return SizedBox(
       width: size,
       height: size,
       child: CustomPaint(
         painter: _OctagramPainter(),
         child: Center(
-          child: Text(
-            '۝${toArabicDigits(number)}',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.backgroundDeep, // Тёмный текст на золотой заливке
-              fontWeight: FontWeight.w800,
-              fontFamily: fontFamily ?? 'Amiri',
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Text(
+                  '۝',
+                  style: TextStyle(
+                    fontSize: 18,
+                    height: 1.0,
+                    color: AppColors.backgroundDeep,
+                    fontFamily: fontFamily ?? 'Amiri',
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Text(
+                    toArabicDigits(number),
+                    textDirection: TextDirection.rtl,
+                    style: TextStyle(
+                      fontSize: 9,
+                      height: 1.0,
+                      color: AppColors.backgroundDeep,
+                      fontFamily: fontFamily ?? 'Amiri',
+                      fontWeight: FontWeight.w800,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

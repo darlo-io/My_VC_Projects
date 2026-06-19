@@ -1388,29 +1388,34 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
   }
 
   /// «Книжный» режим: арабский текст идёт **одним непрерывным
-  /// `Text`** через все аяты с inline-разделителем `۝` (U+06DD)
-  /// + арабская цифра номера аята между ними. Перевод каждого
+  /// `Text.rich`** через все аяты с inline-ornament'ом `_OrnamentGlyph`
+  /// (глиф `۝` + цифра по центру) между ними. Перевод каждого
   /// аята — отдельным блоком **после** арабского потока, внизу.
-  ///
-  /// Используется **только** Unicode-символ U+06DD `۝` без
-  /// дополнительных графических украшений — это стандартная
-  /// Mushaf-вёрстка («۝١ بِسْمِ ٱللَّهِ ... ۝٢ ٱلْحَمْدُ ...»).
   Widget _buildBookStyle() {
     final ayahs = widget.ayahs;
-    final ayahNumberStrings = <String>[];
-    for (final a in ayahs) {
-      ayahNumberStrings.add('۝${toArabicDigits(a.ayahNumber)}');
-    }
 
-    // Конкатенация через пробелы между номерами и текстами.
-    // `Text` с `TextAlign.justify` — поток идёт полной шириной,
-    // `textDirection: rtl` — арабский RTL.
-    final arabicBuffer = StringBuffer();
+    // Собираем `InlineSpan`-ы: чередуем арабский текст и
+    // `WidgetSpan` с `_OrnamentGlyph`. Цифра рендерится **по
+    // центру** ornament-глифа (через Stack внутри `_OrnamentGlyph`)
+    /// во всех 4 шрифтах (Amiri, ScheherazadeNew, NotoNaskhArabic,
+    /// ArefRuqaa).
+    final spans = <InlineSpan>[];
     for (var i = 0; i < ayahs.length; i++) {
-      if (i > 0) arabicBuffer.write(' ');
-      arabicBuffer.write(ayahs[i].textUthmani);
-      arabicBuffer.write(' ');
-      arabicBuffer.write(ayahNumberStrings[i]);
+      if (i > 0) spans.add(const TextSpan(text: ' '));
+      spans.add(TextSpan(text: ayahs[i].textUthmani));
+      spans.add(const TextSpan(text: ' '));
+      // Ornament `۝N` — `WidgetSpan` с `_OrnamentGlyph`.
+      // `alignment: PlaceholderAlignment.middle` — по центру
+      // baseline строки.
+      spans.add(WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: _OrnamentGlyph(
+          ayahNumber: ayahs[i].ayahNumber,
+          fontFamily: widget.display.fontFamily,
+          color: ReaderPalette.of(widget.display.themeVariant).text
+              .withValues(alpha: 0.75),
+        ),
+      ));
     }
 
     return SingleChildScrollView(
@@ -1455,20 +1460,25 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
           //     и сейчас она перевешивает toggle;
           //   - `Text` не поглощает HitTest — тап проходит
           //     сквозь к родителю.
-          Text(
-            arabicBuffer.toString(),
+          // `Text.rich` + `WidgetSpan(_OrnamentGlyph)` — ornament
+          // с цифрой по центру глифа `۝`. Раньше был `Text('۝N ')`
+          // inline — цифра уезжала вниз в Scheherazade / Aref Ruqaa.
+          Text.rich(
+            TextSpan(
+              children: spans,
+              style: TextStyle(
+                fontSize: widget.fontSize,
+                // 2.4 — дефолт, `display.lineHeight` переопределяет.
+                height: widget.display.lineHeight,
+                letterSpacing: widget.display.letterSpacing,
+                wordSpacing: widget.display.wordSpacing,
+                color: ReaderPalette.of(widget.display.themeVariant).text,
+                fontFamily: widget.display.fontFamily,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.justify,
-            style: TextStyle(
-              fontSize: widget.fontSize,
-              // 2.4 — дефолт, `display.lineHeight` переопределяет.
-              height: widget.display.lineHeight,
-              letterSpacing: widget.display.letterSpacing,
-              wordSpacing: widget.display.wordSpacing,
-              color: ReaderPalette.of(widget.display.themeVariant).text,
-              fontFamily: widget.display.fontFamily,
-              fontWeight: FontWeight.w400,
-            ),
           ),
           const SizedBox(height: 16),
           // Ornament-разделитель убран (см. lineByLine выше).
@@ -1548,13 +1558,21 @@ class _BookTranslationBlock extends StatelessWidget {
             wordSpacing: d?.wordSpacing ?? 0,
           ),
           children: [
-            TextSpan(
-              text: '۝${toArabicDigits(number)} ',
-              style: const TextStyle(
+            // Ornament `۝N` — `WidgetSpan` с `_OrnamentGlyph`
+            // (цифра по центру глифа во всех шрифтах). Размер
+            // подогнан под `translationFontSize * 0.85` —
+            // ornament не должен «раскалывать» строку перевода.
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: _OrnamentGlyph(
+                ayahNumber: number,
+                fontFamily: d?.fontFamily,
+                glyphSize: 18,
+                digitSize: 9,
                 color: AppColors.gold,
-                fontWeight: FontWeight.w600,
               ),
             ),
+            const TextSpan(text: ' '),
             TextSpan(text: text),
           ],
         ),
@@ -1672,6 +1690,87 @@ class _AyahSeparator extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Reusable ornament-глиф `۝N` с цифрой **точно по центру**
+/// ornament-глифа. Используется в book-mode (внутри `Text.rich`
+/// через `WidgetSpan`) и в `_BookTranslationBlock`.
+///
+/// **Проблема**: глиф U+06DD `۝` в шрифтах Scheherazade New,
+/// Aref Ruqaa, Noto Naskh визуально занимает почти всю высоту
+/// строки, и арабская цифра после него в `Text('۝N')` уезжает
+/// вниз (baseline цифры не совпадает с центром глифа).
+///
+/// **Решение**: глиф и цифра — **отдельные** `Text` в `Stack`,
+/// цифра центрируется по вертикали относительно глифа.
+///
+/// Используется в `WidgetSpan` внутри `Text.rich` — единственный
+/// способ вставить inline-виджет в `Text`.
+class _OrnamentGlyph extends StatelessWidget {
+  const _OrnamentGlyph({
+    required this.ayahNumber,
+    this.fontFamily,
+    this.glyphSize = 22,
+    this.digitSize = 11,
+    this.color,
+  });
+
+  /// Номер аята.
+  final int ayahNumber;
+
+  /// Шрифт для глифа `۝` и арабской цифры.
+  final String? fontFamily;
+
+  /// Размер глифа `۝` (px).
+  final double glyphSize;
+
+  /// Размер цифры (px).
+  final double digitSize;
+
+  /// Цвет ornament'а. По умолчанию `AppColors.gold` с opacity 0.85.
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.gold.withValues(alpha: 0.85);
+    return SizedBox(
+      // Высота widget'а = высота глифа + немного запаса.
+      height: glyphSize + 2,
+      // Ширина подбирается под глиф + digit. `۝` в Amiri/Scheherazade
+      // ~ 22x33, цифра ~ 12x18, плюс overlap ~ 6px = ~28px ширина.
+      width: glyphSize + 8,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Глиф `۝` — крупный, центрирован.
+          Text(
+            '۝',
+            style: TextStyle(
+              fontSize: glyphSize,
+              height: 1.0,
+              color: c,
+              fontFamily: fontFamily,
+            ),
+          ),
+          // Цифра поверх глифа, по центру.
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              toArabicDigits(ayahNumber),
+              textDirection: TextDirection.rtl,
+              style: TextStyle(
+                fontSize: digitSize,
+                height: 1.0,
+                color: c,
+                fontFamily: fontFamily,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
           ),
         ],
