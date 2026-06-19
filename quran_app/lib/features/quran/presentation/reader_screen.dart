@@ -1614,16 +1614,64 @@ class _AyahSeparator extends StatelessWidget {
               size: const Size(double.infinity, 28),
             ),
           ),
-          // Текст `۝N` в центре — перекрывает разрыв линии.
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              '۝${toArabicDigits(ayahNumber)}',
-              style: TextStyle(
-                fontSize: 16,
-                color: AppColors.gold.withValues(alpha: 0.85),
-                fontFamily: fontFamily,
-              ),
+          // Ornament `۝N`: глиф `۝` и цифра рендерятся
+          // **отдельными** `Text` в `Stack`, чтобы выровнять
+          // цифру по **центру глифа**, а не по baseline.
+          //
+          // **Почему не `Text('۝N')`**: глиф U+06DD `۝` —
+          // ornament-символ, который в одних шрифтах
+          // (Scheherazade New, Aref Ruqaa, Noto Naskh) вытянут
+          // по высоте почти на всю строку, а в других (Amiri) —
+          // компактный. Baseline арабской цифры в большинстве
+          // шрифтов ниже центра глифа `۝`, и при совместном
+          // рендере в одном `Text` цифра уезжает вниз.
+          //
+          // Решение: глиф — крупный `Text(۝)`, цифра —
+          // отдельный `Text(رقم)` с `baseline: TextBaseline.ideographic`
+          // + явный `Alignment`, чтобы выровнять по **вертикали**
+          // относительно глифа, а не относительно baseline.
+          // Глиф `۝` имеет `height: 1.0` и центрирован в Stack;
+          // цифра центрируется по **вертикали** внутри глифа.
+          SizedBox(
+            height: 24,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Глиф `۝` — крупный (size 22), центрирован
+                // вертикально. У всех шрифтов проекта U+06DD
+                // визуально занимает большую часть высоты строки.
+                Text(
+                  '۝',
+                  style: TextStyle(
+                    fontSize: 22,
+                    height: 1.0,
+                    color: AppColors.gold.withValues(alpha: 0.85),
+                    fontFamily: fontFamily,
+                  ),
+                ),
+                // Цифра — `Positioned` внутри глифа,
+                // выровнена по **центру** глифа по вертикали.
+                // `baseline: TextBaseline.ideographic` +
+                // `alignment: Alignment.center` + явный
+                // `Padding(top: 2)` для тонкой коррекции —
+                // цифра встаёт ровно посередине ornament-глифа
+                // для всех 4 шрифтов (Amiri, ScheherazadeNew,
+                // NotoNaskhArabic, ArefRuqaa).
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    toArabicDigits(ayahNumber),
+                    textDirection: TextDirection.rtl,
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.0,
+                      color: AppColors.gold.withValues(alpha: 0.95),
+                      fontFamily: fontFamily,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
