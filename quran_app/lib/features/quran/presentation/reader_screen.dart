@@ -1344,11 +1344,23 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < widget.ayahs.length; i++) ...[
-            // Декоративный разделитель между аятами — две тонкие
-            // градиентные линии + центральный ромб + точки по
-            // бокам. Стиль «классическая Mushaf» в современной
-            // минималистичной обработке.
-            if (i > 0) const _AyahSeparator(),
+            // Разделитель с номером аята — ставится **перед**
+            // каждым аятом, включая первый. Это даёт **n**
+            // разделителей для **n** аятов (требование UX),
+            // и каждый ornament подписан номером своего аята.
+            // Визуально: горизонтальная линия с разрывом
+            // посередине, в разрыве — `۝N` (U+06DD + арабская
+            // цифра). Стиль «классическая печатная Mushaf» —
+            // ornament ۝N традиционно ставится в **начале**
+            // аята, отделяя один аят от другого.
+            _AyahSeparator(
+              ayahNumber: widget.ayahs[i].ayahNumber,
+              // `fontFamily` для глифа `۝` и арабской цифры —
+              // пользовательский выбор шрифта. Без этого ornament
+              // всегда Amiri, что «чужеродно» в Scheherazade /
+              // Aref Ruqaa / Noto Naskh.
+              fontFamily: widget.display.fontFamily,
+            ),
             AyahTile(
               // `tileKey` прокидывается из `_tileKeys[i]` — см.
               // [_findActiveAyahByRenderBox]. Используется для
@@ -1551,32 +1563,70 @@ class _BookTranslationBlock extends StatelessWidget {
   }
 }
 
-/// Горизонтальный декоративный разделитель между аятами в
-/// построчном режиме. Используется **только** в `lineByLine` —
-/// в `book`-режиме (Mushaf-стиль) ornament не нужен, потому что
-/// аяты идут одним непрерывным потоком.
+/// Горизонтальный декоративный разделитель аятов в построчном
+/// режиме. Используется **только** в `lineByLine` — в `book`-режиме
+/// (Mushaf-стиль) ornament не нужен, потому что аяты идут одним
+/// непрерывным потоком.
 ///
-/// Дизайн: две тонкие градиентные линии сверху и снизу +
-/// центральный ornament (ромб из двух треугольников) +
-/// маленькие точки по бокам от центра. Имитирует стиль
-/// классической печатной Mushaf, но без излишеств.
+/// Дизайн: тонкая горизонтальная линия с **разрывом посередине**,
+/// в разрыве — `۝N` (U+06DD + арабская цифра номера аята).
+/// Соответствует классической печатной Mushaf, где ornament
+/// `۝N` ставится в **начале** каждого аята.
 ///
-/// **Размеры**: высота 24px, ширина — `double.infinity`
+/// **Семантика**: один разделитель = один аят, ставится **перед**
+/// каждым аятом (включая первый). Это даёт `n` разделителей
+/// для `n` аятов (требование UX) — ornament подписан номером
+/// **своего** аята.
+///
+/// **Размеры**: высота 28px, ширина — `double.infinity`
 /// (растягивается на всю ширину). Ornament — горизонтально
-/// центрирован.
+/// центрирован. Текст `۝N` — 16px золотом.
 ///
-/// **Цвет**: золото `AppColors.gold` с opacity 0.55 — как
-/// у других ornament'ов проекта.
+/// **Цвет**: `AppColors.gold` с opacity 0.55 (линии) и 0.85
+/// (текст) — как у других ornament'ов проекта.
 class _AyahSeparator extends StatelessWidget {
-  const _AyahSeparator();
+  const _AyahSeparator({
+    required this.ayahNumber,
+    this.fontFamily,
+  });
+
+  /// Номер аята, который отображается в центре (как `۝N`).
+  final int ayahNumber;
+
+  /// Шрифт для глифа `۝` и арабской цифры. По умолчанию
+  /// `Amiri` — в нём U+06DD имеет уникальный ornament-глиф
+  /// (подвешен сверху), который визуально отличается от
+  /// других шрифтов. Передавайте `display.fontFamily`,
+  /// чтобы ornament соответствовал основному тексту.
+  final String? fontFamily;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 24,
-      child: CustomPaint(
-        painter: _AyahSeparatorPainter(),
-        size: const Size(double.infinity, 24),
+      height: 28,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Линия под текстом (с разрывом под `۝N`).
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _AyahSeparatorPainter(),
+              size: const Size(double.infinity, 28),
+            ),
+          ),
+          // Текст `۝N` в центре — перекрывает разрыв линии.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              '۝${toArabicDigits(ayahNumber)}',
+              style: TextStyle(
+                fontSize: 16,
+                color: AppColors.gold.withValues(alpha: 0.85),
+                fontFamily: fontFamily,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1585,113 +1635,73 @@ class _AyahSeparator extends StatelessWidget {
 class _AyahSeparatorPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
     final cy = size.height / 2;
     // Золотой полупрозрачный цвет (как у других ornament'ов).
     final base = AppColors.gold.withValues(alpha: 0.55);
-    // Линии потоньше для элегантности.
+    // Линия потоньше для элегантности.
     final linePaint = Paint()
       ..color = base
-      ..strokeWidth = 0.7
+      ..strokeWidth = 0.8
       ..strokeCap = StrokeCap.round;
-    // Заливка для ромба.
-    final fillPaint = Paint()
-      ..color = base
-      ..style = PaintingStyle.fill;
 
-    // ── Верхняя линия ─────────────────────────────────
-    // Градиент от прозрачного (слева) к золоту (к центру)
-    // и обратно (к правому краю). Рисуем двумя половинами.
-    const lineInset = 16.0;
-    const lineGap = 18.0; // Расстояние от линии до центра.
-    final leftEnd = cx - lineGap;
-    final rightStart = cx + lineGap;
+    // ── Линия с разрывом посередине ────────────────────
+    // Разрыв = `_AyahSeparator.gapWidth` (должен совпадать
+    // с padding текста + реальная ширина глифа `۝N`,
+    // но мы рисуем линию **под** Stack'ом — точная ширина
+    // разрыва не критична, потому что текст сверху закрывает
+    // любой «зазор». Здесь используем `gapHalf = 28` —
+    // с запасом для 1–2 цифр арабского номера.
+    const lineInset = 16.0; // Отступ от краёв экрана.
+    const gapHalf = 32.0; // Половина ширины разрыва.
+    final cx = size.width / 2;
+    final leftEnd = cx - gapHalf;
+    final rightStart = cx + gapHalf;
 
-    // Левая половина верхней линии: от (lineInset) до (leftEnd).
+    // Градиент на линии — затухание к краям экрана.
+    // Левая половина: прозрачный → золотой.
     _drawGradientLine(
       canvas,
-      Offset(lineInset, cy - 3),
-      Offset(leftEnd, cy - 3),
+      Offset(lineInset, cy),
+      Offset(leftEnd, cy),
       linePaint,
     );
-    // Правая половина верхней линии: от (rightStart) до (size.w - lineInset).
+    // Правая половина: золотой → прозрачный.
     _drawGradientLine(
       canvas,
-      Offset(rightStart, cy - 3),
-      Offset(size.width - lineInset, cy - 3),
+      Offset(rightStart, cy),
+      Offset(size.width - lineInset, cy),
       linePaint,
+      reverse: true,
     );
-
-    // ── Нижняя линия ──────────────────────────────────
-    _drawGradientLine(
-      canvas,
-      Offset(lineInset, cy + 3),
-      Offset(leftEnd, cy + 3),
-      linePaint,
-    );
-    _drawGradientLine(
-      canvas,
-      Offset(rightStart, cy + 3),
-      Offset(size.width - lineInset, cy + 3),
-      linePaint,
-    );
-
-    // ── Центральные точки ─────────────────────────────
-    // Маленькие кружочки по бокам от центра, на уровне cy.
-    final dotR = 1.4;
-    canvas.drawCircle(Offset(leftEnd + 4, cy), dotR, fillPaint);
-    canvas.drawCircle(Offset(rightStart - 4, cy), dotR, fillPaint);
-
-    // ── Центральный ornament (ромб) ────────────────────
-    // Рисуем ромб как 2 треугольника (верхний + нижний) —
-    // это визуально легче, чем 8-конечная звезда, и лучше
-    // читается на маленьких размерах. Половинки чуть смещены
-    // по горизонтали, чтобы образовался «двухгранный» ромб.
-    const diamondHalfW = 4.5; // Половина ширины ромба.
-    const diamondHalfH = 4.5; // Половина высоты ромба.
-    // Верхний треугольник (заполненный).
-    final topPath = Path()
-      ..moveTo(cx, cy - diamondHalfH)
-      ..lineTo(cx + diamondHalfW, cy)
-      ..lineTo(cx, cy + 0.5)
-      ..close();
-    canvas.drawPath(topPath, fillPaint);
-    // Нижний треугольник (только контур) — создаёт «грань».
-    final bottomPath = Path()
-      ..moveTo(cx, cy - 0.5)
-      ..lineTo(cx - diamondHalfW, cy)
-      ..lineTo(cx, cy + diamondHalfH)
-      ..close();
-    canvas.drawPath(bottomPath, Paint()
-      ..color = base
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.7
-      ..strokeJoin = StrokeJoin.round);
   }
 
   /// Рисует линию с горизонтальным градиентом opacity —
   /// от прозрачного (на конце) к золоту (в середине).
   /// Это даёт эффект «затухания» линии к краям экрана.
+  ///
+  /// [reverse] — для правой половины: золото слева, прозрачный
+  /// справа (зеркально).
   void _drawGradientLine(
     Canvas canvas,
     Offset from,
     Offset to,
-    Paint basePaint,
-  ) {
+    Paint basePaint, {
+    bool reverse = false,
+  }) {
     final gradient = Paint()
       ..shader = LinearGradient(
-        // Слева: прозрачный → справа: золотой (от from к to).
-        // Для правой половины — `reverse: true`, чтобы золото
-        // было у центра, а не у края.
-        colors: [
-          basePaint.color.withValues(alpha: 0.0),
-          basePaint.color,
-        ],
+        colors: reverse
+            ? [
+                basePaint.color,
+                basePaint.color.withValues(alpha: 0.0),
+              ]
+            : [
+                basePaint.color.withValues(alpha: 0.0),
+                basePaint.color,
+              ],
       ).createShader(Rect.fromPoints(from, to))
       ..strokeWidth = basePaint.strokeWidth
-      ..strokeCap = basePaint.strokeWidth == 0
-          ? StrokeCap.butt
-          : StrokeCap.round;
+      ..strokeCap = StrokeCap.round;
     canvas.drawLine(from, to, gradient);
   }
 
