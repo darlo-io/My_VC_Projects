@@ -201,6 +201,19 @@ class _ReaderDisplaySettingsScreenState
                   top: kPreviewHeight + 12,
                 ),
                 children: [
+                  // ── «Показывать перевод» в самом верху ────────
+                  // Самый частый toggle — вынесли наверх для
+                  // быстрого доступа, без скролла к группе
+                  // «Дополнительно» в самом низу.
+                  _SettingsCard(
+                    child: SwitchRow(
+                      label: t.displaySettingsShowTranslation,
+                      value: _draft.showTranslation,
+                      onChanged: (v) =>
+                          _update(_draft.copyWith(showTranslation: v)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   // ── Текст ────────────────────────────────────
                   _GroupHeader(text: t.displaySettingsGroupText),
                   const SizedBox(height: 8),
@@ -342,27 +355,10 @@ class _ReaderDisplaySettingsScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        t.displaySettingsBrightness,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    SliderRow(
-                      label: '',
-                      value: _draft.brightness,
-                      min: 60,
-                      max: 100,
-                      divisions: 8,
-                      valueLabel: '${_draft.brightness.round()} ${t.displaySettingsUnitPercent}',
-                      onChanged: (v) => _update(_draft.copyWith(brightness: v)),
-                    ),
-                    const _Divider(),
+                    // Ползунок «яркость экрана» убран: требует
+                    // плагин `screen_brightness`, который не
+                    // подключён (см. AGENTS.md / комментарии
+                    // ниже про compileSdk).
                     Padding(
                       padding: const EdgeInsets.only(top: 4, bottom: 8),
                       child: Text(
@@ -388,29 +384,16 @@ class _ReaderDisplaySettingsScreenState
                 ),
               ),
               const SizedBox(height: 20),
-              // ── Дополнительно ────────────────────────────────
-              _GroupHeader(text: t.displaySettingsGroupExtras),
-              const SizedBox(height: 8),
-              _SettingsCard(
-                child: Column(
-                  children: [
-                    SwitchRow(
-                      label: t.displaySettingsShowTranslation,
-                      value: _draft.showTranslation,
-                      onChanged: (v) =>
-                          _update(_draft.copyWith(showTranslation: v)),
-                    ),
-                    // Параметры showWordByWord и keepScreenOn
-                    // сохранены в [ReaderDisplaySettings] для
-                    // будущего использования (когда обновим
-                    // compileSdk до 34+ и подключим пакеты
-                    // `wakelock_plus` / `screen_brightness` и
-                    // наполним данные по словам). В UI временно
-                    // не выводятся, чтобы не вводить пользователя
-                    // в заблуждение тумблерами без эффекта.
-                  ],
-                ),
-              ),
+              // ── Дополнительно (скрыта) ──────────────────────
+              // `showTranslation` вынесен наверх (отдельной
+              // карточкой над «Текст»). `showWordByWord` и
+              // `keepScreenOn` сохранены в [ReaderDisplaySettings]
+              // для будущего использования (когда обновим
+              // compileSdk до 34+ и подключим пакеты
+              // `wakelock_plus` / `screen_brightness` и
+              // наполним данные по словам). В UI временно
+              // не выводятся, чтобы не вводить пользователя
+              // в заблуждение тумблерами без эффекта.
               ],
               ),
               // ── Sticky preview (поверх scroll) ───────────────

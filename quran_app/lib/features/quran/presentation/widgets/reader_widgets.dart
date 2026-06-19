@@ -130,7 +130,14 @@ class _AyahTileState extends ConsumerState<AyahTile> {
       // применяется к Column ниже, чтобы ширина полосы
       // (`textWidthPercent`) считалась от inner-content, а не
       // от края Padding'а.
-      padding: EdgeInsets.symmetric(vertical: widget.display?.paddingVertical ?? 8),
+      padding: EdgeInsets.symmetric(
+        vertical: widget.display?.paddingVertical ?? 8,
+        // `paddingHorizontal` — пользовательская настройка
+        // из settings. Раньше была только `paddingVertical`,
+        // и слайдер «горизонтальный отступ» ничего не делал
+        // в реальном Reader (работал только в PreviewAyah).
+        horizontal: widget.display?.paddingHorizontal ?? 16,
+      ),
       // `ConstrainedBox` ограничивает ширину строки по
       // `display.textWidthPercent` от текущей ширины viewport'а.
       // При 100% (дефолт) `maxWidth = double.infinity` — рендеринг
@@ -438,6 +445,14 @@ class _WordSpan extends StatelessWidget {
             fontSize: fontSize,
             height: 2.0,
             color: highlighted ? AppColors.gold : baseColor,
+            // `letterSpacing` / `wordSpacing` — пользовательские
+            // настройки из settings. Раньше не применялись в
+            // _WordSpan, и слайдеры «расстояние между буквами» /
+            // «расстояние между словами» не работали в
+            // lineByLine-режиме (в book-режиме работали через
+            // `_plainText`).
+            letterSpacing: d?.letterSpacing ?? 0.1,
+            wordSpacing: d?.wordSpacing ?? 0,
             // `display.fontFamily` — пользовательский выбор из
             // settings (Amiri / ScheherazadeNew / NotoNaskhArabic /
             // ArefRuqaa). Раньше был захардкожен `'Amiri'`, и

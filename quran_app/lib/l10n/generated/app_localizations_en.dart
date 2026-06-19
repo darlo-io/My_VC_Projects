@@ -1252,9 +1252,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get displaySettingsGroupTheme => 'Theme';
 
   @override
-  String get displaySettingsGroupExtras => 'Extras';
-
-  @override
   String get displaySettingsFontSize => 'Arabic font size';
 
   @override
@@ -1277,9 +1274,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get displaySettingsPaddingVertical => 'Vertical padding';
-
-  @override
-  String get displaySettingsBrightness => 'Screen brightness';
 
   @override
   String get displaySettingsTranslationFontSize => 'Translation font size';

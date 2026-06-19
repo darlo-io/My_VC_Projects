@@ -1251,9 +1251,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get displaySettingsGroupTheme => 'السمة';
 
   @override
-  String get displaySettingsGroupExtras => 'إضافات';
-
-  @override
   String get displaySettingsFontSize => 'حجم الخط العربي';
 
   @override
@@ -1276,9 +1273,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get displaySettingsPaddingVertical => 'هامش عمودي';
-
-  @override
-  String get displaySettingsBrightness => 'سطوع الشاشة';
 
   @override
   String get displaySettingsTranslationFontSize => 'حجم خط الترجمة';

@@ -2446,12 +2446,6 @@ abstract class AppLocalizations {
   /// **'Theme'**
   String get displaySettingsGroupTheme;
 
-  /// No description provided for @displaySettingsGroupExtras.
-  ///
-  /// In en, this message translates to:
-  /// **'Extras'**
-  String get displaySettingsGroupExtras;
-
   /// No description provided for @displaySettingsFontSize.
   ///
   /// In en, this message translates to:
@@ -2499,12 +2493,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Vertical padding'**
   String get displaySettingsPaddingVertical;
-
-  /// No description provided for @displaySettingsBrightness.
-  ///
-  /// In en, this message translates to:
-  /// **'Screen brightness'**
-  String get displaySettingsBrightness;
 
   /// No description provided for @displaySettingsTranslationFontSize.
   ///

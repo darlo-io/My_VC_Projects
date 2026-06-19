@@ -1372,66 +1372,41 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
   }
 
   /// «Книжный» режим: арабский текст идёт **одним непрерывным
-  /// `Text`** через все аяты с inline-номерами в виде
-  /// 8-конечной звезды (ornament) между ними. Перевод каждого
+  /// `Text`** через все аяты с inline-разделителем `۝` (U+06DD)
+  /// + арабская цифра номера аята между ними. Перевод каждого
   /// аята — отдельным блоком **после** арабского потока, внизу.
-  /// Соответствует запросу: «арабский текст перетекает от края
-  /// до края, перевод — после».
   ///
-  /// **Почему ornament — `WidgetSpan(AyahNumberBadge)`, а не
-  /// текстовый `۝N`**: символ U+06DD `۝` в Amiri имеет
-  /// специальный ornament-глиф (подвешен сверху), но в
-  /// Scheherazade New / Aref Ruqaa / Noto Naskh это **обычный
-  /// строчный глиф** — он рендерится в baseline-строке рядом
-  /// с номером, и визуально номер «справа от разделителя».
-  /// `AyahNumberBadge` рисует 8-конечную звезду через
-  /// `_OctagramPainter` — ornament не зависит от шрифта.
+  /// Используется **только** Unicode-символ U+06DD `۝` без
+  /// дополнительных графических украшений — это стандартная
+  /// Mushaf-вёрстка («۝١ بِسْمِ ٱللَّهِ ... ۝٢ ٱلْحَمْدُ ...»).
   Widget _buildBookStyle() {
     final ayahs = widget.ayahs;
-    // `Text.rich` + `WidgetSpan` — единственный способ
-    // вставить inline-виджет в `Text` (или `SelectableText`).
-    // Раньше использовался StringBuffer с текстом `۝N` — это
-    // работало только для Amiri, ломалось для остальных шрифтов.
-    final spans = <InlineSpan>[];
+    final ayahNumberStrings = <String>[];
+    for (final a in ayahs) {
+      ayahNumberStrings.add('۝${toArabicDigits(a.ayahNumber)}');
+    }
+
+    // Конкатенация через пробелы между номерами и текстами.
+    // `Text` с `TextAlign.justify` — поток идёт полной шириной,
+    // `textDirection: rtl` — арабский RTL.
+    final arabicBuffer = StringBuffer();
     for (var i = 0; i < ayahs.length; i++) {
-      if (i > 0) spans.add(const TextSpan(text: ' '));
-      spans.add(TextSpan(
-        text: ayahs[i].textUthmani,
-        style: TextStyle(
-          fontSize: widget.fontSize,
-          height: widget.display.lineHeight,
-          letterSpacing: widget.display.letterSpacing,
-          wordSpacing: widget.display.wordSpacing,
-          color: ReaderPalette.of(widget.display.themeVariant).text,
-          fontFamily: widget.display.fontFamily,
-          fontWeight: FontWeight.w400,
-        ),
-      ));
-      // Ornament с номером аята — `WidgetSpan` фиксированного
-      // размера 28x28 (немного меньше текста, чтобы не
-      // «расталкивать» строки). `baseline: TextBaseline.alphabetic`
-      // + `alignment: PlaceholderAlignment.middle` — по центру
-      // строки.
-      spans.add(const TextSpan(text: ' '));
-      spans.add(WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: AyahNumberBadge(
-          number: ayahs[i].ayahNumber,
-          size: 28,
-          // `fontFamily` для ornament-глифа ۝ внутри звезды.
-          // Без него badge захардкожен на Amiri (где ۝ имеет
-          // специальный ornament-глиф) — в других шрифтах
-          // глиф рендерится «обычным» символом и визуально
-          // «не в ornament».
-          fontFamily: widget.display.fontFamily,
-        ),
-      ));
+      if (i > 0) arabicBuffer.write(' ');
+      arabicBuffer.write(ayahs[i].textUthmani);
+      arabicBuffer.write(' ');
+      arabicBuffer.write(ayahNumberStrings[i]);
     }
 
     return SingleChildScrollView(
       controller: widget.scrollCtrl,
       physics: const ClampingScrollPhysics(),
-      padding: EdgeInsets.symmetric(vertical: widget.display.paddingVertical),
+      padding: EdgeInsets.symmetric(
+        vertical: widget.display.paddingVertical,
+        // `paddingHorizontal` — пользовательская настройка
+        // (горизонтальные отступы по краям строки текста).
+        // Раньше был только `paddingVertical`.
+        horizontal: widget.display.paddingHorizontal,
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final pct = widget.display.textWidthPercent;
@@ -1464,18 +1439,20 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
           //     и сейчас она перевешивает toggle;
           //   - `Text` не поглощает HitTest — тап проходит
           //     сквозь к родителю.
-          //
-          // `Text.rich` + `WidgetSpan(AyahNumberBadge)` — inline
-          // ornament. Раньше был просто `Text(arabicBuffer.toString())`
-          // с текстом `۝N` — но глиф ۝N зависит от шрифта
-          // (корректно в Amiri, разваливается в Scheherazade /
-          // Aref Ruqaa / Noto Naskh). `AyahNumberBadge` рисует
-          // 8-конечную звезду через CustomPainter — ornament
-          // всегда одинаковый.
-          Text.rich(
-            TextSpan(children: spans),
+          Text(
+            arabicBuffer.toString(),
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.justify,
+            style: TextStyle(
+              fontSize: widget.fontSize,
+              // 2.4 — дефолт, `display.lineHeight` переопределяет.
+              height: widget.display.lineHeight,
+              letterSpacing: widget.display.letterSpacing,
+              wordSpacing: widget.display.wordSpacing,
+              color: ReaderPalette.of(widget.display.themeVariant).text,
+              fontFamily: widget.display.fontFamily,
+              fontWeight: FontWeight.w400,
+            ),
           ),
           const SizedBox(height: 16),
           // Ornament-разделитель между арабским блоком и

@@ -1258,9 +1258,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get displaySettingsGroupTheme => 'Тема';
 
   @override
-  String get displaySettingsGroupExtras => 'Дополнительно';
-
-  @override
   String get displaySettingsFontSize => 'Размер арабского шрифта';
 
   @override
@@ -1283,9 +1280,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get displaySettingsPaddingVertical => 'Вертикальный отступ';
-
-  @override
-  String get displaySettingsBrightness => 'Яркость экрана';
 
   @override
   String get displaySettingsTranslationFontSize => 'Размер шрифта перевода';
