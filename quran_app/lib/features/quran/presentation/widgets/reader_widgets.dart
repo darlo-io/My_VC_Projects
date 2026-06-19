@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../../core/i18n/arabic_digits.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/ornaments.dart';
 import '../../../audio/presentation/word_timing_provider.dart';
@@ -217,9 +218,18 @@ class _AyahHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        AyahNumberBadge(
-          number: ayah.ayahNumber,
-          fontFamily: display?.fontFamily,
+        // Номер аята — простой текст в золотом цвете.
+        // Раньше был `AyahNumberBadge` (8-конечная звезда с
+        // цифрой внутри) — декоративный ornament, перегружавший
+        // экран. Убран в рамках минималистичного дизайна.
+        Text(
+          '${toArabicDigits(ayah.ayahNumber)}',
+          style: TextStyle(
+            fontSize: 16,
+            color: AppColors.gold,
+            fontWeight: FontWeight.w700,
+            fontFamily: display?.fontFamily,
+          ),
         ),
         const Spacer(),
         _NoteButton(ayahId: ayah.id),

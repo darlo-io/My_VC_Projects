@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -296,11 +295,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                             ),
                           );
                         }
-                        return GoldFrame(
-                          padding: const EdgeInsets.fromLTRB(24, 20, 16, 20),
-                          borderWidth: 1.4,
-                          radius: 28,
-                          showCornerArabesques: true,
+                        // Раньше здесь был `GoldFrame` — декоративная
+                        // золотая рамка с арабесками по углам
+                        // (имитация печатной Mushaf). Убрано: рамка
+                        // и ornament-звёзды визуально перегружали
+                        // экран и не соответствовали современному
+                        // минималистичному дизайну. `Padding`
+                        // оставлен для отступов.
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                           child: ayahsAsync.when(
                             loading: () => const Center(
                                 child: CircularProgressIndicator()),
@@ -1341,10 +1344,12 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < widget.ayahs.length; i++) ...[
-            // Без первого divider'а — он визуально «свисает» с
-            // первого аята. Это 1:1 с референсом, где первый
-            // аят идёт сразу после ornament-рамочки заголовка.
-            if (i > 0) const _AyahSeparator(),
+            // Без ornament-разделителя между аятами (горизонтальная
+            // линия со звездой) — убран вместе с GoldFrame
+            // и арабесками по углам для минималистичного дизайна.
+            // Между аятами остаётся только `SizedBox(height: 24)`
+            // (см. ниже), который даёт «воздух» между аятами.
+            if (i > 0) const SizedBox(height: 24),
             AyahTile(
               // `tileKey` прокидывается из `_tileKeys[i]` — см.
               // [_findActiveAyahByRenderBox]. Используется для
@@ -1455,10 +1460,9 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
             ),
           ),
           const SizedBox(height: 16),
-          // Ornament-разделитель между арабским блоком и
-          // переводами — визуально «отбивает» начало секции
-          // переводов, как в печатной Mushaf.
-          const _AyahSeparator(),
+          // Ornament-разделитель убран (см. lineByLine выше).
+          // Вместо `_AyahSeparator` — простой gap, который
+          // визуально отбивает перевод от арабского блока.
           const SizedBox(height: 16),
           // Перевод каждого аята отдельным блоком, в порядке
           // возрастания `ayahNumber`. Стиль — мелкий, серая
@@ -1548,69 +1552,10 @@ class _BookTranslationBlock extends StatelessWidget {
   }
 }
 
-/// Декоративный горизонтальный разделитель с центральной
-/// 8-конечной звездой — ornament между аятами внутри Mushaf
-/// (см. `docs/images/read line by line.png` — там между
-/// каждым аятом длинная линия со звездой посередине).
-class _AyahSeparator extends StatelessWidget {
-  const _AyahSeparator();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: CustomPaint(
-        size: const Size(double.infinity, 18),
-        painter: _AyahSeparatorPainter(),
-      ),
-    );
-  }
-}
-
-class _AyahSeparatorPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.gold.withValues(alpha: 0.55)
-      ..strokeWidth = 0.7
-      ..strokeCap = StrokeCap.round;
-    final cy = size.height / 2;
-    final halfW = size.width / 2;
-    // Линия слева от звезды (отступ 16, длина до звезды - 12)
-    canvas.drawLine(
-      Offset(16, cy),
-      Offset(halfW - 16, cy),
-      paint,
-    );
-    // Линия справа
-    canvas.drawLine(
-      Offset(halfW + 16, cy),
-      Offset(size.width - 16, cy),
-      paint,
-    );
-    // 8-конечная звезда по центру
-    const outerR = 5.0;
-    const innerR = 2.2;
-    final cx = halfW;
-    final path = Path();
-    for (var i = 0; i < 16; i++) {
-      final r = i.isEven ? outerR : innerR;
-      final angle = i * math.pi / 8 - math.pi / 2;
-      final x = cx + r * math.cos(angle);
-      final y = cy + r * math.sin(angle);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(_AyahSeparatorPainter old) => false;
-}
+/// Ornament-разделитель между аятами убран вместе с `GoldFrame`
+/// для минималистичного дизайна. Классы `_AyahSeparator` и
+/// `_AyahSeparatorPainter` удалены (раньше рисовали горизонтальную
+/// золотую линию с центральной 8-конечной звездой).
 
 /// Поток аятов одной суры. Не смотрит всю таблицу `ayahs`, только
 /// нужные строки (Drift сам эмитит при изменениях).
