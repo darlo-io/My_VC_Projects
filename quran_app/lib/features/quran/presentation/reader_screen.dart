@@ -1412,10 +1412,11 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
         child: _OrnamentGlyph(
           ayahNumber: ayahs[i].ayahNumber,
           fontFamily: widget.display.fontFamily,
-          // Ornament всегда полностью золотой — выделяется на
-          // фоне основного текста в любой палитре (тёмная /
-          // сепия / светлая / пергамент).
-          color: AppColors.gold,
+          // Цифра ornament'а = цвет основного текста Quran
+          // (из палитры темы) — визуально связывает ornament
+          // с потоком арабского текста. Глиф `۝` остаётся
+          // золотым по умолчанию.
+          digitColor: ReaderPalette.of(widget.display.themeVariant).text,
         ),
       ));
     }
@@ -1571,7 +1572,13 @@ class _BookTranslationBlock extends StatelessWidget {
                 fontFamily: d?.fontFamily,
                 glyphSize: 18,
                 digitSize: 9,
-                color: AppColors.gold,
+                // Цифра = цвет перевода (из палитры темы, с alpha
+                // 0.7 для иерархии — ornament чуть менее яркий,
+                // чем основной текст). Глиф `۝` остаётся золотым.
+                digitColor: d != null
+                    ? ReaderPalette.of(d.themeVariant).text
+                        .withValues(alpha: 0.7)
+                    : AppColors.textSecondary,
               ),
             ),
             const TextSpan(text: ' '),
@@ -1714,13 +1721,19 @@ class _AyahSeparator extends StatelessWidget {
 ///
 /// Используется в `WidgetSpan` внутри `Text.rich` — единственный
 /// способ вставить inline-виджет в `Text`.
+///
+/// **Цвета**: глиф `۝` всегда золотой (выделяется как ornament),
+/// цифра номера аята — **цвет основного текста Quran** (из
+/// палитры темы). Это визуально связывает ornament с потоком
+/// арабского текста.
 class _OrnamentGlyph extends StatelessWidget {
   const _OrnamentGlyph({
     required this.ayahNumber,
+    required this.digitColor,
     this.fontFamily,
     this.glyphSize = 26,
     this.digitSize = 13,
-    this.color,
+    this.glyphColor,
   });
 
   /// Номер аята.
@@ -1736,13 +1749,19 @@ class _OrnamentGlyph extends StatelessWidget {
   /// Размер цифры (px). По умолчанию 13 — пропорционально глифу.
   final double digitSize;
 
-  /// Цвет ornament'а. По умолчанию полностью золотой
-  /// `AppColors.gold` (без opacity).
-  final Color? color;
+  /// Цвет глифа `۝`. По умолчанию полностью золотой
+  /// `AppColors.gold` (без opacity) — выделяет ornament в потоке.
+  final Color? glyphColor;
+
+  /// Цвет цифры номера аята. Обязательный параметр — должен
+  /// совпадать с цветом основного текста Quran (из `ReaderPalette`
+  /// для текущей темы). Это делает цифру «частью» текста, а не
+  /// отдельным ornament-элементом.
+  final Color digitColor;
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? AppColors.gold;
+    final glyphC = glyphColor ?? AppColors.gold;
     return SizedBox(
       // Высота widget'а = высота глифа + немного запаса.
       height: glyphSize + 2,
@@ -1752,20 +1771,22 @@ class _OrnamentGlyph extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Глиф `۝` — крупный, центрирован.
+          // Глиф `۝` — крупный, центрирован, всегда золотой.
           Text(
             '۝',
             style: TextStyle(
               fontSize: glyphSize,
               height: 1.0,
-              color: c,
+              color: glyphC,
               fontFamily: fontFamily,
             ),
           ),
-          // Цифра поверх глифа, по центру.
+          // Цифра поверх глифа, по **вертикальному центру**.
           // `top: 3` — для увеличенного глифа (fontSize 26)
-          // цифру нужно чуть больше приподнять от центра,
-          // чтобы она визуально совпадала с центром глифа.
+          // цифру нужно чуть больше приподнять от геометрического
+          // центра Stack'а, чтобы она визуально совпадала с
+          // центром ornament-глифа (у глифа вертикальный центр
+          // сдвинут чуть выше из-за типометрических особенностей).
           Padding(
             padding: const EdgeInsets.only(top: 3),
             child: Text(
@@ -1774,7 +1795,8 @@ class _OrnamentGlyph extends StatelessWidget {
               style: TextStyle(
                 fontSize: digitSize,
                 height: 1.0,
-                color: c,
+                // Цифра = цвет основного текста Quran (из палитры).
+                color: digitColor,
                 fontFamily: fontFamily,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
