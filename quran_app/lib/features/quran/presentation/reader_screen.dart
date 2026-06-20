@@ -254,8 +254,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         children: [
           // Задний план: Mushaf (занимает весь экран). Тап по
           // нему → toggle панелей.
+          //
+          // `SafeArea(top: false, bottom: false)` — убраны
+          // left/right safe-area (Android system insets для
+          // notch/cutout). Это позволяет тексту при
+          // `paddingHorizontal: 0` быть в самом краю экрана.
+          // top/bottom safe-area остаются на top/bottom bar'ах
+          // (см. ниже), чтобы статус-бар и навигация не
+          // перекрывались.
           Positioned.fill(
             child: SafeArea(
+              top: false,
               bottom: false,
               child: GestureDetector(
                 // `behavior: translucent` — тап доходит **и** к
