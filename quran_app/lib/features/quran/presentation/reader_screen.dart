@@ -1345,24 +1345,12 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
   /// арабский текст + перевод. Соответствует референсу
   /// `docs/images/read line by line.png`.
   Widget _buildLineByLine() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Если высота контента < viewport — центрируем по
-        // вертикали (короткие суры визуально в центре экрана).
-        // Если > viewport — колонка растёт на minHeight и
-        // работает обычный scroll.
-        return SingleChildScrollView(
-          controller: widget.scrollCtrl,
-          physics: const ClampingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: constraints.maxHeight - 8, // -8 для padding 4+4
-            ),
-            child: IntrinsicHeight(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SingleChildScrollView(
+      controller: widget.scrollCtrl,
+      physics: const ClampingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < widget.ayahs.length; i++) ...[
             // Разделитель с номером аята — ставится **перед**
@@ -1407,11 +1395,7 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
           ],
           const SizedBox(height: 8),
         ],
-              ),
-            ),
-          ),
-        );
-      },
+      ),
     );
   }
 
@@ -1549,22 +1533,14 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
             ],
           );
           if (pct >= 100.0) return content;
-          // Если контент < viewport — центрируем по вертикали
-          // (короткие суры визуально в центре экрана). Если >
-          // viewport — колонка растёт на minHeight и работает
-          // обычный scroll.
-          return ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: constraints.maxHeight -
-                  widget.display.paddingVertical * 2,
-            ),
-            child: IntrinsicHeight(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: maxW),
-                  child: content,
-                ),
-              ),
+          // Без центрирования IntrinsicHeight+Center — они
+          // конфликтуют с LayoutBuilder в AyahTile и ломают
+          // рендеринг. Book-mode центрирование не критично.
+          if (pct >= 100.0) return content;
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxW),
+              child: content,
             ),
           );
         },
