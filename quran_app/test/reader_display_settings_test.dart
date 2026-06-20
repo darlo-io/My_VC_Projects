@@ -95,7 +95,10 @@ void main() {
     });
 
     test('paddingHorizontal clamps to [8, 32]', () {
-      expect(base.copyWith(paddingHorizontal: 0).paddingHorizontal, 8.0);
+      // Горизонтальный отступ: 0 (вплотную к краям) — 32.
+      // Раньше было 8 — 32, что блокировало значение 0.
+      expect(base.copyWith(paddingHorizontal: 0).paddingHorizontal, 0.0);
+      expect(base.copyWith(paddingHorizontal: -10).paddingHorizontal, 0.0);
       expect(base.copyWith(paddingHorizontal: 100).paddingHorizontal, 32.0);
     });
 

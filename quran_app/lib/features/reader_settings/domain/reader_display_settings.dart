@@ -170,7 +170,9 @@ class ReaderDisplaySettings {
       textWidthPercent:
           _clamp(textWidthPercent ?? this.textWidthPercent, 70.0, 100.0),
       paddingHorizontal:
-          _clamp(paddingHorizontal ?? this.paddingHorizontal, 8.0, 32.0),
+          // Горизонтальный отступ: 0 (вплотную к краям) — 32.
+          // Раньше было 8.0, что блокировало значение 0 из UI.
+          _clamp(paddingHorizontal ?? this.paddingHorizontal, 0.0, 32.0),
       paddingVertical:
           _clamp(paddingVertical ?? this.paddingVertical, 8.0, 32.0),
       themeVariant: themeVariants.contains(themeVariant ?? this.themeVariant)

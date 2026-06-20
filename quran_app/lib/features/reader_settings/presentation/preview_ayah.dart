@@ -38,8 +38,14 @@ class PreviewAyah extends StatelessWidget {
   final ReaderDisplaySettings settings;
   final String translationText;
 
+  /// Полный первый аят Аль-Фатихи. Раньше показывалась только
+  /// «басмала» (`بِسْمِ ٱللَّهِ ...`) — для пользователя визуальный
+  /// эффект от слайдеров `paddingHorizontal` / `lineHeight` /
+  /// `wordSpacing` был слабо выражен (короткий текст).
+  /// Полный аят (≈30 слов) лучше показывает реакцию preview на
+  /// все слайдеры — пользователь сразу видит, что текст реагирует.
   static const _arabic =
-      'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
+      'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَٰلَمِينَ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ مَٰلِكِ يَوْمِ ٱلدِّينِ';
 
   @override
   Widget build(BuildContext context) {
