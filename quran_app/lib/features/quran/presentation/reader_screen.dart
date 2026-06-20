@@ -1412,8 +1412,10 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
         child: _OrnamentGlyph(
           ayahNumber: ayahs[i].ayahNumber,
           fontFamily: widget.display.fontFamily,
-          color: ReaderPalette.of(widget.display.themeVariant).text
-              .withValues(alpha: 0.75),
+          // Ornament всегда полностью золотой — выделяется на
+          // фоне основного текста в любой палитре (тёмная /
+          // сепия / светлая / пергамент).
+          color: AppColors.gold,
         ),
       ));
     }
@@ -1716,8 +1718,8 @@ class _OrnamentGlyph extends StatelessWidget {
   const _OrnamentGlyph({
     required this.ayahNumber,
     this.fontFamily,
-    this.glyphSize = 22,
-    this.digitSize = 11,
+    this.glyphSize = 26,
+    this.digitSize = 13,
     this.color,
   });
 
@@ -1727,24 +1729,26 @@ class _OrnamentGlyph extends StatelessWidget {
   /// Шрифт для глифа `۝` и арабской цифры.
   final String? fontFamily;
 
-  /// Размер глифа `۝` (px).
+  /// Размер глифа `۝` (px). По умолчанию 26 (увеличен с 22 для
+  /// лучшей видимости ornament-символа в потоке текста).
   final double glyphSize;
 
-  /// Размер цифры (px).
+  /// Размер цифры (px). По умолчанию 13 — пропорционально глифу.
   final double digitSize;
 
-  /// Цвет ornament'а. По умолчанию `AppColors.gold` с opacity 0.85.
+  /// Цвет ornament'а. По умолчанию полностью золотой
+  /// `AppColors.gold` (без opacity).
   final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? AppColors.gold.withValues(alpha: 0.85);
+    final c = color ?? AppColors.gold;
     return SizedBox(
       // Высота widget'а = высота глифа + немного запаса.
       height: glyphSize + 2,
       // Ширина подбирается под глиф + digit. `۝` в Amiri/Scheherazade
-      // ~ 22x33, цифра ~ 12x18, плюс overlap ~ 6px = ~28px ширина.
-      width: glyphSize + 8,
+      // ~ 26x39, цифра ~ 14x20, плюс overlap ~ 8px = ~34px ширина.
+      width: glyphSize + 10,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -1759,8 +1763,11 @@ class _OrnamentGlyph extends StatelessWidget {
             ),
           ),
           // Цифра поверх глифа, по центру.
+          // `top: 3` — для увеличенного глифа (fontSize 26)
+          // цифру нужно чуть больше приподнять от центра,
+          // чтобы она визуально совпадала с центром глифа.
           Padding(
-            padding: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.only(top: 3),
             child: Text(
               toArabicDigits(ayahNumber),
               textDirection: TextDirection.rtl,
