@@ -1360,6 +1360,9 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
               // всегда Amiri, что «чужеродно» в Scheherazade /
               // Aref Ruqaa / Noto Naskh.
               fontFamily: widget.display.fontFamily,
+              // Цифра = цвет основного текста Quran (из палитры
+              // темы) — визуально связывает ornament с потоком.
+              digitColor: ReaderPalette.of(widget.display.themeVariant).text,
             ),
             AyahTile(
               // `tileKey` прокидывается из `_tileKeys[i]` — см.
@@ -1607,18 +1610,26 @@ class _BookTranslationBlock extends StatelessWidget {
 ///
 /// **Размеры**: высота 28px, ширина — `double.infinity`
 /// (растягивается на всю ширину). Ornament — горизонтально
-/// центрирован. Текст `۝N` — 16px золотом.
+/// центрирован. Глиф `۝` — 22px золотом, цифра — 11px в
+/// цвете основного текста Quran (из палитры темы).
 ///
-/// **Цвет**: `AppColors.gold` с opacity 0.55 (линии) и 0.85
-/// (текст) — как у других ornament'ов проекта.
+/// **Цвет**: линия — `AppColors.gold` с opacity 0.55 (как
+/// раньше), глиф `۝` — золотой 0.85, цифра — **цвет основного
+/// текста** (из палитры). Цифра визуально связывает ornament
+/// с потоком арабского текста.
 class _AyahSeparator extends StatelessWidget {
   const _AyahSeparator({
     required this.ayahNumber,
+    required this.digitColor,
     this.fontFamily,
   });
 
   /// Номер аята, который отображается в центре (как `۝N`).
   final int ayahNumber;
+
+  /// Цвет цифры = цвет основного текста Quran (из палитры).
+  /// Обязательный параметр.
+  final Color digitColor;
 
   /// Шрифт для глифа `۝` и арабской цифры. По умолчанию
   /// `Amiri` — в нём U+06DD имеет уникальный ornament-глиф
@@ -1643,30 +1654,18 @@ class _AyahSeparator extends StatelessWidget {
           ),
           // Ornament `۝N`: глиф `۝` и цифра рендерятся
           // **отдельными** `Text` в `Stack`, чтобы выровнять
-          // цифру по **центру глифа**, а не по baseline.
-          //
-          // **Почему не `Text('۝N')`**: глиф U+06DD `۝` —
-          // ornament-символ, который в одних шрифтах
-          // (Scheherazade New, Aref Ruqaa, Noto Naskh) вытянут
-          // по высоте почти на всю строку, а в других (Amiri) —
-          // компактный. Baseline арабской цифры в большинстве
-          // шрифтов ниже центра глифа `۝`, и при совместном
-          // рендере в одном `Text` цифра уезжает вниз.
-          //
-          // Решение: глиф — крупный `Text(۝)`, цифра —
-          // отдельный `Text(رقم)` с `baseline: TextBaseline.ideographic`
-          // + явный `Alignment`, чтобы выровнять по **вертикали**
-          // относительно глифа, а не относительно baseline.
-          // Глиф `۝` имеет `height: 1.0` и центрирован в Stack;
-          // цифра центрируется по **вертикали** внутри глифа.
+          // цифру по **вертикальному центру** глифа, а не по
+          // baseline. Глиф — золотой, цифра — в цвет основного
+          // текста Quran.
           SizedBox(
             height: 24,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 // Глиф `۝` — крупный (size 22), центрирован
-                // вертикально. У всех шрифтов проекта U+06DD
-                // визуально занимает большую часть высоты строки.
+                // вертикально, золотой. У всех шрифтов проекта
+                // U+06DD визуально занимает большую часть высоты
+                // строки.
                 Text(
                   '۝',
                   style: TextStyle(
@@ -1676,14 +1675,11 @@ class _AyahSeparator extends StatelessWidget {
                     fontFamily: fontFamily,
                   ),
                 ),
-                // Цифра — `Positioned` внутри глифа,
-                // выровнена по **центру** глифа по вертикали.
-                // `baseline: TextBaseline.ideographic` +
-                // `alignment: Alignment.center` + явный
-                // `Padding(top: 2)` для тонкой коррекции —
-                // цифра встаёт ровно посередине ornament-глифа
-                // для всех 4 шрифтов (Amiri, ScheherazadeNew,
-                // NotoNaskhArabic, ArefRuqaa).
+                // Цифра — поверх глифа, отцентрована по
+                // **вертикали** (`Padding(top: 2)` для точного
+                // совпадения с центром глифа). Цвет = цвет
+                // основного текста Quran (из палитры темы) —
+                // визуально связывает ornament с потоком.
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: Text(
@@ -1692,7 +1688,7 @@ class _AyahSeparator extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       height: 1.0,
-                      color: AppColors.gold.withValues(alpha: 0.95),
+                      color: digitColor,
                       fontFamily: fontFamily,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
