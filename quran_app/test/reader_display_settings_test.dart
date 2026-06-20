@@ -32,17 +32,14 @@ void main() {
       ]);
     });
 
-    test('fontFamilies contains 9 supported Quran Arabic fonts', () {
+    test('fontFamilies contains 6 supported Quran Arabic fonts', () {
       expect(ReaderDisplaySettings.fontFamilies, [
         'Amiri',
         'KFGQPC Uthman Taha Naskh',
         'PDMS Saleem QuranFont',
         'QPC Hafs',
-        'QPC V2',
-        'QPC V4 Tajweed',
         'ScheherazadeNew',
         'NotoNaskhArabic',
-        'ArefRuqaa',
       ]);
     });
 
@@ -63,11 +60,8 @@ void main() {
       expect(ReaderDisplaySettings.fontFamilyIndex('PDMS Saleem QuranFont'),
           2);
       expect(ReaderDisplaySettings.fontFamilyIndex('QPC Hafs'), 3);
-      expect(ReaderDisplaySettings.fontFamilyIndex('QPC V2'), 4);
-      expect(ReaderDisplaySettings.fontFamilyIndex('QPC V4 Tajweed'), 5);
-      expect(ReaderDisplaySettings.fontFamilyIndex('ScheherazadeNew'), 6);
-      expect(ReaderDisplaySettings.fontFamilyIndex('NotoNaskhArabic'), 7);
-      expect(ReaderDisplaySettings.fontFamilyIndex('ArefRuqaa'), 8);
+      expect(ReaderDisplaySettings.fontFamilyIndex('ScheherazadeNew'), 4);
+      expect(ReaderDisplaySettings.fontFamilyIndex('NotoNaskhArabic'), 5);
     });
   });
 
@@ -131,7 +125,8 @@ void main() {
       expect(s.copyWith(fontFamily: 'ComicSans').fontFamily, 'Amiri');
       expect(s.copyWith(fontFamily: 'ScheherazadeNew').fontFamily,
           'ScheherazadeNew');
-      expect(s.copyWith(fontFamily: 'ArefRuqaa').fontFamily, 'ArefRuqaa');
+      expect(s.copyWith(fontFamily: 'KFGQPC Uthman Taha Naskh').fontFamily,
+          'KFGQPC Uthman Taha Naskh');
     });
 
     test('readingMode accepts only book/lineByLine', () {

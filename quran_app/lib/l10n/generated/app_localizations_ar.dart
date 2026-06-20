@@ -1257,9 +1257,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get displaySettingsLineHeight => 'ارتفاع السطر';
 
   @override
-  String get displaySettingsLetterSpacing => 'المسافة بين الحروف';
-
-  @override
   String get displaySettingsWordSpacing => 'المسافة بين الكلمات';
 
   @override

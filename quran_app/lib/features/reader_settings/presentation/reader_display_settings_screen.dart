@@ -239,16 +239,11 @@ class _ReaderDisplaySettingsScreenState
                       valueLabel: _draft.lineHeight.toStringAsFixed(1),
                       onChanged: (v) => _update(_draft.copyWith(lineHeight: v)),
                     ),
-                    const _Divider(),
-                    SliderRow(
-                      label: t.displaySettingsLetterSpacing,
-                      value: _draft.letterSpacing,
-                      min: 0,
-                      max: 2,
-                      divisions: 20,
-                      valueLabel: _draft.letterSpacing.toStringAsFixed(1),
-                      onChanged: (v) => _update(_draft.copyWith(letterSpacing: v)),
-                    ),
+                    // Слайдер «Расст. между буквами» (letterSpacing)
+                    // убран по запросу пользователя. Поле
+                    // [letterSpacing] сохранено в [ReaderDisplaySettings]
+                    // для будущего использования (пока — фиксированное
+                    // значение 0.1 в `defaults`).
                     const _Divider(),
                     SliderRow(
                       label: t.displaySettingsWordSpacing,

@@ -1264,9 +1264,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get displaySettingsLineHeight => 'Межстрочный интервал';
 
   @override
-  String get displaySettingsLetterSpacing => 'Расст. между буквами';
-
-  @override
   String get displaySettingsWordSpacing => 'Расст. между словами';
 
   @override

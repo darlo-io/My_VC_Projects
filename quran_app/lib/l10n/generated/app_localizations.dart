@@ -2458,12 +2458,6 @@ abstract class AppLocalizations {
   /// **'Line height'**
   String get displaySettingsLineHeight;
 
-  /// No description provided for @displaySettingsLetterSpacing.
-  ///
-  /// In en, this message translates to:
-  /// **'Letter spacing'**
-  String get displaySettingsLetterSpacing;
-
   /// No description provided for @displaySettingsWordSpacing.
   ///
   /// In en, this message translates to:

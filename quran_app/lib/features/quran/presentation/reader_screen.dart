@@ -1400,13 +1400,23 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
     // Собираем `InlineSpan`-ы: чередуем арабский текст и
     // `WidgetSpan` с `_OrnamentGlyph`. Цифра рендерится **по
     // центру** ornament-глифа (через Stack внутри `_OrnamentGlyph`)
-    /// во всех 4 шрифтах (Amiri, ScheherazadeNew, NotoNaskhArabic,
-    /// ArefRuqaa).
+    /// во всех 6 поддерживаемых Quran-шрифтах (Amiri, KFGQPC
+    /// Uthman Taha, PDMS Saleem, QPC Hafs, Scheherazade New,
+    /// Noto Naskh Arabic).
     final spans = <InlineSpan>[];
     for (var i = 0; i < ayahs.length; i++) {
-      if (i > 0) spans.add(const TextSpan(text: ' '));
+      if (i > 0) {
+        // U+2009 (THIN SPACE) — тонкий пробел между аятами.
+        // Раньше был обычный `' '` — аяты визуально отстояли
+        // друг от друга на полную ширину пробела, ornament
+        // смотрелся «оторванным» от текста.
+        spans.add(const TextSpan(text: '\u2009'));
+      }
       spans.add(TextSpan(text: ayahs[i].textUthmani));
-      spans.add(const TextSpan(text: ' '));
+      // U+2009 между арабским и ornament `۝N` — расстояние
+      // между словом и ornament минимальное. Снижает
+      // визуальный разрыв между ornament и потоком текста.
+      spans.add(const TextSpan(text: '\u2009'));
       // Ornament `۝N` — `WidgetSpan` с `_OrnamentGlyph`.
       // `alignment: PlaceholderAlignment.middle` — по центру
       // baseline строки.
@@ -1590,7 +1600,9 @@ class _BookTranslationBlock extends StatelessWidget {
                     : AppColors.textSecondary,
               ),
             ),
-            const TextSpan(text: ' '),
+            // U+2009 (THIN SPACE) — расстояние между ornament
+            // и переводом минимальное (раньше был обычный пробел).
+            const TextSpan(text: '\u2009'),
             TextSpan(text: text),
           ],
         ),
@@ -1768,8 +1780,12 @@ class _OrnamentGlyph extends StatelessWidget {
       // Высота widget'а = высота глифа + немного запаса.
       height: glyphSize + 2,
       // Ширина подбирается под глиф + digit. `۝` в Amiri/Scheherazade
-      // ~ 26x39, цифра ~ 14x20, плюс overlap ~ 8px = ~34px ширина.
-      width: glyphSize + 10,
+      // ~ 26x39, цифра ~ 14x20 — ornament у́же глифа + 4px (минимум
+      // для overlap цифры поверх глифа). Раньше было `glyphSize + 10`
+      // (лишние ~6px по бокам) — ornament визуально отстоял от
+      // слова. Сейчас ornament **вплотную** к глифу, расстояние
+      // между словом и ornament меньше.
+      width: glyphSize + 4,
       child: Stack(
         alignment: Alignment.center,
         children: [

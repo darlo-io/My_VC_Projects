@@ -1258,9 +1258,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get displaySettingsLineHeight => 'Line height';
 
   @override
-  String get displaySettingsLetterSpacing => 'Letter spacing';
-
-  @override
   String get displaySettingsWordSpacing => 'Word spacing';
 
   @override

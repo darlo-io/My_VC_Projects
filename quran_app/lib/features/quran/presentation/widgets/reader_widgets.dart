@@ -464,10 +464,11 @@ class _WordSpan extends StatelessWidget {
             letterSpacing: d?.letterSpacing ?? 0.1,
             wordSpacing: d?.wordSpacing ?? 0,
             // `display.fontFamily` — пользовательский выбор из
-            // settings (Amiri / ScheherazadeNew / NotoNaskhArabic /
-            // ArefRuqaa). Раньше был захардкожен `'Amiri'`, и
-            // при смене шрифта в построчном режиме WordSpan
-            // игнорировал выбор, продолжая рендерить Amiri.
+            // settings (Amiri / KFGQPC Uthman Taha / PDMS Saleem /
+            // QPC Hafs / Scheherazade New / Noto Naskh Arabic).
+            // Раньше был захардкожен `'Amiri'`, и при смене шрифта
+            // в построчном режиме WordSpan игнорировал выбор,
+            // продолжая рендерить Amiri.
             fontFamily: d?.fontFamily ?? 'Amiri',
             fontWeight: highlighted ? FontWeight.w700 : FontWeight.w400,
           ),
