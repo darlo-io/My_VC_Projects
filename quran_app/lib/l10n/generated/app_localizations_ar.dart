@@ -1263,9 +1263,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get displaySettingsFontFamily => 'الخط';
 
   @override
-  String get displaySettingsTextWidth => 'عرض النص';
-
-  @override
   String get displaySettingsPaddingHorizontal => 'هامش أفقي';
 
   @override

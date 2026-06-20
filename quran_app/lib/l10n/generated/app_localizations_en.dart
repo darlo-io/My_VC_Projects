@@ -1264,9 +1264,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get displaySettingsFontFamily => 'Font';
 
   @override
-  String get displaySettingsTextWidth => 'Text width';
-
-  @override
   String get displaySettingsPaddingHorizontal => 'Horizontal padding';
 
   @override

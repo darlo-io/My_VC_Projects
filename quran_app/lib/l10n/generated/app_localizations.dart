@@ -2470,12 +2470,6 @@ abstract class AppLocalizations {
   /// **'Font'**
   String get displaySettingsFontFamily;
 
-  /// No description provided for @displaySettingsTextWidth.
-  ///
-  /// In en, this message translates to:
-  /// **'Text width'**
-  String get displaySettingsTextWidth;
-
   /// No description provided for @displaySettingsPaddingHorizontal.
   ///
   /// In en, this message translates to:

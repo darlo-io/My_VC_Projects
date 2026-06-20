@@ -1270,9 +1270,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get displaySettingsFontFamily => 'Шрифт';
 
   @override
-  String get displaySettingsTextWidth => 'Ширина полосы';
-
-  @override
   String get displaySettingsPaddingHorizontal => 'Горизонтальный отступ';
 
   @override

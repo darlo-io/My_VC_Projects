@@ -307,23 +307,20 @@ class _ReaderDisplaySettingsScreenState
               _SettingsCard(
                 child: Column(
                   children: [
-                    SliderRow(
-                      label: t.displaySettingsTextWidth,
-                      value: _draft.textWidthPercent,
-                      min: 70,
-                      max: 100,
-                      divisions: 6,
-                      valueLabel: '${_draft.textWidthPercent.round()} ${t.displaySettingsUnitPercent}',
-                      onChanged: (v) =>
-                          _update(_draft.copyWith(textWidthPercent: v)),
-                    ),
-                    const _Divider(),
+                    // Слайдер «ширина полосы» (textWidthPercent) убран
+                    // по запросу пользователя. Текст в Reader всегда
+                    // занимает полную ширину экрана (100% по
+                    // умолчанию). Поле [textWidthPercent] сохранено
+                    // в [ReaderDisplaySettings] (defaults: 100.0) на
+                    // случай будущего использования.
                     SliderRow(
                       label: t.displaySettingsPaddingHorizontal,
                       value: _draft.paddingHorizontal,
-                      min: 8,
+                      // Начало диапазона: 0 (текст вплотную к
+                      // краям экрана) — было 8.
+                      min: 0,
                       max: 32,
-                      divisions: 6,
+                      divisions: 8,
                       valueLabel: '${_draft.paddingHorizontal.round()} ${t.displaySettingsUnitPx}',
                       onChanged: (v) =>
                           _update(_draft.copyWith(paddingHorizontal: v)),
