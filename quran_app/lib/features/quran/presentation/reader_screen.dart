@@ -1484,7 +1484,11 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
               ),
             ),
             textDirection: TextDirection.rtl,
-            textAlign: TextAlign.justify,
+            // Арабский текст в book-mode выравнивается по центру —
+            // пользовательская настройка (раньше был `justify` —
+            // межсловные пробелы растягивались до полной ширины
+            // строки, что в арабском выглядит неестественно).
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           // Ornament-разделитель убран (см. lineByLine выше).
@@ -1550,7 +1554,9 @@ class _BookTranslationBlock extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: RichText(
-        textAlign: TextAlign.justify,
+        // Перевод в book-mode выравнивается по центру —
+        // соответствует выравниванию арабского потока выше.
+        textAlign: TextAlign.center,
         text: TextSpan(
           style: TextStyle(
             // В book-mode перевод исторически был ~85% от

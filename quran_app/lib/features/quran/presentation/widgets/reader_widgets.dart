@@ -379,12 +379,12 @@ class _ArabicTextBody extends ConsumerWidget {
     return Text(
       text,
       textDirection: TextDirection.rtl,
-      // Center-выровненный текст для соответствия референсу.
-      // `TextAlign.justify` (был) создавал неприятные большие
-      // пробелы между словами в коротких аятах. Но в «книжном»
-      // режиме `lineByLine == false` — принудительно justify
-      // для длинного потока текста без центрирования.
-      textAlign: lineByLine ? TextAlign.center : TextAlign.justify,
+      // Center-выровненный текст в обоих режимах (lineByLine
+      // и book). Раньше `TextAlign.justify` использовался в
+      // book-режиме для длинного потока текста, но он создавал
+      // неприятные большие пробелы между словами в коротких аятах.
+      // В арабском `TextAlign.center` выглядит естественнее.
+      textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: fontSize,
         // 2.2 — дефолт; `display.lineHeight` переопределяет
