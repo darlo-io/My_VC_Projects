@@ -1345,12 +1345,24 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
   /// арабский текст + перевод. Соответствует референсу
   /// `docs/images/read line by line.png`.
   Widget _buildLineByLine() {
-    return SingleChildScrollView(
-      controller: widget.scrollCtrl,
-      physics: const ClampingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Если высота контента < viewport — центрируем по
+        // вертикали (короткие суры визуально в центре экрана).
+        // Если > viewport — колонка растёт на minHeight и
+        // работает обычный scroll.
+        return SingleChildScrollView(
+          controller: widget.scrollCtrl,
+          physics: const ClampingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight - 8, // -8 для padding 4+4
+            ),
+            child: IntrinsicHeight(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < widget.ayahs.length; i++) ...[
             // Разделитель с номером аята — ставится **перед**
@@ -1395,7 +1407,11 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
           ],
           const SizedBox(height: 8),
         ],
-      ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1533,10 +1549,22 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
             ],
           );
           if (pct >= 100.0) return content;
-          return Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxW),
-              child: content,
+          // Если контент < viewport — центрируем по вертикали
+          // (короткие суры визуально в центре экрана). Если >
+          // viewport — колонка растёт на minHeight и работает
+          // обычный scroll.
+          return ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight -
+                  widget.display.paddingVertical * 2,
+            ),
+            child: IntrinsicHeight(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxW),
+                  child: content,
+                ),
+              ),
             ),
           );
         },
@@ -1756,7 +1784,6 @@ class _OrnamentGlyph extends StatelessWidget {
     this.fontFamily,
     this.glyphSize = 26,
     this.digitSize = 13,
-    this.glyphColor,
   });
 
   /// Номер аята.
@@ -1772,10 +1799,6 @@ class _OrnamentGlyph extends StatelessWidget {
   /// Размер цифры (px). По умолчанию 13 — пропорционально глифу.
   final double digitSize;
 
-  /// Цвет глифа `۝`. По умолчанию полностью золотой
-  /// `AppColors.gold` (без opacity) — выделяет ornament в потоке.
-  final Color? glyphColor;
-
   /// Цвет цифры номера аята. Обязательный параметр — должен
   /// совпадать с цветом основного текста Quran (из `ReaderPalette`
   /// для текущей темы). Это делает цифру «частью» текста, а не
@@ -1784,7 +1807,7 @@ class _OrnamentGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glyphC = glyphColor ?? AppColors.gold;
+    final glyphC = AppColors.gold;
     return SizedBox(
       // Высота widget'а = высота глифа + немного запаса.
       height: glyphSize + 2,

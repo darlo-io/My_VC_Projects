@@ -12,7 +12,7 @@ void main() {
       expect(s.wordSpacing, 0.0);
       expect(s.fontFamily, 'Amiri');
       expect(s.textWidthPercent, 100.0);
-      expect(s.paddingHorizontal, 16.0);
+      expect(s.paddingHorizontal, 0.0);
       expect(s.paddingVertical, 8.0);
       expect(s.themeVariant, 'dark');
       expect(s.brightness, 100.0);

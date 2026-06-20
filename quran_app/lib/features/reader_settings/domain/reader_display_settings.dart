@@ -129,7 +129,7 @@ class ReaderDisplaySettings {
     wordSpacing: 0.0,
     fontFamily: 'Amiri',
     textWidthPercent: 100.0,
-    paddingHorizontal: 16.0,
+    paddingHorizontal: 0.0,
     paddingVertical: 8.0,
     themeVariant: 'dark',
     brightness: 100.0,
