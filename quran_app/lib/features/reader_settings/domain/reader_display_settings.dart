@@ -90,10 +90,24 @@ class ReaderDisplaySettings {
   /// Regular + Bold варианты — Flutter различает их через
   /// `TextStyle.fontWeight`. Variable fonts (Scheherazade New)
   /// хранятся в одном файле.
+  ///
+  /// **Группировка**: классические Mushaf-шрифты (Amiri, KFGQPC
+  /// Uthman Taha, PDMS Saleem, QPC Hafs, QPC V2, QPC V4 Tajweed),
+  /// затем современные Naskh (Scheherazade New, Noto Naskh Arabic)
+  /// и Ruq'ah (Aref Ruqaa). Для каждого — параллельная запись в
+  /// [fontFamilyLabels] для UI.
   static const List<String> fontFamilies = [
     'Amiri',
+    // Классические Mushaf-шрифты.
+    'KFGQPC Uthman Taha Naskh',
+    'PDMS Saleem QuranFont',
+    'QPC Hafs',
+    'QPC V2',
+    'QPC V4 Tajweed',
+    // Современные Naskh.
     'ScheherazadeNew',
     'NotoNaskhArabic',
+    // Ruq'ah.
     'ArefRuqaa',
   ];
 
@@ -101,6 +115,11 @@ class ReaderDisplaySettings {
   /// [fontFamilies] по индексу.
   static const List<String> fontFamilyLabels = [
     'Amiri',
+    'KFGQPC Uthman Taha',
+    'PDMS Saleem (Mushaf)',
+    'QPC Hafs',
+    'QPC V2',
+    'QPC V4 Tajweed',
     'Scheherazade New',
     'Noto Naskh Arabic',
     'Aref Ruqaa',

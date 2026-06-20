@@ -75,6 +75,31 @@ flutter:
         - asset: assets/fonts/arefruqaa/ArefRuqaa-Regular.ttf
         - asset: assets/fonts/arefruqaa/ArefRuqaa-Bold.ttf
           weight: 700
+    # Mushaf Hafs — King Fahd Glorious Quran Printing Complex
+    # (KFGQPC). Используется в современной печатной Mushaf
+    # Hafs-narration от Саудовской типографии.
+    - family: KFGQPC Uthman Taha Naskh
+      fonts:
+        - asset: assets/fonts/KFGQPC Uthman Taha Naskh Regular/KFGQPC Uthman Taha Naskh Regular.ttf
+    # Mushaf Medinah — старый формат, использовался в Mushaf
+    # Medinah до перехода на KFGQPC.
+    - family: PDMS Saleem QuranFont
+      fonts:
+        - asset: assets/fonts/PDMS_Saleem_QuranFont Regular/_PDMS_Saleem_QuranFont Regular.ttf
+    # QPC Hafs — вариант QPC, основан на Uthman Taha.
+    - family: QPC Hafs
+      fonts:
+        - asset: assets/fonts/QPC Hafs.ttf
+    # QPC V2 (старый формат .woff2) — Qatari Publishing Company,
+    # вариант V2.
+    - family: QPC V2
+      fonts:
+        - asset: assets/fonts/QPC V2.woff2
+    # QPC V4 Tajweed — QPC V4 с цветами таджвида (правила
+    # рецитации подсвечены разными цветами).
+    - family: QPC V4 Tajweed
+      fonts:
+        - asset: assets/fonts/QPC V4 Tajweed.ttf
     - family: Inter
       fonts:
         - asset: assets/fonts/inter/Inter-Variable.ttf

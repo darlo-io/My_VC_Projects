@@ -32,9 +32,14 @@ void main() {
       ]);
     });
 
-    test('fontFamilies contains 4 supported Quran Arabic fonts', () {
+    test('fontFamilies contains 9 supported Quran Arabic fonts', () {
       expect(ReaderDisplaySettings.fontFamilies, [
         'Amiri',
+        'KFGQPC Uthman Taha Naskh',
+        'PDMS Saleem QuranFont',
+        'QPC Hafs',
+        'QPC V2',
+        'QPC V4 Tajweed',
         'ScheherazadeNew',
         'NotoNaskhArabic',
         'ArefRuqaa',
@@ -52,9 +57,17 @@ void main() {
 
     test('fontFamilyIndex returns correct index for known families', () {
       expect(ReaderDisplaySettings.fontFamilyIndex('Amiri'), 0);
-      expect(ReaderDisplaySettings.fontFamilyIndex('ScheherazadeNew'), 1);
-      expect(ReaderDisplaySettings.fontFamilyIndex('NotoNaskhArabic'), 2);
-      expect(ReaderDisplaySettings.fontFamilyIndex('ArefRuqaa'), 3);
+      expect(
+          ReaderDisplaySettings.fontFamilyIndex('KFGQPC Uthman Taha Naskh'),
+          1);
+      expect(ReaderDisplaySettings.fontFamilyIndex('PDMS Saleem QuranFont'),
+          2);
+      expect(ReaderDisplaySettings.fontFamilyIndex('QPC Hafs'), 3);
+      expect(ReaderDisplaySettings.fontFamilyIndex('QPC V2'), 4);
+      expect(ReaderDisplaySettings.fontFamilyIndex('QPC V4 Tajweed'), 5);
+      expect(ReaderDisplaySettings.fontFamilyIndex('ScheherazadeNew'), 6);
+      expect(ReaderDisplaySettings.fontFamilyIndex('NotoNaskhArabic'), 7);
+      expect(ReaderDisplaySettings.fontFamilyIndex('ArefRuqaa'), 8);
     });
   });
 
