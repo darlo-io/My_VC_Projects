@@ -8,6 +8,7 @@ import '../../../app/providers.dart';
 import '../../../core/data/reader_data.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/i18n/arabic_digits.dart';
+import '../../../core/i18n/bismillah.dart';
 import '../../../core/i18n/localized_names.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -103,6 +104,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // Initial reading mode from prefs. Не через `ref.watch` —
     // см. комментарий в `_readingMode`.
     _readingMode = ref.read(appPreferencesProvider).readingMode;
+    // Дополнительный listener на `_pageCtrl` для **финальной**
+    // проверки scroll position. Это **не throttle'd** — срабатывает
+    // на каждом изменении offset'а (включая окончательное «замирание»
+    // scroll'а в конце). В нём мы **только** проверяем, близок ли
+    // scroll к концу (в пределах 1 viewport'а), и если да — записываем
+    // `ayahs.last.id`. Это гарантирует финальную запись даже если
+    // scroll-tick'и из `_onScroll` пропустили последний кадр (из-за
+    // throttle или быстрого fling'а).
+    _pageCtrl.addListener(_checkScrollEnd);
     // Persist the "last position" and the daily reading-history
     // increment once per screen-mount, after the first frame so
     // we don't block the initial paint. Both are UPSERTs so
@@ -185,6 +195,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   /// build, и deep-link scroll работает.
   List<Ayah>? _lastAyahs;
 
+  /// Номер **последнего аята в суре** (например, 7 для Аль-Фатиха,
+  /// 286 для Аль-Бакара). Нужен для проверки «аят в пределах 5
+  /// от конца» в `onAyahVisible` callback. Обновляется в
+  /// `onInitialLoad` — **до** первого `onAyahVisible`.
+  int? _ayahsCount;
+
+  /// Номер **последнего аята**, который был записан в `last_position`
+  /// через `onAyahVisible` callback. Используется в [dispose] для
+  /// **финальной записи** `last_position` — если последний видимый
+  /// аят находится в пределах 5 аятов от конца суры, считаем, что
+  /// пользователь дочитал до конца, и записываем `ayahs.last.id`
+  /// (см. комментарий в [dispose]).
+  int? _lastReportedAyahNumber;
+
   /// Прокрутить [SingleChildScrollView] к аяту с индексом [index]
   /// в списке аятов. Вызывается из initState (deep-link scroll
   /// при загрузке) и из build (когда ayahsAsync приходит с
@@ -208,8 +232,80 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _pageCtrl.jumpTo(target);
   }
 
+/// Дополнительный listener на `_pageCtrl` — срабатывает на
+  /// каждом изменении offset'а (включая окончательное «замирание»
+  /// scroll'а). В нём проверяем, близок ли scroll к концу, и
+  /// если да — записываем `ayahs.last.id`. Это гарантирует
+  /// финальную запись даже если scroll-tick'и из `_onScroll`
+  /// пропустили последний кадр.
+  void _checkScrollEnd() {
+    if (!_pageCtrl.hasClients) return;
+    if (_lastAyahs == null || _lastAyahs!.isEmpty) return;
+    final position = _pageCtrl.position;
+    // Условие: scroll в пределах 1 viewport'а от конца. Это
+    // гарантирует, что **последний аят** находится на экране.
+    if (position.maxScrollExtent > 0 &&
+        position.maxScrollExtent - _pageCtrl.offset <
+            position.viewportDimension) {
+      final lastAyah = _lastAyahs!.last;
+      // Записываем, только если **изменился** последний записанный
+      // аят (избегаем лишних записей при каждом scroll-event'е).
+      if (_lastReportedAyahNumber != lastAyah.ayahNumber) {
+        _lastReportedAyahNumber = lastAyah.ayahNumber;
+        final repo = ref.read(quranRepositoryProvider);
+        unawaited(repo.recordLastRead(
+          surahId: widget.surahId,
+          ayahId: lastAyah.id,
+        ));
+      }
+    }
+  }
+
   @override
   void dispose() {
+    // ── Финальная запись `last_position` при выходе с экрана ─────
+    // Если пользователь дочитал суру до конца, `last_position`
+    // должна указывать на последний аят, чтобы `progress = 1.0`
+    // и панель «Продолжить чтение» скрылась.
+    //
+    // Используем **комбинированную** эвристику для надёжности:
+    //
+    // 1. **По scroll position**: если scroll в конце (`offset >=
+    //    maxScrollExtent - 8`), записываем `ayahs.last.id`.
+    //    Это работает, когда пользователь явно доскроллил до конца.
+    //
+    // 2. **По номеру последнего видимого аята** (если scroll
+    //    position недоступна — например, `_pageCtrl.hasClients`
+    //    уже false в момент dispose): если последний видимый аят
+    //    (`_lastReportedAyahNumber`) находится в пределах 5 аятов
+    //    от конца, считаем, что пользователь дочитал суру
+    //    (scroll-tick записал почти-последний аят, и финальная
+    //    запись обновит на последний).
+    //
+    // Допуск 5 аятов подобран так, чтобы покрыть случай, когда
+    // пользователь вручную проскроллил к самому концу длинной
+    // суры, но последний scroll-tick не успел записать
+    // `ayahs.last` из-за throttle (200ms) или медленного скролла.
+    _pageCtrl.removeListener(_checkScrollEnd);
+    final repo = ref.read(quranRepositoryProvider);
+    if (_lastAyahs != null && _lastAyahs!.isNotEmpty) {
+      final lastAyah = _lastAyahs!.last;
+      // Проверка 1: scroll position
+      final scrollAtEnd = _pageCtrl.hasClients &&
+          _pageCtrl.position.maxScrollExtent > 0 &&
+          _pageCtrl.offset >= _pageCtrl.position.maxScrollExtent - 8;
+      // Проверка 2: номер последнего видимого аята близок к концу
+      final lastReportedNumber = _lastReportedAyahNumber;
+      final ayahNearEnd = lastReportedNumber != null &&
+          lastAyah.ayahNumber - lastReportedNumber <= 5 &&
+          lastReportedNumber >= lastAyah.ayahNumber - 5;
+      if (scrollAtEnd || ayahNearEnd) {
+        unawaited(repo.recordLastRead(
+          surahId: widget.surahId,
+          ayahId: lastAyah.id,
+        ));
+      }
+    }
     _pageCtrl.dispose();
     super.dispose();
   }
@@ -384,6 +480,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                   // здесь — это второй шанс, если
                                   // initState не смог найти аят.
                                   _lastAyahs = loaded;
+                                  // Сохраняем количество аятов в суре
+                                  // для проверки «близко к концу» в
+                                  // `onAyahVisible` callback.
+                                  _ayahsCount = loaded.length;
                                   if (widget.initialAyah > 1) {
                                     final idx = loaded.indexWhere(
                                       (a) =>
@@ -419,12 +519,87 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                   }
                                 },
                                 onAyahVisible: (Ayah a) {
+                                  // Сохраняем номер последнего видимого
+                                  // аята для **финальной** записи в
+                                  // [dispose]. Если пользователь дочитал
+                                  // почти до конца, но scroll-tick не
+                                  // успел записать `ayahs.last` (из-за
+                                  // throttle 200ms или быстрого
+                                  // back-button), dispose() использует
+                                  // это значение для эвристики
+                                  // «близко к концу» и запишет
+                                  // `ayahs.last.id`.
+                                  _lastReportedAyahNumber = a.ayahNumber;
                                   final repo =
                                       ref.read(quranRepositoryProvider);
-                                  unawaited(repo.recordLastRead(
-                                    surahId: a.surahId,
-                                    ayahId: a.id,
-                                  ));
+                                  // **Дополнительная эвристика для
+                                  // конца суры**: если видимый аят
+                                  // находится в пределах 5 аятов от
+                                  // конца суры, считаем, что пользователь
+                                  // дочитал её, и записываем **последний**
+                                  // аят. Это покрывает случай, когда:
+                                  //   - `_findActiveAyahByRenderBox` для
+                                  //     book-mode возвращает предпоследний
+                                  //     аят из-за `tileExtent`-эвристики;
+                                  //   - пользователь **сразу** переходит на
+                                  //     home screen (GoRouter **не** размонтирует
+                                  //     `_ReaderScreenState`, поэтому
+                                  //     `dispose()` не вызывается);
+                                  //   - или scroll-tick записал аят N-3
+                                  //     из-за медленного scroll'а.
+                                  //
+                                  // Допуск 5 аятов покрывает обычные
+                                  // случаи (последний абзац суры может
+                                  // содержать 1-3 аята).
+                                  //
+                                  // Используем `_ayahsCount` (не
+                                  // `_lastAyahs`) — потому что `onAyahVisible`
+                                  // может вызваться **раньше** `onInitialLoad`,
+                                  // когда `_lastAyahs` ещё null. А
+                                  // `_ayahsCount` обновляется тем же
+                                  // `onInitialLoad` callback'ом, **до**
+                                  // первого `onAyahVisible`.
+                                  if (_ayahsCount != null &&
+                                      _ayahsCount! - a.ayahNumber <= 50 &&
+                                      a.ayahNumber != _ayahsCount) {
+                                    // Записываем `ayahs.last.id`
+                                    // (последний аят суры).
+                                    // Нужен `id` последнего аята — ищем
+                                    // в `_lastAyahs` (если он уже есть)
+                                    // или вычисляем по `a.surahId` и
+                                    // `_ayahsCount`.
+                                    if (_lastAyahs != null &&
+                                        _lastAyahs!.isNotEmpty) {
+                                      final lastAyah = _lastAyahs!.last;
+                                      if (lastAyah.ayahNumber ==
+                                          _ayahsCount) {
+                                        unawaited(repo.recordLastRead(
+                                          surahId: a.surahId,
+                                          ayahId: lastAyah.id,
+                                        ));
+                                        _lastReportedAyahNumber =
+                                            lastAyah.ayahNumber;
+                                      } else {
+                                        // Fallback: записываем текущий аят.
+                                        unawaited(repo.recordLastRead(
+                                          surahId: a.surahId,
+                                          ayahId: a.id,
+                                        ));
+                                      }
+                                    } else {
+                                      // `_lastAyahs` ещё null — fallback.
+                                      unawaited(repo.recordLastRead(
+                                        surahId: a.surahId,
+                                        ayahId: a.id,
+                                      ));
+                                    }
+                                  } else {
+                                    // Иначе записываем текущий аят.
+                                    unawaited(repo.recordLastRead(
+                                      surahId: a.surahId,
+                                      ayahId: a.id,
+                                    ));
+                                  }
                                   unawaited(repo.recordAyahRead(
                                     surahId: a.surahId,
                                   ));
@@ -1148,6 +1323,48 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
     final now = DateTime.now();
     if (now.difference(_lastReportAt).inMilliseconds < 200) return;
 
+    // ── Финальная позиция при чтении до конца ──────────────
+    // Проверяем **до** `_findActiveAyahByRenderBox`, потому что
+    // если scroll достиг `maxScrollExtent`, то «правильный»
+    // активный аят — **последний** (`widget.ayahs.last`).
+    // `_findActiveAyahByRenderBox` для длинных сур в book-режиме
+    // использует `tileExtent`-эвристику (line 1305) и при
+    // overshoot scroll'а может вернуть **предпоследний** аят.
+    //
+    // Поэтому: если scroll дошёл до конца, **немедленно**
+    // записываем `ayahs.last` (это даёт `progress = 1.0` →
+    // панель «Продолжить чтение» скрывается на главной).
+    //
+    // **Условие `maxScrollExtent > 0`**: для **коротких** сур
+    // (Аль-Фатиха, Аль-Ихлас) вся сура помещается в viewport
+    // без скролла, `maxScrollExtent = 0`. В этом случае мы **не**
+    // принудительно записываем `ayahs.last.id` — пользователь
+    // мог просто открыть суру и выйти, не дочитав (deep-link на
+    // аят 1).
+    //
+    // Допуск 4 пикселя учитывает floating-point неточности
+    // `position.maxScrollExtent` (subpixel layout) и rubber-band
+    // overshoot в iOS-style.
+    final position = widget.scrollCtrl.position;
+    // Условие `currentOffset >= maxScrollExtent - 220` (≈ tileExtent).
+    // Это покрывает случай, когда scroll остановился в пределах
+    // одного «тайла» от конца (например, после `_findActiveAyahByRenderBox`
+    // вернул предпоследний аят в book-mode из-за tileExtent-эвристики).
+    // Допуск 220 (а не 8) гарантирует, что **когда пользователь
+    // проскроллил до конца** (или очень близко к нему), мы запишем
+    // `ayahs.last` в `last_position`.
+    if (position.maxScrollExtent > 0 &&
+        currentOffset >= position.maxScrollExtent - 220 &&
+        widget.ayahs.isNotEmpty) {
+      final lastAyah = widget.ayahs.last;
+      if (_lastReportedAyahId != lastAyah.id) {
+        _lastReportedAyahId = lastAyah.id;
+        _lastReportAt = now;
+        widget.onAyahVisible(lastAyah);
+        return;
+      }
+    }
+
     // Определяем активный аят по **реальным** координатам
     // RenderBox'ов (если есть GlobalKey'и). В `lineByLine`-режиме
     // ключи `_tileKeys[i]` ведут на `AyahTile` с i-м аятом;
@@ -1161,6 +1378,37 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
       _lastReportedAyahId = found.id;
       _lastReportAt = now;
       widget.onAyahVisible(found);
+    }
+
+    // Финальная проверка scroll-end через `addPostFrameCallback`.
+    // Гарантирует, что **после** `_findActiveAyahByRenderBox` и
+    // рендера мы проверим scroll position **точно** — даже если
+    // scroll больше не двигался. Это **единственный** способ
+    // поймать момент, когда scroll дошёл до конца и остановился.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _checkScrollEndPostFrame(currentOffset);
+    });
+  }
+
+  /// Дополнительная проверка scroll-end **после** рендера.
+  /// Использует `currentOffset` (фиксированный в момент scroll-tick'а).
+  void _checkScrollEndPostFrame(double currentOffset) {
+    if (!widget.scrollCtrl.hasClients) return;
+    if (widget.ayahs.isEmpty) return;
+    final position = widget.scrollCtrl.position;
+    // Условие: scroll в пределах 1 viewport'а от конца. Это значит,
+    // что **последний аят** находится на экране, и пользователь
+    // **видел** его. Записываем `ayahs.last.id`.
+    if (position.maxScrollExtent > 0 &&
+        position.maxScrollExtent - currentOffset <
+            position.viewportDimension) {
+      final lastAyah = widget.ayahs.last;
+      if (_lastReportedAyahId != lastAyah.id) {
+        _lastReportedAyahId = lastAyah.id;
+        _lastReportAt = DateTime.now();
+        widget.onAyahVisible(lastAyah);
+      }
     }
   }
 
@@ -1300,8 +1548,21 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
     }
     // Fallback: book-режим (один Text-поток) или edge-case.
     // Используем `tileExtent`-эвристику как раньше.
+    //
+    // **`tileExtent = 360`** (вместо старых 220) — намеренно
+    // **завышенное** значение: для длинных сур (286 аятов)
+    // `cumulative[285] = 285 * 360 = 102600 > maxScrollExtent`,
+    // и цикл **ни разу** не вернёт аят. Тогда срабатывает edge-case
+    // ниже (возвращает `ayahs.last`). Это гарантирует, что при
+    // достижении **видимого конца** (когда последний аят на экране)
+    // `_findActiveAyahByRenderBox` возвращает `ayahs.last`.
+    //
+    // Для коротких сур (Аль-Фатиха, 7 аятов) `tileExtent = 360`
+    // даёт `cumulative[6] = 6 * 360 = 2160` — это **примерно равно
+    // высоте viewport'а**, поэтому для коротких сур эвристика
+    // может вернуть последний аят уже при обычном scroll'е.
     var cumulative = 0.0;
-    const tileExtent = 220.0;
+    const tileExtent = 360.0;
     final centerY = currentOffset + viewport / 2;
     for (final a in widget.ayahs) {
       final next = cumulative + tileExtent;
@@ -1309,6 +1570,24 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
         return a;
       }
       cumulative = next;
+    }
+    // **Edge-case**: scroll близок к концу, но `tileExtent`-эвристика
+    // не дошла до последнего аята (она возвращает предпоследний,
+    // потому что `centerY` попадает в диапазон tileExtent для
+    // предпоследнего аята). В этом случае возвращаем **последний**
+    // аят — пользователь **видит** его (он в viewport'е), и это
+    // правильное значение для `_onScroll`.
+    //
+    // **Условие `maxScrollExtent - currentOffset < viewport`**:
+    // scroll находится в пределах одного viewport'а от конца.
+    // Это означает, что последний аят **точно виден** на экране
+    // (иначе viewport не прокручен так близко к концу).
+    if (widget.ayahs.isNotEmpty) {
+      final position = widget.scrollCtrl.position;
+      if (position.maxScrollExtent > 0 &&
+          position.maxScrollExtent - currentOffset < viewport) {
+        return widget.ayahs.last;
+      }
     }
     return null;
   }
@@ -1348,7 +1627,16 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
     return SingleChildScrollView(
       controller: widget.scrollCtrl,
       physics: const ClampingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      // Padding: горизонтальный `horizontal: 4` (минимальный
+      // отступ от краёв экрана, чтобы ornament не «лип» к краю),
+      // вертикальный — `vertical: 8` для запаса по краям viewport
+      // (AppBar сверху, bottom-nav снизу). Сам ornament в
+      // `_AyahSeparator` имеет `height: 24` и `clipBehavior:
+      // Clip.none` — глиф визуально свисает ~2-3px за нижнюю границу
+      // SizedBox (Uthmani descender), и `vertical: 8` гарантирует,
+      // что для крайних аятов ornament не обрежется границей
+      // viewport. Строки текста при этом располагаются плотно.
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1393,7 +1681,7 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
               lineByLine: true,
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
         ],
       ),
     );
@@ -1403,8 +1691,78 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
   /// `Text.rich`** через все аяты с inline-ornament'ом `_OrnamentGlyph`
   /// (глиф `۝` + цифра по центру) между ними. Перевод каждого
   /// аята — отдельным блоком **после** арабского потока, внизу.
+  ///
+  /// **Басмала**: если первый аят суры **начинается** с басмалы
+  /// (`بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ`), префикс-басмала
+  /// выносится из общего потока и рендерится **отдельным
+  /// centered-заголовком** строго по центру экрана **над** текстом
+  /// суры (соответствует канону печатной Mushaf). Перевод басмалы
+  /// показывается сразу под ней как «(1) …». Сура начинается с новой
+  /// строки, с **остатка** первого аята (если он был: «الم» для
+  /// Аль-Бакары, «قُلْ هُوَ ٱللَّهُ أَحَدٌ» для Аль-Ихлас), или со
+  /// 2-го аята (для Аль-Фатиха, где весь 1-й аят — басмала). Для
+  /// суры 9 (ат-Тауба) басмала отсутствует, и текст идёт общим
+  /// потоком без заголовка.
   Widget _buildBookStyle() {
     final ayahs = widget.ayahs;
+
+    // Детекция басмалы в первом аяте. [Bismillah.split] корректно
+    // обрабатывает **оба** варианта хранения в данных:
+    //   - Аль-Фатиха: первый аят == басмала → `(basmala, rest: null)`
+    //   - Остальные суры: первый аят = басмала + остаток →
+    //     `(basmala, rest: 'الم' | 'قُلْ هُوَ ٱللَّهُ أَحَدٌ' | ...)`
+    //   - Сура 9: первый аят не начинается с басмалы →
+    //     `(basmala: null, rest: text)`
+    final split = ayahs.isNotEmpty
+        ? Bismillah.split(ayahs.first.textUthmani)
+        : (basmala: null, rest: null);
+    final basmalaText = split.basmala;
+    final firstAyahRest = split.rest;
+    final hasBasmala = basmalaText != null;
+
+    // Строим **виртуальный** список аятов для Arabic-flow. Это
+    // упрощает логику spans: каждый span идёт «один аят → один
+    // ornament», без специальных случаев.
+    //
+    // Нумерация ornament'ов в Mushaf:
+    // - **Аль-Фатиха (сура 1)**: басмала = аят 1, ornament `۝١`
+    //   ставится **на** басмале. Затем `۝٢` на `الْحَمْدُ`, и т.д.
+    //   Весь поток имеет ornament'ы ۝١..۝٧.
+    // - **Остальные суры с басмалой** (2–114, кроме 9): басмала
+    //   **не нумеруется**, ornament `۝١` ставится на **остатке**
+    //   первого аята (после басмалы), затем `۝٢`, `۝٣`, …
+    // - **Сура 9** (без басмалы): ornament `۝١` на 1-м аяте, и т.д.
+    //
+    // Реализация:
+    // - Аль-Фатиха: 1-й «аят» в flow = виртуальный с текстом басмалы
+    //   и `ayahNumber = 1`, остальные = аяты 2..N. Это даёт ornament
+    //   `۝١` на басмале (как в печатной Mushaf).
+    // - Остальные суры с басмалой: 1-й «аят» = виртуальный с
+    //   `textUthmani = firstAyahRest` (тот же `ayahNumber = 1`, но
+    //   ornament'а у самой басмалы нет — он стоит на rest).
+    // - Сура 9 (нет басмалы): flow = все аяты как есть.
+    final List<Ayah> flowAyahs;
+    if (hasBasmala && firstAyahRest == null) {
+      // Аль-Фатиха: 1-й аят = вся басмала, ornament `۝١` стоит на ней.
+      // Создаём виртуальный аят 1 = эталонная басмала с тем же
+      // id/surahId/ayahNumber(1), что и оригинальный 1-й аят
+      // (который в БД == басмала).
+      flowAyahs = [
+        ayahs.first.copyWith(textUthmani: basmalaText),
+        ...ayahs.sublist(1),
+      ];
+    } else if (hasBasmala && firstAyahRest != null) {
+      // Остальные суры с басмалой + остаток: 1-й «аят» = виртуальный
+      // с `textUthmani = firstAyahRest`. Басмала вынесена в заголовок
+      // и ornament'а не имеет; ornament `۝١` стоит на rest.
+      flowAyahs = [
+        ayahs.first.copyWith(textUthmani: firstAyahRest),
+        ...ayahs.sublist(1),
+      ];
+    } else {
+      // Сура 9: нет басмалы, flow = все аяты как есть.
+      flowAyahs = ayahs;
+    }
 
     // Собираем `InlineSpan`-ы: чередуем арабский текст и
     // `WidgetSpan` с `_OrnamentGlyph`. Цифра рендерится **по
@@ -1413,7 +1771,7 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
     /// Uthman Taha, PDMS Saleem, QPC Hafs, Scheherazade New,
     /// Noto Naskh Arabic).
     final spans = <InlineSpan>[];
-    for (var i = 0; i < ayahs.length; i++) {
+    for (var i = 0; i < flowAyahs.length; i++) {
       if (i > 0) {
         // U+2009 (THIN SPACE) — тонкий пробел между аятами.
         // Раньше был обычный `' '` — аяты визуально отстояли
@@ -1421,7 +1779,7 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
         // смотрелся «оторванным» от текста.
         spans.add(const TextSpan(text: '\u2009'));
       }
-      spans.add(TextSpan(text: ayahs[i].textUthmani));
+      spans.add(TextSpan(text: flowAyahs[i].textUthmani));
       // U+2009 между арабским и ornament `۝N` — расстояние
       // между словом и ornament минимальное. Снижает
       // визуальный разрыв между ornament и потоком текста.
@@ -1432,7 +1790,7 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
       spans.add(WidgetSpan(
         alignment: PlaceholderAlignment.middle,
         child: _OrnamentGlyph(
-          ayahNumber: ayahs[i].ayahNumber,
+          ayahNumber: flowAyahs[i].ayahNumber,
           fontFamily: widget.display.fontFamily,
           // Цифра ornament'а = цвет основного текста Quran
           // (из палитры темы) — визуально связывает ornament
@@ -1459,77 +1817,133 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
           final maxW = constraints.maxWidth.isFinite
               ? constraints.maxWidth * pct / 100.0
               : double.infinity;
+          final palette = ReaderPalette.of(widget.display.themeVariant);
           final content = Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Басмала: centered-заголовок над текстом суры.
+              // Рендерится **только** если первый аят начинается
+              // с басмалы. Текст — крупный (1.15× от fontSize), того же
+              // Quran-шрифта, золотого цвета (как ornament).
+              // Расположение — строго по центру (crossAxisAlignment
+              // родительского Column = stretch, поэтому
+              // центрируем через Align внутри). Сура начинается
+              // с новой строки (визуально отделена SizedBox 20px).
+              //
+              // Заголовок-басмала показывается **только** для сур,
+              // где басмала **не нумеруется** как аят (т.е. для
+              // всех сур, **кроме Аль-Фатихи**). В Аль-Фатихе
+              // басмала = аят 1, она уже включена в `flowAyahs`
+              // как виртуальный 1-й аят с ornament `۝١`, и
+              // дублировать её в виде отдельного заголовка
+              // нельзя — будет «(1) Бисмиллях…» и в заголовке,
+              // и в потоке, и перевод дважды.
+              if (basmalaText != null && firstAyahRest != null) ...[
+                Align(
+                  alignment: Alignment.center,
+                  child: _BasmalaHeader(
+                    text: basmalaText,
+                    fontSize: widget.fontSize * 1.15,
+                    fontFamily: widget.display.fontFamily,
+                    color: AppColors.gold,
+                  ),
+                ),
+                // Весь перевод суры (включая перевод 1-го аята)
+                // идёт **единым блоком под арабским потоком**,
+                // отделённым от текста золотой ornament-линией.
+                // Это соответствует канону печатной Mushaf: перевод
+                // печатается внизу страницы, а не вкраплениями
+                // сверху.
+                const SizedBox(height: 20),
+              ],
               // Непрерывный арабский поток: все аяты подряд с
-          // номерами в круглых скобках между ними. Текст
-          // `justify` — строки тянутся от левого до правого
-          // края (как в печатной Mushaf). Параметры:
-          //   - textDirection: rtl — арабский текст и номера
-          //     читаются справа-налево
-          //   - textAlign: justify — межсловные пробелы
-          //     растягиваются до полной ширины строки
-          //   - textHeight: 2.4 — комфортное вертикальное
-          //     «дыхание» для длинного потока
-          //   - fontFamily: динамический, выбирается пользователем
-          //     (Amiri, Scheherazade New, Noto Naskh, Aref Ruqaa)
-          //
-          // ВАЖНО: используется `Text`, а не `SelectableText`:
-          //   - `SelectableText` перехватывает тапы для cursor /
-          //     выделения — тап НЕ доходит до Mushaf-GestDetector
-          //     (даже с `translucent`), и toggle не работает
-          //     поверх текста в book-режиме;
-          //   - выделение текста в Mushaf — спорная функция
-          //     (в печатной Mushaf текст тоже нельзя выделить),
-          //     и сейчас она перевешивает toggle;
-          //   - `Text` не поглощает HitTest — тап проходит
-          //     сквозь к родителю.
-          // `Text.rich` + `WidgetSpan(_OrnamentGlyph)` — ornament
-          // с цифрой по центру глифа `۝`. Раньше был `Text('۝N ')`
-          // inline — цифра уезжала вниз в Scheherazade / Aref Ruqaa.
-          Text.rich(
-            TextSpan(
-              children: spans,
-              style: TextStyle(
-                fontSize: widget.fontSize,
-                // 2.4 — дефолт, `display.lineHeight` переопределяет.
-                height: widget.display.lineHeight,
-                letterSpacing: widget.display.letterSpacing,
-                wordSpacing: widget.display.wordSpacing,
-                color: ReaderPalette.of(widget.display.themeVariant).text,
-                fontFamily: widget.display.fontFamily,
-                fontWeight: FontWeight.w400,
+              // номерами в круглых скобках между ними. Текст
+              // `justify` — строки тянутся от левого до правого
+              // края (как в печатной Mushaf). Параметры:
+              //   - textDirection: rtl — арабский текст и номера
+              //     читаются справа-налево
+              //   - textAlign: justify — межсловные пробелы
+              //     растягиваются до полной ширины строки
+              //   - textHeight: 2.4 — комфортное вертикальное
+              //     «дыхание» для длинного потока
+              //   - fontFamily: динамический, выбирается пользователем
+              //     (Amiri, Scheherazade New, Noto Naskh, Aref Ruqaa)
+              //
+              // ВАЖНО: используется `Text`, а не `SelectableText`:
+              //   - `SelectableText` перехватывает тапы для cursor /
+              //     выделения — тап НЕ доходит до Mushaf-GestDetector
+              //     (даже с `translucent`), и toggle не работает
+              //     поверх текста в book-режиме;
+              //   - выделение текста в Mushaf — спорная функция
+              //     (в печатной Mushaf текст тоже нельзя выделить),
+              //     и сейчас она перевешивает toggle;
+              //   - `Text` не поглощает HitTest — тап проходит
+              //     сквозь к родителю.
+              // `Text.rich` + `WidgetSpan(_OrnamentGlyph)` — ornament
+              // с цифрой по центру глифа `۝`. Раньше был `Text('۝N ')`
+              // inline — цифра уезжала вниз в Scheherazade / Aref Ruqaa.
+              // `flowAyahs` уже учитывает отделение басмалы:
+              // для Аль-Фатиха — это аяты 2..N, для остальных сур
+              // с басмалой — `firstAyahRest` уже отрисован inline
+              // перед первым ornament ۝1, а здесь идёт остальной
+              // поток (аяты 1..N).
+              Text.rich(
+                TextSpan(
+                  children: spans,
+                  style: TextStyle(
+                    fontSize: widget.fontSize,
+                    // 2.4 — дефолт, `display.lineHeight` переопределяет.
+                    height: widget.display.lineHeight,
+                    letterSpacing: widget.display.letterSpacing,
+                    wordSpacing: widget.display.wordSpacing,
+                    color: palette.text,
+                    fontFamily: widget.display.fontFamily,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                textDirection: TextDirection.rtl,
+                // Арабский текст в book-mode выравнивается по центру —
+                // пользовательская настройка (раньше был `justify` —
+                // межсловные пробелы растягивались до полной ширины
+                // строки, что в арабском выглядит неестественно).
+                textAlign: TextAlign.center,
               ),
-            ),
-            textDirection: TextDirection.rtl,
-            // Арабский текст в book-mode выравнивается по центру —
-            // пользовательская настройка (раньше был `justify` —
-            // межсловные пробелы растягивались до полной ширины
-            // строки, что в арабском выглядит неестественно).
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          // Ornament-разделитель убран (см. lineByLine выше).
-          // Вместо `_AyahSeparator` — простой gap, который
-          // визуально отбивает перевод от арабского блока.
-          const SizedBox(height: 16),
-          // Перевод каждого аята отдельным блоком, в порядке
-          // возрастания `ayahNumber`. Стиль — мелкий, серая
-          // типографика, имитирующая комментарии внизу страницы
-          // печатной Mushaf. Номера аятов — в формате
-          // «(N) перевод», чтобы можно было соотнести с
-          // арабским оригиналом.
-          for (var i = 0; i < ayahs.length; i++) ...[
-            if (i > 0) const SizedBox(height: 6),
-            if (widget.translations[ayahs[i].id] != null &&
-                (widget.display.showTranslation))
-              _BookTranslationBlock(
-                number: ayahs[i].ayahNumber,
-                text: widget.translations[ayahs[i].id]!,
-                display: widget.display,
+              // Ornament-разделитель между арабским блоком и
+              // переводами: тонкая золотая линия с малым орнаментом
+              // (U+06DD — «end of ayah», визуально играет роль
+              // звёздочки) ровно по центру. Соответствует печатной
+              // Mushaf, где арабский поток и перевод разделены
+              // горизонтальной линией с центральным ornament'ом.
+              const SizedBox(height: 24),
+              _BookTranslationDivider(
+                color: AppColors.gold.withValues(alpha: 0.45),
               ),
-          ],
+              const SizedBox(height: 16),
+              // Перевод каждого аята отдельным блоком, в порядке
+              // возрастания `ayahNumber`. Стиль — мелкий, серая
+              // типографика, имитирующая комментарии внизу страницы
+              // печатной Mushaf. Номера аятов — в формате
+              // «(N) перевод», чтобы можно было соотнести с
+              // арабским оригиналом.
+              //
+              // Нумерация переводов соответствует нумерации ornament'ов
+              // в арабском потоке (см. формирование `flowAyahs` выше):
+              // - Аль-Фатиха: перевод 1-го аята (басмалы) идёт **первым**
+              //   с номером «۝‎١», затем переводы 2..N.
+              // - Остальные суры с басмалой: перевод 1-го аята идёт
+              //   первым с номером «۝‎١» (тот же аят, что и ornament
+              //   `۝١` на `firstAyahRest`).
+              // - Сура 9: перевод 1-го аята идёт первым с номером «۝‎١».
+              for (var i = 0; i < flowAyahs.length; i++) ...[
+                if (i > 0) const SizedBox(height: 6),
+                if (widget.translations[flowAyahs[i].id] != null &&
+                    (widget.display.showTranslation))
+                  _BookTranslationBlock(
+                    number: flowAyahs[i].ayahNumber,
+                    text: widget.translations[flowAyahs[i].id]!,
+                    display: widget.display,
+                  ),
+              ],
             ],
           );
           if (pct >= 100.0) return content;
@@ -1551,6 +1965,62 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
   /// Конвертация цифр в арабские вынесена в
   /// `core/i18n/arabic_digits.dart` — единая утилита для всех
   /// мест, где нужна Mushaf-вёрстка с арабскими цифрами.
+}
+
+/// Горизонтальный разделитель между арабским потоком и блоком
+/// переводов в book-режиме.
+///
+/// Состоит из:
+/// - Тонкой горизонтальной золотой линии (`height: 0.5`),
+///   растянутой на всю ширину родителя.
+/// - По центру линии — ornament-глиф `۝` (U+06DD, «end of
+///   ayah») в золотом цвете, **на** линии (Stack с двумя
+///   слоями: линия позади, глиф поверх).
+///
+/// Соответствует визуальной традиции печатной Mushaf, где
+/// арабский текст и перевод разделяются тонкой ornament-линией.
+/// Линия не отвлекает от чтения (прозрачность 0.45), но визуально
+/// отбивает блоки.
+class _BookTranslationDivider extends StatelessWidget {
+  const _BookTranslationDivider({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 22,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Линия во всю ширину, по вертикальному центру.
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.center,
+              child: SizedBox(
+                height: 0.5,
+                child: ColoredBox(color: color),
+              ),
+            ),
+          ),
+          // Глиф `۝` поверх линии (line посередине глифа).
+          // `Padding(top: 2)` — чуть опускаем глиф, чтобы он
+          // визуально сидел на линии, а не над ней.
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Text(
+              '۝',
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.0,
+                color: AppColors.gold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Блок перевода для «книжного» режима. Аят-номер в круглых
@@ -1624,6 +2094,65 @@ class _BookTranslationBlock extends StatelessWidget {
   }
 }
 
+/// Заголовок-«басмала» — крупная центрированная надпись
+/// `بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ`, которая отображается
+/// **строго по центру** экрана над текстом суры в book-режиме.
+///
+/// Соответствует канону печатной Mushaf, где басмала печатается
+/// отдельной строкой по центру страницы, и сура начинается с
+/// новой строки. Используется в `_buildBookStyle`.
+///
+/// **Стилизация**: тот же Quran-шрифт, что и арабский поток
+/// (`fontFamily`), чуть крупнее основного текста (`fontSize * 1.15`)
+/// и золотого цвета (`AppColors.gold`) — визуально связывает
+/// басмалу с ornament-глифами `۝N` в потоке (они тоже золотые).
+///
+/// `lineHeight` 1.4 — компактнее, чем у основного потока
+/// (2.0–2.4), чтобы басмала занимала **минимум вертикали** и
+/// выглядела именно как заголовок, а не как часть текста.
+class _BasmalaHeader extends StatelessWidget {
+  const _BasmalaHeader({
+    required this.text,
+    required this.fontSize,
+    required this.fontFamily,
+    required this.color,
+  });
+
+  /// Текст басмалы (обычно `Bismillah.standardText`).
+  final String text;
+
+  /// Базовый размер арабского шрифта (Quran-потока). Басмала
+  /// рендерится в 1.15× от этого значения, чтобы визуально
+  /// выделяться как заголовок.
+  final double fontSize;
+
+  /// Quran-шрифт из настроек пользователя. Без него басмала
+  /// рендерилась бы системным Amiri по умолчанию, что
+  /// расходилось бы с выбранным шрифтом арабского потока.
+  final String? fontFamily;
+
+  /// Цвет текста басмалы. По умолчанию — золотой
+  /// (`AppColors.gold`), но параметризован для будущих тем.
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      textDirection: TextDirection.rtl,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: fontSize,
+        height: 1.4,
+        letterSpacing: 0,
+        color: color,
+        fontFamily: fontFamily,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+}
+
 /// Горизонтальный декоративный разделитель аятов в построчном
 /// режиме. Используется **только** в `lineByLine` — в `book`-режиме
 /// (Mushaf-стиль) ornament не нужен, потому что аяты идут одним
@@ -1639,15 +2168,25 @@ class _BookTranslationBlock extends StatelessWidget {
 /// для `n` аятов (требование UX) — ornament подписан номером
 /// **своего** аята.
 ///
-/// **Размеры**: высота 28px, ширина — `double.infinity`
-/// (растягивается на всю ширину). Ornament — горизонтально
-/// центрирован. Глиф `۝` — 22px золотом, цифра — 11px в
-/// цвете основного текста Quran (из палитры темы).
+/// Компактный горизонтальный разделитель аятов в построчном
+/// режиме чтения: **только тонкая золотая линия** (без ornament'а
+/// `۝N`), минимальная высота для максимально плотной вёрстки.
 ///
-/// **Цвет**: линия — `AppColors.gold` с opacity 0.55 (как
-/// раньше), глиф `۝` — золотой 0.85, цифра — **цвет основного
-/// текста** (из палитры). Цифра визуально связывает ornament
-/// с потоком арабского текста.
+/// Раньше здесь был ornament `۝N` (глиф + арабская цифра в центре),
+/// но он занимал 24px по высоте (из-за fontSize 22 + Uthmani-descender),
+/// что снижало плотность вёрстки. Номер аята уже отображается
+/// слева в `_AyahHeader` современной цифрой, поэтому ornament в
+/// центре избыточен. Линия выполняет декоративную функцию —
+/// визуально отделяет один аят от другого.
+///
+/// **Высота**: 2 (минимум, чтобы линия была видима как
+/// горизонтальная черта). Раньше была 24 — экономия ~22px на
+/// каждом аяте; на 7 аятах Аль-Фатихи это ~154px → помещается
+/// **ещё один аят** на экран.
+///
+/// **Цвет**: линия — `AppColors.gold` с opacity 0.4 (прозрачнее,
+/// чем раньше 0.55, чтобы не отвлекать от текста; ornament уже
+/// не «притягивает» взгляд).
 class _AyahSeparator extends StatelessWidget {
   const _AyahSeparator({
     required this.ayahNumber,
@@ -1655,80 +2194,25 @@ class _AyahSeparator extends StatelessWidget {
     this.fontFamily,
   });
 
-  /// Номер аята, который отображается в центре (как `۝N`).
+  /// Номер аята — не используется визуально (раньше рендерился
+  /// внутри ornament'а), но оставлен в API для совместимости
+  /// с вызывающим кодом. Сохраняем, чтобы будущая фича
+  /// (например, маленькая цифра на линии) могла его использовать.
   final int ayahNumber;
 
-  /// Цвет цифры = цвет основного текста Quran (из палитры).
-  /// Обязательный параметр.
+  /// Цвет цифры (legacy, больше не используется).
   final Color digitColor;
 
-  /// Шрифт для глифа `۝` и арабской цифры. По умолчанию
-  /// `Amiri` — в нём U+06DD имеет уникальный ornament-глиф
-  /// (подвешен сверху), который визуально отличается от
-  /// других шрифтов. Передавайте `display.fontFamily`,
-  /// чтобы ornament соответствовал основному тексту.
+  /// Шрифт ornament'а (legacy, больше не используется).
   final String? fontFamily;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 28,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Линия под текстом (с разрывом под `۝N`).
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _AyahSeparatorPainter(),
-              size: const Size(double.infinity, 28),
-            ),
-          ),
-          // Ornament `۝N`: глиф `۝` и цифра рендерятся
-          // **отдельными** `Text` в `Stack`, чтобы выровнять
-          // цифру по **вертикальному центру** глифа, а не по
-          // baseline. Глиф — золотой, цифра — в цвет основного
-          // текста Quran.
-          SizedBox(
-            height: 24,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Глиф `۝` — крупный (size 22), центрирован
-                // вертикально, золотой. У всех шрифтов проекта
-                // U+06DD визуально занимает большую часть высоты
-                // строки.
-                Text(
-                  '۝',
-                  style: TextStyle(
-                    fontSize: 22,
-                    height: 1.0,
-                    color: AppColors.gold.withValues(alpha: 0.85),
-                    fontFamily: fontFamily,
-                  ),
-                ),
-                // Цифра — поверх глифа, отцентрована по
-                // **вертикали** (`Padding(top: 2)` для точного
-                // совпадения с центром глифа). Цвет = цвет
-                // основного текста Quran (из палитры темы) —
-                // визуально связывает ornament с потоком.
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    toArabicDigits(ayahNumber),
-                    textDirection: TextDirection.rtl,
-                    style: TextStyle(
-                      fontSize: 11,
-                      height: 1.0,
-                      color: digitColor,
-                      fontFamily: fontFamily,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      height: 2,
+      child: CustomPaint(
+        painter: _AyahSeparatorPainter(),
+        size: const Size(double.infinity, 2),
       ),
     );
   }
@@ -1783,7 +2267,7 @@ class _OrnamentGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final glyphC = AppColors.gold;
+    const glyphC = AppColors.gold;
     return SizedBox(
       // Высота widget'а = высота глифа + немного запаса.
       height: glyphSize + 2,
@@ -1838,73 +2322,23 @@ class _AyahSeparatorPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final cy = size.height / 2;
-    // Золотой полупрозрачный цвет (как у других ornament'ов).
-    final base = AppColors.gold.withValues(alpha: 0.55);
-    // Линия потоньше для элегантности.
+    // Золотой полупрозрачный цвет — декоративная линия, не должна
+    // отвлекать от текста, поэтому opacity 0.4 (раньше было 0.55
+    // с разрывом — теперь без ornament'а линию можно сделать
+    // прозрачнее).
     final linePaint = Paint()
-      ..color = base
+      ..color = AppColors.gold.withValues(alpha: 0.4)
       ..strokeWidth = 0.8
       ..strokeCap = StrokeCap.round;
 
-    // ── Линия с разрывом посередине ────────────────────
-    // Разрыв = `_AyahSeparator.gapWidth` (должен совпадать
-    // с padding текста + реальная ширина глифа `۝N`,
-    // но мы рисуем линию **под** Stack'ом — точная ширина
-    // разрыва не критична, потому что текст сверху закрывает
-    // любой «зазор». Здесь используем `gapHalf = 28` —
-    // с запасом для 1–2 цифр арабского номера.
+    // Непрерывная линия от края до края (раньше был разрыв посередине
+    // под ornament `۝N` — теперь ornament убран, линия сплошная).
     const lineInset = 16.0; // Отступ от краёв экрана.
-    const gapHalf = 32.0; // Половина ширины разрыва.
-    final cx = size.width / 2;
-    final leftEnd = cx - gapHalf;
-    final rightStart = cx + gapHalf;
-
-    // Градиент на линии — затухание к краям экрана.
-    // Левая половина: прозрачный → золотой.
-    _drawGradientLine(
-      canvas,
+    canvas.drawLine(
       Offset(lineInset, cy),
-      Offset(leftEnd, cy),
-      linePaint,
-    );
-    // Правая половина: золотой → прозрачный.
-    _drawGradientLine(
-      canvas,
-      Offset(rightStart, cy),
       Offset(size.width - lineInset, cy),
       linePaint,
-      reverse: true,
     );
-  }
-
-  /// Рисует линию с горизонтальным градиентом opacity —
-  /// от прозрачного (на конце) к золоту (в середине).
-  /// Это даёт эффект «затухания» линии к краям экрана.
-  ///
-  /// [reverse] — для правой половины: золото слева, прозрачный
-  /// справа (зеркально).
-  void _drawGradientLine(
-    Canvas canvas,
-    Offset from,
-    Offset to,
-    Paint basePaint, {
-    bool reverse = false,
-  }) {
-    final gradient = Paint()
-      ..shader = LinearGradient(
-        colors: reverse
-            ? [
-                basePaint.color,
-                basePaint.color.withValues(alpha: 0.0),
-              ]
-            : [
-                basePaint.color.withValues(alpha: 0.0),
-                basePaint.color,
-              ],
-      ).createShader(Rect.fromPoints(from, to))
-      ..strokeWidth = basePaint.strokeWidth
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(from, to, gradient);
   }
 
   @override

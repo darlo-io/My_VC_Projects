@@ -12,6 +12,7 @@ class LastReadPosition {
     required this.surahName,
     required this.ayahNumber,
     required this.progress,
+    this.ayahCount = 0,
   });
 
   /// Empty snapshot (no recorded position yet). The home screen
@@ -23,7 +24,8 @@ class LastReadPosition {
       : surahId = 0,
         surahName = '',
         ayahNumber = 0,
-        progress = 0.0;
+        progress = 0.0,
+        ayahCount = 0;
 
   /// 1-based surah number, or 0 for the empty snapshot.
   final int surahId;
@@ -40,4 +42,26 @@ class LastReadPosition {
   /// `ayahNumber / surah.ayahCount`. 0.0 for the empty snapshot or
   /// when the surah's `ayahCount` is missing.
   final double progress;
+
+  /// Total number of ayahs in the surah. 0 for the empty snapshot
+  /// or when the surah's `ayahCount` is missing.
+  ///
+  /// **Зачем**: `progress` — это double, и при `ayahNumber / ayahCount`
+  /// даже для **полностью** прочитанной суры результат может быть
+  /// `0.9999999999999999` (из-за floating-point неточностей
+  /// integer-division → double), а не ровно `1.0`. Это приводит
+  /// к тому, что условие `last.progress < 1.0` на главной
+  /// срабатывает как `true`, и панель «Продолжить чтение»
+  /// показывается **даже после прочтения всей суры**.
+  ///
+  /// Используйте [isCompleted] вместо сравнения `progress < 1.0`
+  /// для надёжной проверки.
+  final int ayahCount;
+
+  /// True, если пользователь дочитал суру до конца
+  /// (`ayahNumber >= ayahCount`).
+  ///
+  /// Используется на главной вместо `progress < 1.0` для
+  /// корректного скрытия «Продолжить чтение» после прочтения.
+  bool get isCompleted => ayahCount > 0 && ayahNumber >= ayahCount;
 }

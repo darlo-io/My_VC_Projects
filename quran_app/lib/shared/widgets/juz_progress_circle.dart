@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 
 import 'progress_ring.dart';
 
@@ -38,8 +39,8 @@ class JuzProgressCircle extends StatelessWidget {
             color: progress >= 1.0
                 ? const Color(0xFF4CAF82) // success green — finished
                 : progress > 0
-                    ? const Color(0xFFD4A84A) // gold — in progress
-                    : const Color(0xFF7E7563), // muted — not started
+                    ? AppColors.gold // gold — in progress
+                    : AppColors.textTertiary, // muted — not started
             trackColor: const Color(0x1AD4A84A),
             strokeWidth: 3,
             size: size,
@@ -51,7 +52,7 @@ class JuzProgressCircle extends StatelessWidget {
               fontSize: 10,
               color: progress >= 1.0
                   ? const Color(0xFF4CAF82)
-                  : const Color(0xFFB7A98F),
+                  : AppColors.textSecondary,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),

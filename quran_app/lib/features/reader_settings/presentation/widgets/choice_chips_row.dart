@@ -9,7 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 /// Не использует [ValueKey] — внешний код управляет ребилдом
 /// через `setState`.
 class ChoiceChipsRow<T> extends StatelessWidget {
-  const ChoiceChipsRow({
+  const ChoiceChipsRow({super.key, 
     required this.options,
     required this.selected,
     required this.onChanged,

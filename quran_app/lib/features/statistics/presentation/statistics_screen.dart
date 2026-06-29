@@ -65,7 +65,6 @@ class StatisticsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = AppLocalizations.of(context);
     final range = _useRange(ref);
-    final dao = ref.watch(positionDaoProvider);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final rangeStart = today.subtract(Duration(days: range.days - 1));
@@ -95,7 +94,7 @@ class StatisticsScreen extends ConsumerWidget {
                           style: const TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFFEDE6D3),
+                            color: AppColors.textPrimary,
                             height: 1.1,
                             fontFamily: 'CormorantGaramond',
                           ),
@@ -105,7 +104,7 @@ class StatisticsScreen extends ConsumerWidget {
                           t.statsSubtitle,
                           style: const TextStyle(
                             fontSize: 13,
-                            color: Color(0xFFB7A98F),
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -205,7 +204,7 @@ class _BackButton extends StatelessWidget {
           ),
           child: const Icon(
             Icons.arrow_back_ios_new,
-            color: Color(0xFFEDE6D3),
+            color: AppColors.textPrimary,
             size: 18,
           ),
         ),
@@ -720,7 +719,6 @@ class _JuzProgressRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final t = AppLocalizations.of(context);
     final dao = ref.watch(positionDaoProvider);
     return GlassCard(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
@@ -827,14 +825,14 @@ class _AchievementsList extends ConsumerWidget {
                   : '${t.statsAchvLastRead}: ${last.surahName}',
             ),
             subtitle: '',
-            timeStream: dao.watchLastWithSurah().map((last) {
-              return _formatRelativeTime(
-                context,
-                // updatedAt isn't exposed by watchLastWithSurah;
-                // fall back to "Today" for now.
-                daysAgo: 0,
-              );
-            }),
+            // Используем `t` (захваченную в начале метода) — `context`
+            // уже не доступен внутри `.map`-callback (это async gap),
+            // и линтер `use_build_context_synchronously` это отслеживает.
+            // updatedAt isn't exposed by watchLastWithSurah; fall back to
+            // "Today" for now.
+            timeStream: dao.watchLastWithSurah().map(
+              (_) => t.statsAchvToday,
+            ),
           ),
           // 2) Streak goal
           _AchievementRow(
@@ -862,21 +860,17 @@ class _AchievementsList extends ConsumerWidget {
   }
 
   String _streakLabel(AppLocalizations t, WidgetRef ref) {
-    final streak = ref.watch(positionDaoProvider).watchStreakDays();
     // We can't easily `await` a stream here, so return a
     // placeholder; the row builder re-subscribes on each build.
     return '';
   }
 }
 
-/// Relative time formatter for the achievements list. Returns
-/// `Today` / `Yesterday` / `N days ago` based on [daysAgo].
-String _formatRelativeTime(BuildContext context, {required int daysAgo}) {
-  final t = AppLocalizations.of(context);
-  if (daysAgo == 0) return t.statsAchvToday;
-  if (daysAgo == 1) return t.statsAchvYesterday;
-  return t.statsAchvDaysAgo(daysAgo);
-}
+/// Relative time formatter для `timeStream`. Возвращает
+/// «Today» / «Yesterday» / «N days ago» по [daysAgo].
+/// Вызывающий код сам захватывает `localizations` и формирует
+/// строку — здесь эта функция больше не нужна (логика переехала
+/// в `AchievementsList.build()` через `AppLocalizations.of`).
 
 class _AchievementRow extends StatelessWidget {
   const _AchievementRow({

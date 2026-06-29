@@ -7,42 +7,49 @@ import 'app_typography.dart';
 class AppTheme {
   AppTheme._();
 
-  static ThemeData dark() {
-    const scheme = ColorScheme.dark(
-      primary: AppColors.gold,
-      onPrimary: AppColors.textOnGold,
-      secondary: AppColors.primary,
-      onSecondary: AppColors.textPrimary,
+  /// Светлая тема — основная после переделки (июнь 2026).
+  /// Кремовый фон, тёмный текст, оливково-золотые акценты.
+  static ThemeData light() {
+    const scheme = ColorScheme.light(
+      primary: AppColors.accentOlive,
+      onPrimary: Colors.white,
+      secondary: AppColors.gold,
+      onSecondary: AppColors.textOnGold,
       surface: AppColors.surface,
       onSurface: AppColors.textPrimary,
       surfaceContainerHighest: AppColors.surfaceElevated,
       error: AppColors.error,
-      onError: AppColors.textPrimary,
+      onError: Colors.white,
       outline: AppColors.border,
       outlineVariant: AppColors.borderSubtle,
     );
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: Brightness.light,
       colorScheme: scheme,
       scaffoldBackgroundColor: AppColors.background,
       canvasColor: AppColors.background,
       splashColor: AppColors.gold.withValues(alpha: 0.08),
       highlightColor: AppColors.gold.withValues(alpha: 0.05),
       textTheme: AppTypography.textTheme(),
-      iconTheme: const IconThemeData(color: AppColors.gold, size: 24),
+      iconTheme: const IconThemeData(
+        color: AppColors.accentOlive,
+        size: 24,
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
+        systemOverlayStyle: SystemUiOverlayStyle.dark.copyWith(
           statusBarColor: Colors.transparent,
           systemNavigationBarColor: AppColors.background,
         ),
-        iconTheme: const IconThemeData(color: AppColors.gold),
-        titleTextStyle: AppTypography.textTheme().headlineMedium,
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        titleTextStyle: AppTypography.textTheme().headlineMedium?.copyWith(
+              color: AppColors.textPrimary,
+            ),
         centerTitle: false,
       ),
       cardTheme: CardThemeData(
@@ -56,8 +63,8 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.gold,
-          foregroundColor: AppColors.textOnGold,
+          backgroundColor: AppColors.accentOlive,
+          foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(28),
@@ -83,7 +90,7 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.gold,
+          foregroundColor: AppColors.accentOlive,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           side: const BorderSide(color: AppColors.border),
           shape: RoundedRectangleBorder(
@@ -93,7 +100,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.gold,
+          foregroundColor: AppColors.accentOlive,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -110,14 +117,15 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.gold, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.accentOlive, width: 1.5),
         ),
         hintStyle: const TextStyle(color: AppColors.textTertiary),
+        labelStyle: const TextStyle(color: AppColors.textSecondary),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.backgroundDeep,
-        selectedItemColor: AppColors.gold,
-        unselectedItemColor: AppColors.textTertiary,
+        backgroundColor: AppColors.background,
+        selectedItemColor: AppColors.accentOlive,
+        unselectedItemColor: AppColors.textSecondary,
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -131,14 +139,14 @@ class AppTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AppColors.backgroundDeep,
+        backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: AppColors.gold.withValues(alpha: 0.15),
+        indicatorColor: AppColors.surfaceElevated,
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             color: states.contains(WidgetState.selected)
-                ? AppColors.gold
-                : AppColors.textTertiary,
+                ? AppColors.accentOlive
+                : AppColors.textSecondary,
             size: 24,
           ),
         ),
@@ -149,8 +157,8 @@ class AppTheme {
                 ? FontWeight.w600
                 : FontWeight.w400,
             color: states.contains(WidgetState.selected)
-                ? AppColors.gold
-                : AppColors.textTertiary,
+                ? AppColors.accentOlive
+                : AppColors.textSecondary,
           ),
         ),
       ),
@@ -160,18 +168,18 @@ class AppTheme {
         space: 1,
       ),
       sliderTheme: const SliderThemeData(
-        activeTrackColor: AppColors.gold,
+        activeTrackColor: AppColors.accentOlive,
         inactiveTrackColor: AppColors.borderSubtle,
-        thumbColor: AppColors.gold,
-        overlayColor: Color(0x33D4A84A),
+        thumbColor: AppColors.accentOlive,
+        overlayColor: Color(0x336B8E5A),
         trackHeight: 3,
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: AppColors.gold,
+        color: AppColors.accentOlive,
         linearTrackColor: AppColors.borderSubtle,
       ),
       snackBarTheme: const SnackBarThemeData(
-        backgroundColor: AppColors.surfaceElevated,
+        backgroundColor: AppColors.surfaceHigh,
         contentTextStyle: TextStyle(color: AppColors.textPrimary),
         behavior: SnackBarBehavior.floating,
       ),
@@ -187,18 +195,22 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
       ),
       tabBarTheme: const TabBarThemeData(
-        labelColor: AppColors.gold,
-        unselectedLabelColor: AppColors.textTertiary,
-        indicatorColor: AppColors.gold,
+        labelColor: AppColors.accentOlive,
+        unselectedLabelColor: AppColors.textSecondary,
+        indicatorColor: AppColors.accentOlive,
         indicatorSize: TabBarIndicatorSize.label,
       ),
       chipTheme: const ChipThemeData(
         backgroundColor: AppColors.surfaceElevated,
-        selectedColor: AppColors.gold,
+        selectedColor: AppColors.accentOlive,
         side: BorderSide(color: AppColors.borderSubtle),
         labelStyle: TextStyle(color: AppColors.textPrimary),
-        secondaryLabelStyle: TextStyle(color: AppColors.textOnGold),
+        secondaryLabelStyle: TextStyle(color: Colors.white),
       ),
     );
   }
+
+  /// Тёмная тема — сохранена для возможного использования.
+  /// В текущей сборке не активна.
+  static ThemeData dark() => light();
 }

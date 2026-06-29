@@ -83,6 +83,12 @@ class PositionDao extends DatabaseAccessor<AppDatabase>
               row.readNullable<String>('s_name_transliteration') ?? '',
           ayahNumber: inSurahAyah,
           progress: progress,
+          // `ayahCount` нужен для проверки `isCompleted` на главной.
+          // `progress` — это double и при `N / N` может быть
+          // `0.99999...` из-за floating-point неточностей, а не ровно
+          // `1.0`. Сравнение по int (`ayahNumber >= ayahCount`) —
+          // надёжный способ определить «сура прочитана до конца».
+          ayahCount: ayahCount,
         );
       },
     );

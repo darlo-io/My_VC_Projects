@@ -19,9 +19,11 @@ Future<void> main() async {
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Color(0xFF051410),
-      systemNavigationBarIconBrightness: Brightness.light,
+      // Тёмные иконки статус-бара на светлом фоне.
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: Color(0xFFFAF7F0),
+      systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
 

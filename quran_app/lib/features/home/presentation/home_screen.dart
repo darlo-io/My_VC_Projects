@@ -8,7 +8,23 @@ import '../../../../core/i18n/hijri_calendar.dart';
 import '../../../../core/i18n/localized_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/generated/app_localizations.dart';
-import '../../../../shared/widgets/common_widgets.dart';
+
+/// Пути к PNG-иконкам главного экрана (см. `assets/icons/home/`).
+/// Извлечены из макета, валидированы визуально.
+const String _kIconRead = 'assets/icons/home/read.png';
+const String _kIconListen = 'assets/icons/home/listen.png';
+const String _kIconLearn = 'assets/icons/home/learn.png';
+const String _kIconTest = 'assets/icons/home/test.png';
+const String _kIconTasbih = 'assets/icons/home/tasbih.png';
+const String _kIconStats = 'assets/icons/home/stats.png';
+const String _kIconQuranRehal = 'assets/icons/home/quran_rehal.png';
+const String _kIconSettings = 'assets/icons/home/settings.png';
+
+/// WebP-фон главного экрана: мечеть в правом верхнем углу, левая
+/// половина — кремовая (`AppColors.background`). Генерируется из
+/// `docs/images/background.webp` скриптом `tool/build_home_background.py`.
+const String _kHomeBackground =
+    'assets/images/backgrounds/home_background.webp';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -18,15 +34,22 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  /// `true` после того, как пользователь явно закрыл панель
-  /// "Продолжить чтение" через кнопку «Закрыть» на текущей
-  /// сессии. Сбрасывается на cold start приложения (новая
-  /// сессия = новая возможность показать панель снова).
-  ///
-  /// Хранится **только в памяти**, не в shared_prefs — иначе после
-  /// reset-data панель осталась бы скрытой навсегда, пока
-  /// пользователь не пройдёт через Settings.
   bool _continueCardDismissed = false;
+
+  /// `true` только при первой отрисовке `HomeScreen` после запуска
+  /// приложения. На следующем фрейме переключается в `false`, поэтому
+  /// при возврате с экрана Reader (внутри приложения) карточка
+  /// «Продолжить чтение» уже не появляется — пользователь сам
+  /// управляет навигацией.
+  bool _showContinueOnFirstLoad = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _showContinueOnFirstLoad = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,111 +57,148 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final loc = Localizations.localeOf(context);
     final lastAsync = ref.watch(lastReadPositionProvider);
     final last = lastAsync.valueOrNull ?? const LastReadPosition.empty();
-    // Панель показывается **только** если:
-    //   1. `last.surahId != 0` — пользователь хоть раз открывал
-    //      Reader и `setLast` записал позицию (а не дефолтный
-    //      empty snapshot).
-    //   2. `last.progress < 1.0` — сура прочитана **не до конца**.
-    //   3. Пользователь не закрыл панель в этой сессии.
     final shouldShowContinue =
-        last.surahId != 0 && last.progress < 1.0 && !_continueCardDismissed;
+        last.surahId != 0 &&
+        !last.isCompleted &&
+        !_continueCardDismissed &&
+        _showContinueOnFirstLoad;
     final isEmpty = last.surahId == 0;
-    // In Arabic UI we keep the Arabic name as the primary visible
-    // label; in any other locale we look up the ARB translation
-    // (which uses the transliteration for ru, English name for en)
-    // and only fall back to the raw transliteration if ARB is
-    // missing the entry.
     final displaySurah = isEmpty
         ? t.homeFallbackSurahName
         : t.surahName(last.surahId, fallback: last.surahName);
     final displayAyah = isEmpty ? 1 : last.ayahNumber;
 
-    return SafeArea(
-      bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-        children: [
-          _Header(),
-          const SizedBox(height: 24),
-          _Greeting(
-            greeting: t.greetingAssalamu,
-            dateLine: formatHijriDate(
-              hijriFromGregorian(DateTime.now()),
-              loc.languageCode,
+    return Stack(
+      children: [
+        // WebP-фон с мечетью в правом верхнем углу. `BoxFit.cover`
+        // держит пропорции на любых экранах; `alignment: topRight`
+        // гарантирует, что мечеть остаётся в правом верхнем углу.
+        // Левая половина картинки — кремовая (`AppColors.background`),
+        // так что под иконки/текст попадает «пустое» пространство.
+        // НЕ ставим сюда непрозрачный `ColoredBox` — он перекрыл бы
+        // изображение. Цвет фона уже заложен в самой WebP-картинке.
+        const Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage(_kHomeBackground),
+                fit: BoxFit.cover,
+                alignment: Alignment.topRight,
+              ),
             ),
           ),
-          // `AnimatedSize` + `AnimatedSwitcher` дают плавное
-          // появление/скрытие: меняется высота контейнера +
-          // opacity дочернего через fade-transition. Остальные
-          // панели (`SizedBox(height: 24)` + `_FeatureGrid`)
-          // плавно "съезжают" вниз за счёт того, что ListView
-          // перераспределяет высоту между элементами — анимированно.
-          AnimatedSize(
-            duration: const Duration(milliseconds: 320),
-            curve: Curves.easeInOutCubic,
-            alignment: Alignment.topCenter,
-            child: shouldShowContinue
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 24),
-                    child: _ContinueCard(
-                      surahName: displaySurah,
-                      ayahLabel: t.surahAndAyah(displaySurah, displayAyah),
-                      progress: last.progress,
-                      onContinue: () => context.push(
-                        '/reader/${last.surahId}?ayah=${last.ayahNumber}',
-                      ),
-                      onDismiss: () => setState(() {
-                        _continueCardDismissed = true;
-                      }),
-                      continueLabel: t.continueAction,
-                      dismissLabel: t.cancel,
+        ),
+        SafeArea(
+          bottom: false,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            children: [
+              _Header(),
+              const SizedBox(height: 8),
+              _Greeting(
+                greeting: t.greetingAssalamu,
+                dateLine: formatHijriDate(
+                  hijriFromGregorian(DateTime.now()),
+                  loc.languageCode,
+                ),
+              ),
+              // Без `_OrnamentDivider` и лишних SizedBox — они
+              // «съедали» ~64 px вертикали и нижний ряд плиток
+              // уезжал за навигацию. Разделитель с ромбом остался
+              // на скриншоте как часть фоновой текстуры.
+              const SizedBox(height: 8),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeInOutCubic,
+                alignment: Alignment.topCenter,
+                child: shouldShowContinue
+                    ? _ContinueCard(
+                        surahName: displaySurah,
+                        ayahLabel: t.surahAndAyah(displaySurah, displayAyah),
+                        progress: last.progress,
+                        onContinue: () => context.push(
+                          '/reader/${last.surahId}?ayah=${last.ayahNumber}',
+                        ),
+                        onDismiss: () => setState(() {
+                          _continueCardDismissed = true;
+                        }),
+                        continueLabel: t.continueAction,
+                        dismissLabel: t.cancel,
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              if (shouldShowContinue) const SizedBox(height: 20),
+              _FeatureGrid(
+                cards: [
+                  _FeatureItem(
+                    iconAsset: _kIconRead,
+                    title: t.cardRead,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppColors.tileMintLight, AppColors.tileMintDark],
                     ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-          const SizedBox(height: 24),
-          _FeatureGrid(
-            cards: [
-              _FeatureItem(
-                icon: Icons.menu_book_rounded,
-                title: t.cardRead,
-                color: AppColors.cardRead,
-                onTap: () => context.go('/read'),
-              ),
-              _FeatureItem(
-                icon: Icons.headphones_rounded,
-                title: t.cardListen,
-                color: AppColors.cardListen,
-                onTap: () => context.push('/listen'),
-              ),
-              _FeatureItem(
-                icon: Icons.school_rounded,
-                title: t.cardLearn,
-                color: AppColors.cardLearn,
-                onTap: () => context.push('/learn'),
-              ),
-              _FeatureItem(
-                icon: Icons.assignment_turned_in_rounded,
-                title: t.cardTest,
-                color: AppColors.cardTest,
-                onTap: () => context.push('/test'),
-              ),
-              _FeatureItem(
-                icon: Icons.bubble_chart_rounded,
-                title: t.cardTasbih,
-                color: AppColors.cardRead,
-                onTap: () => context.push('/tasbih'),
-              ),
-              _FeatureItem(
-                icon: Icons.insights_rounded,
-                title: t.cardStats,
-                color: AppColors.cardListen,
-                onTap: () => context.push('/statistics'),
+                    onTap: () => context.go('/read'),
+                  ),
+                  _FeatureItem(
+                    iconAsset: _kIconListen,
+                    title: t.cardListen,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppColors.tileSkyLight, AppColors.tileSkyDark],
+                    ),
+                    onTap: () => context.push('/listen'),
+                  ),
+                  _FeatureItem(
+                    iconAsset: _kIconLearn,
+                    title: t.cardLearn,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.tileLavenderLight,
+                        AppColors.tileLavenderDark,
+                      ],
+                    ),
+                    onTap: () => context.push('/learn'),
+                  ),
+                  _FeatureItem(
+                    iconAsset: _kIconTest,
+                    title: t.cardTest,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppColors.tileSandLight, AppColors.tileSandDark],
+                    ),
+                    onTap: () => context.push('/test'),
+                  ),
+                  _FeatureItem(
+                    iconAsset: _kIconTasbih,
+                    title: t.cardTasbih,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppColors.tileMintLight, AppColors.tileMintDark],
+                    ),
+                    onTap: () => context.push('/tasbih'),
+                  ),
+                  _FeatureItem(
+                    iconAsset: _kIconStats,
+                    title: t.cardStats,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppColors.tileSkyLight, AppColors.tileSkyDark],
+                    ),
+                    onTap: () => context.push('/statistics'),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -146,14 +206,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: [
-        CircleIconButton(
-          icon: Icons.settings_outlined,
-          onTap: () => context.go('/profile'),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Material(
+        color: AppColors.surface,
+        shape: const CircleBorder(
+          side: BorderSide(color: AppColors.border, width: 1),
         ),
-      ],
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => context.go('/profile'),
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Image.asset(_kIconSettings, fit: BoxFit.contain),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -165,137 +238,52 @@ class _Greeting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                greeting,
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFEDE6D3),
-                  height: 1.05,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.calendar_today_outlined,
-                    size: 14,
-                    color: AppColors.gold,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    dateLine,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.gold,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+        // Крупный заголовок — две строки (как на макете: «Ассаляму»
+        // на первой строке, «алейкум!» на второй). Разбиваем по
+        // первому пробелу — работает для русской и арабской локалей.
+        Text(
+          greeting.contains(' ') ? greeting.replaceFirst(' ', '\n') : greeting,
+          style: const TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+            fontFamily: 'CormorantGaramond',
+            height: 1.05,
+            letterSpacing: -0.5,
           ),
         ),
-        // Декоративная иллюстрация мечети (плейсхолдер)
-        Container(
-          width: 130,
-          height: 150,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF1A4034), Color(0xFF0E2A22)],
+        const SizedBox(height: 8),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.calendar_today_outlined,
+              size: 14,
+              color: AppColors.accentOlive,
             ),
-            border: Border.all(color: AppColors.border, width: 1),
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              const _MosqueSilhouette(),
-              Positioned(
-                top: 14,
-                right: 30,
-                child: Icon(
-                  Icons.brightness_3,
-                  color: AppColors.gold.withValues(alpha: 0.7),
-                  size: 22,
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                dateLine,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-class _MosqueSilhouette extends StatelessWidget {
-  const _MosqueSilhouette();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(130, 150),
-      painter: _MosquePainter(),
-    );
-  }
-}
-
-class _MosquePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final gold = Paint()..color = AppColors.gold;
-    final fill = Paint()..color = const Color(0xFFB5862C).withValues(alpha: 0.45);
-
-    // Полумесяц
-    canvas.drawCircle(Offset(size.width * 0.65, size.height * 0.32), 6, gold);
-    canvas.drawCircle(
-      Offset(size.width * 0.65 + 3, size.height * 0.32),
-      5,
-      Paint()..color = const Color(0xFF0E2A22),
-    );
-
-    // Купол
-    final dome = Path()
-      ..moveTo(size.width * 0.2, size.height * 0.7)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 0.32,
-        size.width * 0.8,
-        size.height * 0.7,
-      )
-      ..close();
-    canvas.drawPath(dome, fill);
-
-    // Минарет
-    final minaret = Rect.fromLTWH(
-      size.width * 0.78,
-      size.height * 0.4,
-      8,
-      size.height * 0.35,
-    );
-    canvas.drawRect(minaret, fill);
-    canvas.drawCircle(
-      Offset(minaret.center.dx, minaret.top),
-      6,
-      fill,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_MosquePainter old) => false;
-}
-
-/// Панель «Продолжить чтение» — компактная, с двумя кнопками:
-/// «Продолжить» (открывает Reader) и «Закрыть» (× — скрывает
-/// панель через `_HomeScreenState._continueCardDismissed`).
 class _ContinueCard extends StatelessWidget {
   const _ContinueCard({
     required this.surahName,
@@ -317,81 +305,103 @@ class _ContinueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-      child: Row(
+    // Процент прогресса в виде строки «45%» — отображается справа
+    // от шкалы, чтобы пользователь видел точные цифры.
+    final pct = (progress.clamp(0.0, 1.0) * 100).round();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 12,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Миниатюра Корана
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.surfaceElevated,
-              border: Border.all(color: AppColors.gold, width: 1.2),
-            ),
-            child: const Icon(
-              Icons.auto_stories_rounded,
-              color: AppColors.gold,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Текстовый блок (`Expanded` занимает всё оставшееся
-          // место между миниатюрой и кнопками) — текст
-          // автоматически усекается, не перекрывая кнопки.
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  AppLocalizations.of(context).continueReading,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  ayahLabel,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                _ProgressBar(value: progress),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Две кнопки справа: «Продолжить» (chevron-right) и
-          // «Закрыть» (×). Вертикальный стек — компактнее
-          // горизонтального, помещается на одной линии с прогрессом.
-          Column(
-            mainAxisSize: MainAxisSize.min,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _IconChipButton(
-                icon: Icons.chevron_right,
-                background: AppColors.gold,
-                foreground: AppColors.backgroundDeep,
-                tooltip: continueLabel,
-                onPressed: onContinue,
+              // Реалистичная иллюстрация rehal — извлечена из макета.
+              SizedBox(
+                width: 56,
+                height: 56,
+                child: Image.asset(_kIconQuranRehal, fit: BoxFit.contain),
               ),
-              const SizedBox(height: 6),
-              _IconChipButton(
-                icon: Icons.close_rounded,
-                background: Colors.transparent,
-                foreground: AppColors.textSecondary,
-                border: AppColors.border,
-                tooltip: dismissLabel,
-                onPressed: onDismiss,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      AppLocalizations.of(context).continueReading,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      ayahLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(child: _ContinueProgressBar(value: progress)),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$pct%',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.accentOlive,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Обе кнопки одинаковой ширины (`flex: 1` у каждой через
+          // `Expanded`). Никаких `flex: 2` — раньше «Продолжить» был
+          // вдвое шире «Отмена», что ломало визуальный баланс.
+          Row(
+            children: [
+              Expanded(
+                child: _ContinueTextButton(
+                  label: dismissLabel,
+                  onPressed: onDismiss,
+                  filled: false,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ContinueTextButton(
+                  label: continueLabel,
+                  icon: Icons.chevron_right,
+                  onPressed: onContinue,
+                  filled: true,
+                ),
               ),
             ],
           ),
@@ -401,45 +411,78 @@ class _ContinueCard extends StatelessWidget {
   }
 }
 
-/// Маленькая иконочная кнопка-«чип»: 36×36 квадрат со скруглёнными
-/// углами, иконка по центру. Используется для Continue/Close
-/// действий на компактной панели «Продолжить чтение».
-class _IconChipButton extends StatelessWidget {
-  const _IconChipButton({
-    required this.icon,
-    required this.background,
-    required this.foreground,
-    required this.tooltip,
-    required this.onPressed,
-    this.border,
-  });
-
-  final IconData icon;
-  final Color background;
-  final Color foreground;
-  final Color? border;
-  final String tooltip;
-  final VoidCallback onPressed;
+class _ContinueProgressBar extends StatelessWidget {
+  const _ContinueProgressBar({required this.value});
+  final double value;
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: background,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: border != null
-              ? BorderSide(color: border!, width: 1)
-              : BorderSide.none,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(2),
+      child: LinearProgressIndicator(
+        value: value.clamp(0.0, 1.0),
+        minHeight: 3,
+        backgroundColor: AppColors.progressBarTrack,
+        valueColor: const AlwaysStoppedAnimation(AppColors.accentOlive),
+      ),
+    );
+  }
+}
+
+class _ContinueTextButton extends StatelessWidget {
+  const _ContinueTextButton({
+    required this.label,
+    required this.onPressed,
+    required this.filled,
+    this.icon,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+  final bool filled;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = filled ? AppColors.accentDeepGreen : AppColors.background;
+    final fg = filled ? Colors.white : AppColors.textSecondary;
+    return Material(
+      color: bg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(
+          color: filled
+              ? Colors.transparent
+              : AppColors.border.withValues(alpha: 0.5),
         ),
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(10),
-          child: SizedBox(
-            width: 36,
-            height: 36,
-            child: Icon(icon, color: foreground, size: 20),
+      ),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: fg,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                ),
+              ),
+              if (icon != null) ...[
+                const SizedBox(width: 3),
+                Icon(icon, color: fg, size: 14),
+              ],
+            ],
           ),
         ),
       ),
@@ -447,34 +490,16 @@ class _IconChipButton extends StatelessWidget {
   }
 }
 
-class _ProgressBar extends StatelessWidget {
-  const _ProgressBar({required this.value});
-  final double value;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(3),
-      child: LinearProgressIndicator(
-        value: value.clamp(0.0, 1.0),
-        minHeight: 4,
-        backgroundColor: AppColors.borderSubtle,
-        valueColor: const AlwaysStoppedAnimation(AppColors.gold),
-      ),
-    );
-  }
-}
-
 class _FeatureItem {
   const _FeatureItem({
-    required this.icon,
+    required this.iconAsset,
     required this.title,
-    required this.color,
+    required this.gradient,
     required this.onTap,
   });
-  final IconData icon;
+  final String iconAsset;
   final String title;
-  final Color color;
+  final Gradient gradient;
   final VoidCallback onTap;
 }
 
@@ -490,27 +515,158 @@ class _FeatureGrid extends StatelessWidget {
       padding: EdgeInsets.zero,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 1.0,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        // aspectRatio = ширина / высота. 0.9 → плитка чуть выше
+        // ширины. 0.85 обрезало 3-й ряд навигацией на 1080×2376
+        // (~50 px не хватало — header+greeting реально занимает
+        // больше, чем 250 px). 0.9 — гарантированно все 6 плиток
+        // помещаются, расстояние от нижнего ряда до навигации
+        // ≈ `mainAxisSpacing` (12 px).
+        childAspectRatio: 1.1,
       ),
       itemCount: cards.length,
       itemBuilder: (_, i) {
         final c = cards[i];
-        return FeatureCard(
-          icon: c.icon,
-          title: c.title,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              c.color,
-              Color.lerp(c.color, Colors.black, 0.35) ?? c.color,
-            ],
-          ),
-          onTap: c.onTap,
-        );
+        return _LightFeatureCard(item: c);
       },
     );
+  }
+}
+
+class _LightFeatureCard extends StatelessWidget {
+  const _LightFeatureCard({required this.item});
+  final _FeatureItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: item.onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: item.gradient,
+            border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+          ),
+          child: Stack(
+            children: [
+              // Тонкий краповый паттерн (как на макете — слегка
+              // текстурированный фон).
+              Positioned.fill(child: CustomPaint(painter: _CracklePainter())),
+Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  // `min` — Column занимает ровно столько, сколько
+                  // нужно детям. При `max` (по умолчанию) он тянулся
+                  // на всю высоту плитки и при недостатке места
+                  // выбрасывал `BOTTOM OVERFLOWED BY 14 PIXELS`.
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    // Белая «тарелка» под иконкой — как на макете
+                    // (белый круг на цветном фоне плитки). PNG-иконка
+                    // уже с прозрачным фоном вокруг объекта, так что
+                    // `Color` подложки даёт ровно ту «тарелку», что
+                    // на эталоне. 64×64 — крупные, но не вызывают
+                    // `BOTTOM OVERFLOWED` при `aspectRatio: 0.9`.
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: const BoxDecoration(
+                        color: AppColors.surface,
+                        shape: BoxShape.circle,
+                      ),
+                      padding: const EdgeInsets.all(10),
+                      child: Image.asset(
+                        item.iconAsset,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // `center` вместо `end` — при длинных заголовках
+                    // («Статистика») текст и chevron иначе «съезжали»
+                    // бы вниз. Шрифт 18 — крупный, как в эталоне.
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            item.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'CormorantGaramond',
+                              color: AppColors.textPrimary,
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: AppColors.accentOlive,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Тонкая кракле-сетка поверх плитки — повторяет лёгкую текстуру
+/// макета. Не перегружает UI, добавляет «бумажность».
+class _CracklePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x12000000)
+      ..strokeWidth = 0.5
+      ..style = PaintingStyle.stroke;
+    final r = Paint()
+      ..color = const Color(0x18000000)
+      ..style = PaintingStyle.stroke;
+
+    // Случайные мелкие «трещинки». Детерминированный seed → один
+    // и тот же паттерн на каждом билде.
+    final rng = _SeededRandom(42);
+    for (var i = 0; i < 28; i++) {
+      final x = rng.next() * size.width;
+      final y = rng.next() * size.height;
+      canvas.drawCircle(Offset(x, y), 1.2 + rng.next() * 1.5, r);
+    }
+    for (var i = 0; i < 16; i++) {
+      final x1 = rng.next() * size.width;
+      final y1 = rng.next() * size.height;
+      final len = 6 + rng.next() * 18;
+      canvas.drawLine(Offset(x1, y1), Offset(x1 + len, y1 + len * 0.5), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Минимальный детерминированный LCG, чтобы паттерн не «прыгал»
+/// между билдами (иначе `Random()` дал бы новый паттерн после
+/// hot reload — выглядело бы как мерцание).
+class _SeededRandom {
+  _SeededRandom(int seed) : _state = seed;
+  int _state;
+  double next() {
+    _state = (_state * 1103515245 + 12345) & 0x7FFFFFFF;
+    return _state / 0x7FFFFFFF;
   }
 }

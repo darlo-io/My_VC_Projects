@@ -230,7 +230,7 @@ void main() {
 
     test('forward-compat: unknown JSON fields are ignored', () {
       const s = ReaderDisplaySettings.defaults;
-      final jsonWithExtra = '{"fontSize":30,"unknownField":"foo","anotherUnknown":42}';
+      const jsonWithExtra = '{"fontSize":30,"unknownField":"foo","anotherUnknown":42}';
       final decoded = codec.decode(jsonWithExtra);
       expect(decoded.fontSize, 30.0);
       expect(decoded.themeVariant, s.themeVariant);
@@ -238,7 +238,7 @@ void main() {
     });
 
     test('forward-compat: missing field falls back to default', () {
-      final partial = '{"fontSize":36}';
+      const partial = '{"fontSize":36}';
       final decoded = codec.decode(partial);
       expect(decoded.fontSize, 36.0);
       expect(decoded.themeVariant, ReaderDisplaySettings.defaults.themeVariant);
@@ -247,21 +247,21 @@ void main() {
     });
 
     test('invalid type in field falls back to default for that field', () {
-      final malformed = '{"fontSize":"not-a-number","translationFontSize":18}';
+      const malformed = '{"fontSize":"not-a-number","translationFontSize":18}';
       final decoded = codec.decode(malformed);
       expect(decoded.fontSize, ReaderDisplaySettings.defaults.fontSize);
       expect(decoded.translationFontSize, 18.0);
     });
 
     test('out-of-range value clamps to bounds', () {
-      final overflow = '{"fontSize":1000,"lineHeight":100}';
+      const overflow = '{"fontSize":1000,"lineHeight":100}';
       final decoded = codec.decode(overflow);
       expect(decoded.fontSize, 40.0);
       expect(decoded.lineHeight, 2.6);
     });
 
     test('unknown themeVariant keeps default', () {
-      final unknown = '{"themeVariant":"neon-pink"}';
+      const unknown = '{"themeVariant":"neon-pink"}';
       final decoded = codec.decode(unknown);
       expect(decoded.themeVariant, ReaderDisplaySettings.defaults.themeVariant);
     });

@@ -18,9 +18,9 @@ class QuranApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Quran',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark(),
-      darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.dark,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.light(),
+      themeMode: ThemeMode.light,
       routerConfig: router,
       locale: _resolveLocale(languageCode),
       localizationsDelegates: const [

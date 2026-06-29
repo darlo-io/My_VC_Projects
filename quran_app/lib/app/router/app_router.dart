@@ -314,7 +314,7 @@ class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
               Text(
                 _label(_statusKey),
                 style: const TextStyle(
-                  color: Color(0xFFB7A98F),
+                  color: AppColors.textSecondary,
                   fontSize: 14,
                 ),
               ),
@@ -347,15 +347,19 @@ class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
                   const SizedBox(height: 8),
                   TextButton.icon(
                     onPressed: () async {
+                      // Захватываем зависимости от `context` ДО await,
+                      // чтобы линтер `use_build_context_synchronously`
+                      // не предупреждал о потенциально отсоединённом
+                      // дереве виджетов после `Clipboard.setData`.
+                      final messenger = ScaffoldMessenger.of(context);
+                      final loc = AppLocalizations.of(context);
                       await Clipboard.setData(
                         ClipboardData(text: _errorDetail),
                       );
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      messenger.showSnackBar(
                         SnackBar(
-                          content: Text(
-                            AppLocalizations.of(context).retryCopied,
-                          ),
+                          content: Text(loc.retryCopied),
                           duration: const Duration(seconds: 2),
                         ),
                       );

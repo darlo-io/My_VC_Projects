@@ -243,7 +243,7 @@ class DisplaySettingsNotifier extends StateNotifier<ReaderDisplaySettings> {
 
 final displaySettingsProvider =
     StateNotifierProvider<DisplaySettingsNotifier, ReaderDisplaySettings>(
-  (ref) => DisplaySettingsNotifier(ref),
+  DisplaySettingsNotifier.new,
 );
 
 /// Снимок display-настроек Reader'а (fontSize, lineHeight,

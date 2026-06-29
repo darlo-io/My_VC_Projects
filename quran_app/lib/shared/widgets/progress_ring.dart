@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 
 /// Circular progress ring with a centered label. Renders a
 /// background track (full circle) plus a foreground arc
@@ -93,7 +94,7 @@ class ProgressRing extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 11,
-                    color: Color(0xFFB7A98F),
+                    color: AppColors.textSecondary,
                     letterSpacing: 0.4,
                   ),
                 ),

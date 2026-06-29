@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/database/app_database.dart';
-import '../../../../core/i18n/arabic_digits.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/ornaments.dart';
 import '../../../audio/presentation/word_timing_provider.dart';
@@ -127,12 +126,13 @@ class _AyahTileState extends ConsumerState<AyahTile> {
       // отцентрирует Column в viewport'е, и аят появится точно
       // в центре.
       //
-      // Padding из `display.paddingVertical` (8..32); `horizontal`
+      // Padding из `display.paddingVertical` (по умолчанию 4 — минимум,
+      // чтобы строки располагались максимально плотно). `horizontal`
       // применяется к Column ниже, чтобы ширина полосы
       // (`textWidthPercent`) считалась от inner-content, а не
       // от края Padding'а.
       padding: EdgeInsets.symmetric(
-        vertical: widget.display?.paddingVertical ?? 8,
+        vertical: widget.display?.paddingVertical ?? 4,
         // `paddingHorizontal` — пользовательская настройка
         // из settings. Раньше была только `paddingVertical`,
         // и слайдер «горизонтальный отступ» ничего не делал
@@ -163,7 +163,7 @@ class _AyahTileState extends ConsumerState<AyahTile> {
                 onToggleBookmark: widget.onToggleBookmark,
                 display: widget.display,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 2),
           _ArabicTextBody(
             ayah: widget.ayah,
             fontSize: widget.fontSize,
@@ -174,7 +174,7 @@ class _AyahTileState extends ConsumerState<AyahTile> {
           ),
               if (widget.translation != null &&
                   (widget.display?.showTranslation ?? true)) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 4),
                 _AyahTranslation(
                   text: widget.translation!,
                   display: widget.display,
@@ -222,8 +222,16 @@ class _AyahHeader extends StatelessWidget {
         // Раньше был `AyahNumberBadge` (8-конечная звезда с
         // цифрой внутри) — декоративный ornament, перегружавший
         // экран. Убран в рамках минималистичного дизайна.
+        //
+        // Цифры — **современные** (`1`, `2`, `3`...) в отличие от
+        // арабских (`١`, `٢`, `٣`), которые используются только
+        // внутри ornament'ов `۝N` (в book-mode и в `_AyahSeparator`).
+        // Здесь ornament нет, цифра стоит отдельно слева — её
+        // функция чисто информационная (соотнести аят с переводом
+        // и перейти к нему), а не декоративная. Современные цифры
+        // читаются быстрее и привычнее.
         Text(
-          '${toArabicDigits(ayah.ayahNumber)}',
+          '${ayah.ayahNumber}',
           style: TextStyle(
             fontSize: 16,
             color: AppColors.gold,

@@ -5,7 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 /// Строка с лейблом и Switch. Опциональный `badge` рендерится
 /// справа от label (например, "beta"-метка).
 class SwitchRow extends StatelessWidget {
-  const SwitchRow({
+  const SwitchRow({super.key, 
     required this.label,
     required this.value,
     required this.onChanged,
@@ -64,7 +64,7 @@ class SwitchRow extends StatelessWidget {
           Switch.adaptive(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.gold,
+            activeThumbColor: AppColors.gold,
           ),
         ],
       ),

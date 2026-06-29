@@ -8,7 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 /// Не использует [ValueKey] на Slider — внешний код управляет
 /// ребилдом через `setState` (см. [ReaderDisplaySettingsScreen]).
 class SliderRow extends StatelessWidget {
-  const SliderRow({
+  const SliderRow({super.key, 
     required this.label,
     required this.value,
     required this.min,

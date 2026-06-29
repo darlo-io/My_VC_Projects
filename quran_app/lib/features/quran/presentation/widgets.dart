@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -194,11 +196,19 @@ class JuzList extends ConsumerWidget {
               if (!context.mounted) return;
               if (first.isNotEmpty) {
                 final a = first.first;
-                context.push('/reader/${a.surahId}?ayah=${a.ayahNumber}');
+                // Намеренно не дожидаемся возвращаемого значения
+                // `push` — экран откроется, а мы остаёмся здесь.
+                unawaited(
+                  context.push(
+                    '/reader/${a.surahId}?ayah=${a.ayahNumber}',
+                  ),
+                );
               } else {
                 final start = juzStart(juzNumber);
-                context.push(
-                  '/reader/${start.surahId}?ayah=${start.ayahNumber}',
+                unawaited(
+                  context.push(
+                    '/reader/${start.surahId}?ayah=${start.ayahNumber}',
+                  ),
                 );
               }
             },

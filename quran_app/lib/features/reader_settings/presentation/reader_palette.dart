@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_colors_dark.dart';
 
 /// Цветовая палитра одной из тем Reader'а. Не зависит от
 /// глобальной темы приложения: [themeVariant] живёт в
 /// [ReaderDisplaySettings] и применяется **только** к зоне
-/// чтения, чтобы навигация оставалась тёмной.
+/// чтения, чтобы навигация оставалась светлой (вне Reader'а).
 class ReaderPalette {
   const ReaderPalette({
     required this.id,
@@ -23,13 +23,17 @@ class ReaderPalette {
   final Color gold;
   final Color border;
 
+  /// «Dark» вариант Reader'а — использует **тёмную** палитру
+  /// (`AppColorsDark`), потому что это специально тёмная тема для
+  /// чтения (например, ночью). Основное приложение при этом
+  /// остаётся на светлой палитре.
   static const _dark = ReaderPalette(
     id: 'dark',
-    background: AppColors.backgroundDeep,
-    surface: AppColors.surface,
-    text: AppColors.textPrimary,
-    gold: AppColors.gold,
-    border: AppColors.border,
+    background: AppColorsDark.backgroundDeep,
+    surface: AppColorsDark.surface,
+    text: AppColorsDark.textPrimary,
+    gold: AppColorsDark.gold,
+    border: AppColorsDark.border,
   );
 
   static const _sepia = ReaderPalette(
@@ -67,6 +71,6 @@ class ReaderPalette {
   };
 
   /// Находит палитру по `themeVariant`. Неизвестный id →
-  /// [dark] (фолбэк — навигация читабельна всегда).
+  /// [dark] (фолбэк — глазам комфортно всегда).
   static ReaderPalette of(String id) => all[id] ?? _dark;
 }

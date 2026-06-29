@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/theme/app_colors.dart';
 import 'ornaments.dart';
@@ -67,15 +68,25 @@ class GoldPillButton extends StatelessWidget {
 /// Большая квадратная карточка-категория (Читать / Слушать / и т.д.) с иконкой.
 class FeatureCard extends StatelessWidget {
   const FeatureCard({
-    required this.icon,
     required this.title,
+    this.icon,
+    this.iconAsset,
     this.gradient,
     this.onTap,
     this.iconSize = 44,
     super.key,
-  });
+  }) : assert(
+          icon != null || iconAsset != null,
+          'FeatureCard requires either `icon` (IconData) or `iconAsset` (SVG path)',
+        );
 
-  final IconData icon;
+  /// Material-иконка. Используется, если [iconAsset] == null.
+  final IconData? icon;
+
+  /// Путь к SVG-ассету (например, `assets/icons/home/read.svg`).
+  /// Имеет приоритет над [icon].
+  final String? iconAsset;
+
   final String title;
   final Gradient? gradient;
   final VoidCallback? onTap;
@@ -104,12 +115,19 @@ class FeatureCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    GoldIconBadge(
-                      icon: icon,
-                      size: 72,
-                      iconSize: iconSize,
-                      background: Colors.transparent,
-                    ),
+                    if (iconAsset != null)
+                      _SvgIconBadge(
+                        asset: iconAsset!,
+                        size: 72,
+                        iconSize: iconSize,
+                      )
+                    else
+                      GoldIconBadge(
+                        icon: icon!,
+                        size: 72,
+                        iconSize: iconSize,
+                        background: Colors.transparent,
+                      ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -133,6 +151,47 @@ class FeatureCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Бейдж с SVG-иконкой в золотой обводке — зеркало [GoldIconBadge]
+/// для случая, когда иконка приходит из SVG-ассета.
+class _SvgIconBadge extends StatelessWidget {
+  const _SvgIconBadge({
+    required this.asset,
+    required this.size,
+    required this.iconSize,
+  });
+
+  final String asset;
+  final double size;
+  final double iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.transparent,
+        border: Border.all(color: AppColors.gold, width: 1.2),
+      ),
+      child: Center(
+        // `colorFilter` перекрашивает SVG (у которого `stroke="currentColor"`)
+        // в золотой. `allowDrawingOutsideViewBox: false` — безопасно
+        // для иконок, нарисованных строго в viewBox 24×24.
+        child: SvgPicture.asset(
+          asset,
+          width: iconSize,
+          height: iconSize,
+          colorFilter: const ColorFilter.mode(
+            AppColors.gold,
+            BlendMode.srcIn,
           ),
         ),
       ),

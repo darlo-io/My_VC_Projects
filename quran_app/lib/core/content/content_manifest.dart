@@ -251,13 +251,9 @@ class ContentManifestRepository {
     ContentManifest newManifest, {
     String? payloadSha256,
   }) async {
-    final backup = (
-      version: _prefs.getString(_keyVersion),
-      hash: _prefs.getString(_keyHash),
-      sha256: _prefs.getString(_keyPayloadSha256),
-      appliedAt: _prefs.getString(_keyAppliedAt),
-    );
-
+    // TODO: сохранить предыдущие значения для rollback. Сейчас
+    // `rollback()` просто стирает все ключи (см. ниже), и `current()`
+    // начинает возвращать `defaultManifest`.
     await _writeManifest(newManifest, payloadSha256);
   }
 

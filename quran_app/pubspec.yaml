@@ -44,6 +44,9 @@ dependencies:
   crypto: ^3.0.5
   cryptography: ^2.7.0
 
+  # SVG-иконки для главного экрана и других UI-мест.
+  flutter_svg: ^2.0.10+1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -58,6 +61,14 @@ flutter:
   generate: true
   assets:
     - assets/quran_seed/quran_full.json
+    # Фон главного экрана — мечеть справа сверху, как на макете.
+    # Генерируется `tool/build_home_background.py` из
+    # `docs/images/background.webp`.
+    - assets/images/backgrounds/home_background.webp
+    # PNG-иконки главного экрана, извлечённые из дизайн-макета.
+    # При добавлении нового файла в `assets/icons/home/` — он
+    # подхватится автоматически (см. `tool/extract_mockup_icons.py`).
+    - assets/icons/home/
   fonts:
     - family: Amiri
       fonts:

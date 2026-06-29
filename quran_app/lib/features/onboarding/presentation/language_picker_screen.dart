@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -30,7 +31,7 @@ class LanguagePickerScreen extends ConsumerWidget {
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFFEDE6D3),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -39,7 +40,7 @@ class LanguagePickerScreen extends ConsumerWidget {
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 14,
-                      color: Color(0xFFB7A98F),
+                      color: AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -122,7 +123,7 @@ class _LangTile extends StatelessWidget {
             style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w500,
-              color: Color(0xFFEDE6D3),
+              color: AppColors.textPrimary,
             ),
           ),
         ],

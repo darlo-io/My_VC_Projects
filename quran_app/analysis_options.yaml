@@ -4,6 +4,10 @@ analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
+    # Dev-скрипты (`tool/`) исключены из analyze — `print` и простая
+    # конкатенация строк в CLI-утилитах оправданы. Оставлены только
+    # `flutter analyze` для production-кода в `lib/` и тестов в `test/`.
+    - "tool/**"
     - "tools/**"
   language:
     strict-casts: true
