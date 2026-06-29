@@ -256,6 +256,12 @@ abstract class AppLocalizations {
   /// **'Juz'**
   String get tabJuz;
 
+  /// No description provided for @clear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clear;
+
   /// No description provided for @ayahsCount.
   ///
   /// In en, this message translates to:

@@ -91,6 +91,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get tabJuz => 'الأجزاء';
 
   @override
+  String get clear => 'مسح';
+
+  @override
   String ayahsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

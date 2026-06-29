@@ -26,6 +26,7 @@
   "searchByNameOrNumber": "Поиск по названию или номеру суры",
   "tabSurahs": "Суры",
   "tabJuz": "Джузы",
+  "clear": "Очистить",
   "ayahsCount": "{count, plural, one{{count} аят} few{{count} аята} many{{count} аятов} other{{count} аятов}}",
   "revelationMeccan": "Мекканская",
   "revelationMedinan": "Мединская",

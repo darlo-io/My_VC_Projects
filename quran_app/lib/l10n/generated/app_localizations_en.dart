@@ -91,6 +91,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabJuz => 'Juz';
 
   @override
+  String get clear => 'Clear';
+
+  @override
   String ayahsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

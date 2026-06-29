@@ -43,6 +43,7 @@
   "searchByNameOrNumber": "Search by name or number",
   "tabSurahs": "Surahs",
   "tabJuz": "Juz",
+  "clear": "Clear",
   "ayahsCount": "{count, plural, =1{1 ayah} other{{count} ayahs}}",
   "@ayahsCount": {
     "placeholders": {

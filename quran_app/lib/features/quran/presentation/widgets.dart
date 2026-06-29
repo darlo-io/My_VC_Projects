@@ -8,9 +8,9 @@ import '../../../../app/providers.dart';
 import '../../../../core/data/juz_mapping.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/i18n/localized_names.dart';
+import '../../../../core/i18n/surah_name_glyph.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/generated/app_localizations.dart';
-import 'surah_list_screen.dart';
 
 class SegmentButton extends StatelessWidget {
   const SegmentButton({
@@ -79,13 +79,15 @@ class SurahRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     final isMeccan = surah.revelationType.toLowerCase() == 'meccan';
+    final locale = Localizations.localeOf(context);
+    final meaning = LocalizedNames.surahMeaning(surah.id, locale);
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => context.push('/reader/${surah.id}'),
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
@@ -93,59 +95,84 @@ class SurahRow extends StatelessWidget {
           ),
           child: Row(
             children: [
+              // Номер суры — компактная цифра без ornament'а
+              // (тонкий серый стиль, чтобы не конкурировать с
+              // V4-глифом и не перегружать плитку).
               SizedBox(
-                width: 44,
-                height: 44,
-                child: CustomPaint(
-                  painter: const NumberOrnamentPainter(),
-                  child: Center(
-                    child: Text(
-                      '${surah.id}',
-                      style: const TextStyle(
-                        color: AppColors.gold,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
+                width: 24,
+                child: Text(
+                  '${surah.id}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textTertiary,
+                    fontFamily: 'Inter',
+                    height: 1.2,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       t.surahName(surah.id, fallback: surah.nameTransliteration),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
+                        height: 1.15,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    if (meaning != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        meaning,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textSecondary,
+                          height: 1.15,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
                     Text(
                       '${t.ayahsCount(surah.ayahCount)} • ${isMeccan ? t.revelationMeccan : t.revelationMedinan}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: AppColors.textTertiary,
+                        letterSpacing: 0.2,
+                        height: 1.1,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 10),
+              // Арабское название суры рисуется glyph-шрифтом
+              // `Surah Name V4.ttf` (PUA: surah001 → U+E001 и т.д.).
+              // Крупный размер — главный визуальный акцент плитки.
               Text(
-                surah.nameAr,
+                surahNameGlyph(surah.id),
                 textDirection: TextDirection.rtl,
                 style: const TextStyle(
-                  fontSize: 22,
+                  fontSize: 46,
                   fontWeight: FontWeight.w700,
                   color: AppColors.gold,
-                  fontFamily: 'Amiri',
+                  fontFamily: surahNameV4FontFamily,
+                  height: 1.0,
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(Icons.chevron_right, color: AppColors.gold, size: 22),
             ],
           ),
         ),

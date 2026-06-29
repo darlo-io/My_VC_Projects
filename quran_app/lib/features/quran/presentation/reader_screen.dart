@@ -10,6 +10,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/i18n/arabic_digits.dart';
 import '../../../core/i18n/bismillah.dart';
 import '../../../core/i18n/localized_names.dart';
+import '../../../core/i18n/surah_name_glyph.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/common_widgets.dart';
@@ -355,11 +356,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           // left/right safe-area (Android system insets для
           // notch/cutout). Это позволяет тексту при
           // `paddingHorizontal: 0` быть в самом краю экрана.
+          // SafeArea с `left: false, right: false` — горизонтальные
+          // system insets (notch/cutout) не добавляют отступов.
+          // `paddingHorizontal` из настроек — единственный
+          // источник горизонтального отступа: при `0` текст
+          // вплотную к краям экрана.
           // top/bottom safe-area остаются на top/bottom bar'ах
           // (см. ниже), чтобы статус-бар и навигация не
           // перекрывались.
           Positioned.fill(
             child: SafeArea(
+              left: false,
+              right: false,
               top: false,
               bottom: false,
               child: GestureDetector(
@@ -381,7 +389,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 behavior: HitTestBehavior.translucent,
                 onTap: _toggleControls,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  // `display.paddingHorizontal` — единый источник
+                  // горизонтального отступа. При `0` текст идёт
+                  // вплотную к краям экрана.
+                  padding: EdgeInsets.fromLTRB(
+                    display.paddingHorizontal,
+                    0,
+                    display.paddingHorizontal,
+                    4,
+                  ),
                   child: _AnimatedControlsFrame(
                     visible: _controlsVisible,
                     child: dataAsync.when(
@@ -408,7 +424,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                         // минималистичному дизайну. `Padding`
                         // оставлен для отступов.
                         return Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          // `display.paddingHorizontal` — единый источник
+                          // горизонтального отступа (см. строки выше).
+                          padding: EdgeInsets.fromLTRB(
+                            display.paddingHorizontal,
+                            8,
+                            display.paddingHorizontal,
+                            8,
+                          ),
                           child: ayahsAsync.when(
                             loading: () => const Center(
                                 child: CircularProgressIndicator()),
@@ -471,6 +494,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                 bookmarkedIds: bookmarkedIds,
                                 scrollCtrl: _pageCtrl,
                                 lineByLine: _readingMode == 'lineByLine',
+                                // Номер суры для ornament-header
+                                // (`SurahHeader`). Арабское название
+                                // само подтягивается glyph-строкой
+                                // из `Surah Name V2.ttf` по этому id.
+                                surahNumber: dataAsync.value?.surah?.id ?? 0,
                                 onInitialLoad: (loaded) {
                                   // Сохраняем последний список ayahs
                                   // для deep-link scroll в initState
@@ -668,8 +696,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             right: 0,
             child: _AnimatedTopBar(
               visible: _controlsVisible,
-              surahNameAr:
-                  dataAsync.value?.surah?.nameAr ?? '',
+              surahNameAr: dataAsync.value?.surah == null
+                  ? ''
+                  : // Арабское название суры в верхней панели —
+                    // glyph-строка из `Surah Name V2.ttf` (PUA).
+                    // `surah001` → U+E001 и т.д. В V2 шрифте
+                    // стиль глифа отличается от V4 (используется
+                    // в списке сур) — здесь чуть иная отрисовка.
+                    surahNameGlyph(dataAsync.value!.surah!.id),
               surahNameLatin: dataAsync.value?.surah == null
                   ? '…'
                   : t.surahName(
@@ -868,10 +902,16 @@ class _AnimatedTopBar extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 24,
                           fontWeight: FontWeight.w700,
                           color: AppColors.gold,
-                          fontFamily: 'Amiri',
+                          // Арабское название суры рендерится
+                          // glyph-шрифтом `Surah Name V2.ttf` —
+                          // glyph `surah001` → U+E001 и т.д.
+                          // (см. `surahNameGlyph`). Сюда уже
+                          // приходит пред-вычисленная glyph-строка
+                          // от parent'а (см. `_AnimatedTopBar.наверху`).
+                          fontFamily: surahNameV2FontFamily,
                           height: 1.1,
                         ),
                       ),
@@ -1184,6 +1224,7 @@ class _SingleScrollMushaf extends StatefulWidget {
     required this.onToggleBookmark,
     required this.lineByLine,
     required this.display,
+    required this.surahNumber,
     this.mushafKey,
     this.onScrollDelta,
     this.onInitialLoad,
@@ -1231,6 +1272,12 @@ class _SingleScrollMushaf extends StatefulWidget {
   /// fling'а (когда `_onScroll` зовётся редко, и `_lastReportedAyahId`
   /// может отставать от фактического положения).
   final void Function(int ayahId)? onFinalAyah;
+
+  /// Номер суры 1..114 — для ornament-header (`SurahHeader`).
+  /// Само арабское название читается glyph-строкой из
+  /// `Surah Name V2.ttf` внутри painter'а (`surah001` → U+E001),
+  /// отдельно передавать строку не нужно.
+  final int surahNumber;
 
   @override
   State<_SingleScrollMushaf> createState() => _SingleScrollMushafState();
@@ -1641,6 +1688,21 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < widget.ayahs.length; i++) ...[
+            // Заголовок суры в стиле бумажной Mushaf — ornament-header
+            // с арабским названием и номером суры. Рендерится **только
+            // один раз**, перед первым аятом. Соответствует канону
+            // печатной Mushaf: каждая сура начинается с ornament-блока,
+            // затем идёт текст.
+            if (i == 0)
+              SurahHeader(
+                surahNumber: widget.surahNumber,
+                // Quran-шрифт пользователя — для ornament-строки
+                // «۝ N» под названием. Само название суры рендерится
+                // glyph-шрифтом `Surah Name V2` внутри painter'а.
+                fontFamily: widget.display.fontFamily,
+                textColor:
+                    ReaderPalette.of(widget.display.themeVariant).text,
+              ),
             // Разделитель с номером аята — ставится **перед**
             // каждым аятом, включая первый. Это даёт **n**
             // разделителей для **n** аятов (требование UX),
@@ -1821,6 +1883,17 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
           final content = Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Заголовок суры в стиле бумажной Mushaf — ornament-рамка
+              // с арабским названием. Рендерится **в обоих** режимах
+              // (lineByLine / book) на самом верху — как и в печатной
+              // Mushaf. Содержимое (название + номер) внутри одной
+              // ornament-рамки, см. `SurahHeader` в `widgets/reader_widgets.dart`.
+              SurahHeader(
+                surahNumber: widget.surahNumber,
+                fontFamily: widget.display.fontFamily,
+                textColor:
+                    ReaderPalette.of(widget.display.themeVariant).text,
+              ),
               // Басмала: centered-заголовок над текстом суры.
               // Рендерится **только** если первый аят начинается
               // с басмалы. Текст — крупный (1.15× от fontSize), того же

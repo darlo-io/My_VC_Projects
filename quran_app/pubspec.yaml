@@ -96,6 +96,18 @@ flutter:
     - family: QPC Hafs
       fonts:
         - asset: assets/fonts/QPC Hafs.ttf
+    # Глифовые шрифты для отрисовки арабских названий сур.
+    # Каждая сура закодирована в Private Use Area: `surah001`
+    # соответствует U+E001, `surah002` → U+E002, …, `surah114` → U+E072.
+    # Используются в:
+    #   - `Surah Name V4` — список сур (см. `SurahRow`).
+    #   - `Surah Name V2` — экран чтения суры (`SurahHeader` + `_AnimatedTopBar`).
+    - family: Surah Name V4
+      fonts:
+        - asset: assets/fonts/Surah Name V4.ttf
+    - family: Surah Name V2
+      fonts:
+        - asset: assets/fonts/Surah Name V2.ttf
     - family: Inter
       fonts:
         - asset: assets/fonts/inter/Inter-Variable.ttf

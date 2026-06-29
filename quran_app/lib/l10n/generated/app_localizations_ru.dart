@@ -91,6 +91,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get tabJuz => 'Джузы';
 
   @override
+  String get clear => 'Очистить';
+
+  @override
   String ayahsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

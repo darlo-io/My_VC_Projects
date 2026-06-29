@@ -94,9 +94,11 @@ void main() {
       expect(base.copyWith(textWidthPercent: 110).textWidthPercent, 100.0);
     });
 
-    test('paddingHorizontal clamps to [8, 32]', () {
+    test('paddingHorizontal clamps to [0, 32]', () {
       // Горизонтальный отступ: 0 (вплотную к краям) — 32.
-      // Раньше было 8 — 32, что блокировало значение 0.
+      // При `0` текст идёт впритык к краям экрана; `paddingHorizontal`
+      // из настроек — единственный источник горизонтального отступа
+      // (SafeArea left/right отключён, см. reader_screen.dart).
       expect(base.copyWith(paddingHorizontal: 0).paddingHorizontal, 0.0);
       expect(base.copyWith(paddingHorizontal: -10).paddingHorizontal, 0.0);
       expect(base.copyWith(paddingHorizontal: 100).paddingHorizontal, 32.0);
