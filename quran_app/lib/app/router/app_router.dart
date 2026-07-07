@@ -28,6 +28,17 @@ import '../providers.dart';
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
+    // DEBUG-ONLY: перехватываем ошибки навигации (в т.ч.
+    // `Null check operator` на `_findCurrentNavigator:114`),
+    // чтобы UI НЕ падал в «пустой главный экран» при ошибке
+    // back-button на root-route без parent-Navigator. В
+    // release-режиме логирует в flutter-стдаут; в debug —
+    // полный stack trace + возврат на `/` через `go()`.
+    errorBuilder: (context, state) {
+      debugPrint('[ROUTER] errorBuilder: ${state.error} '
+          'uri=${state.uri} matchedLocation=${state.matchedLocation}');
+      return const _ErrorFallbackScreen();
+    },
     redirect: (context, state) {
       // Если контент ещё не загружен — сначала идём на онбординг
       final ready = ref.read(contentReadyProvider);
@@ -372,6 +383,57 @@ class _BootstrapScreenState extends ConsumerState<_BootstrapScreen> {
                   ),
                 ],
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// DEBUG-ONLY fallback, который показывается через
+/// `GoRouter.errorBuilder`. Раньше при ошибке навигации
+/// (`Nothing to pop` / `Null check operator` на root-route)
+/// показывался «пустой экран». Этот экран логирует ошибку в
+/// flutter-стдаут + показывает её текст + кнопку «На главную»,
+/// чтобы пользователь не застрял. См. round-9 hotfix.
+class _ErrorFallbackScreen extends StatelessWidget {
+  const _ErrorFallbackScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Navigation error'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => GoRouter.of(context).go('/'),
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              const Text(
+                'Navigation error',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'An error occurred while navigating. This screen is shown '
+                'instead of an empty view to prevent stuck UI.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () => GoRouter.of(context).go('/'),
+                icon: const Icon(Icons.home),
+                label: const Text('Back to home'),
+              ),
             ],
           ),
         ),

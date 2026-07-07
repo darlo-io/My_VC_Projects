@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/router/safe_pop.dart';
+
 import '../../../app/providers.dart';
 import '../../../core/data/reader_data.dart';
 import '../../../core/database/app_database.dart';
@@ -720,7 +722,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   ? t.readingModeLineByLine
                   : t.readingModeBook,
               readingModeTooltip: t.readingModeTooltip,
-              onBack: () => context.pop(),
+              onBack: () => safePop(context),
               onToggleReadingMode: () {
                 // Пишем в SharedPreferences и обновляем **локальный**
                 // `_readingMode` state через `setState` ниже — без
@@ -1696,10 +1698,6 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
             if (i == 0)
               SurahHeader(
                 surahNumber: widget.surahNumber,
-                // Quran-шрифт пользователя — для ornament-строки
-                // «۝ N» под названием. Само название суры рендерится
-                // glyph-шрифтом `Surah Name V2` внутри painter'а.
-                fontFamily: widget.display.fontFamily,
                 textColor:
                     ReaderPalette.of(widget.display.themeVariant).text,
               ),
@@ -1890,7 +1888,6 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
               // ornament-рамки, см. `SurahHeader` в `widgets/reader_widgets.dart`.
               SurahHeader(
                 surahNumber: widget.surahNumber,
-                fontFamily: widget.display.fontFamily,
                 textColor:
                     ReaderPalette.of(widget.display.themeVariant).text,
               ),

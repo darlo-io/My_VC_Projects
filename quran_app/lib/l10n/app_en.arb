@@ -96,6 +96,13 @@
     }
   },
   "settingsClearCache": "Clear audio cache",
+  "settingsCustomDnsTitle": "Custom DNS",
+  "settingsCustomDnsEnabled": "Enabled",
+  "settingsCustomDnsDisabled": "Off (default — system DNS)",
+  "settingsCustomDnsHint": "Use DNS-over-HTTPS to bypass captive portals and corporate DNS hijack. Recommended in hotel / café Wi-Fi.",
+  "settingsCustomDnsUrlLabel": "DoH URL",
+  "settingsCustomDnsExamples": "Examples: https://1.1.1.1/dns-query, https://dns.google/resolve, https://9.9.9.9/dns-query",
+  "settingsCustomDnsSaved": "Custom DNS saved",
   "settingsAbout": "About",
   "settingsVersion": "Version {version}",
   "@settingsVersion": {

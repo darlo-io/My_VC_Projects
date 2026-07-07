@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:drift/drift.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/foundation.dart' show ValueNotifier;
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../../features/audio/data/reciters_repository.dart';
+import '../../features/audio/data/reciters_sync_service.dart';
 import '../../features/quran/data/al_fatiha_seed.dart';
 import '../database/app_database.dart';
 import '../database/daos/ayah_dao.dart';
@@ -49,6 +51,12 @@ class ContentBootstrapper {
   /// [contentBootstrapperProvider]) — иначе fallback к
   /// `downloader.downloadAll()` без проверки.
   ContentUpdateService? contentUpdateService;
+
+  /// Опциональный [RecitersSyncService] для фоновой синхронизации
+  /// списка чтецов с mp3quran.net после bootstrap. Если не передан —
+  /// sync не запускается (можно держать мобильное приложение в
+  /// «offline-first» режиме с только 8 дефолтными ректорами в кеше).
+  RecitersSyncService? recitersSyncService;
 
   /// Состояние прогресса для UI.
   final ValueNotifier<BootstrapProgress> progress =
@@ -105,7 +113,37 @@ class ContentBootstrapper {
       contentUpdateService: contentUpdateService,
     ));
 
+    // 2b) Синхронизация списка чтецов с mp3quran.net — тоже
+    // best-effort в фоне (см. [RecitersSyncService.maybeSync]).
+    // Передаётся через DI (опционально), чтобы bootstrapper
+    // не зависел жёстко от Riverpod-контейнера.
+    if (recitersSyncService != null) {
+      unawaited(
+        _safeRun(
+          () => recitersSyncService!.maybeSync(),
+          name: 'reciters background sync',
+        ),
+      );
+    }
+
     return true;
+  }
+
+  /// Запустить фоновую синхронизацию mp3quran-списка ректоров.
+  /// Обёртка ловит все ошибки (фреймворк не должен упасть от того,
+  /// что сетевой sync не удался) и логирует через [developer.log].
+  Future<void> _safeRun(Future<void> Function() body,
+      {required String name}) async {
+    try {
+      await body();
+    } catch (e, st) {
+      developer.log(
+        '$name failed: $e',
+        name: 'bootstrap',
+        error: e,
+        stackTrace: st,
+      );
+    }
   }
 
   /// SHA256 hex-хеш `assets/quran_seed/quran_full.json` (payload,

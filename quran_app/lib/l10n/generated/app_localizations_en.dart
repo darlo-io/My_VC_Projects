@@ -194,6 +194,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsClearCache => 'Clear audio cache';
 
   @override
+  String get settingsCustomDnsTitle => 'Custom DNS';
+
+  @override
+  String get settingsCustomDnsEnabled => 'Enabled';
+
+  @override
+  String get settingsCustomDnsDisabled => 'Off (default — system DNS)';
+
+  @override
+  String get settingsCustomDnsHint =>
+      'Use DNS-over-HTTPS to bypass captive portals and corporate DNS hijack. Recommended in hotel / café Wi-Fi.';
+
+  @override
+  String get settingsCustomDnsUrlLabel => 'DoH URL';
+
+  @override
+  String get settingsCustomDnsExamples =>
+      'Examples: https://1.1.1.1/dns-query, https://dns.google/resolve, https://9.9.9.9/dns-query';
+
+  @override
+  String get settingsCustomDnsSaved => 'Custom DNS saved';
+
+  @override
   String get settingsAbout => 'About';
 
   @override

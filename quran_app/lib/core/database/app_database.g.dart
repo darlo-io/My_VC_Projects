@@ -57,6 +57,26 @@ class $SurahsTable extends Surahs with TableInfo<$SurahsTable, Surah> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _nameRuMeta = const VerificationMeta('nameRu');
+  @override
+  late final GeneratedColumn<String> nameRu = GeneratedColumn<String>(
+    'name_ru',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _subtitleRuMeta = const VerificationMeta(
+    'subtitleRu',
+  );
+  @override
+  late final GeneratedColumn<String> subtitleRu = GeneratedColumn<String>(
+    'subtitle_ru',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _ayahCountMeta = const VerificationMeta(
     'ayahCount',
   );
@@ -86,6 +106,8 @@ class $SurahsTable extends Surahs with TableInfo<$SurahsTable, Surah> {
     nameEn,
     nameTransliteration,
     revelationType,
+    nameRu,
+    subtitleRu,
     ayahCount,
     orderInMushaf,
   ];
@@ -142,6 +164,18 @@ class $SurahsTable extends Surahs with TableInfo<$SurahsTable, Surah> {
     } else if (isInserting) {
       context.missing(_revelationTypeMeta);
     }
+    if (data.containsKey('name_ru')) {
+      context.handle(
+        _nameRuMeta,
+        nameRu.isAcceptableOrUnknown(data['name_ru']!, _nameRuMeta),
+      );
+    }
+    if (data.containsKey('subtitle_ru')) {
+      context.handle(
+        _subtitleRuMeta,
+        subtitleRu.isAcceptableOrUnknown(data['subtitle_ru']!, _subtitleRuMeta),
+      );
+    }
     if (data.containsKey('ayah_count')) {
       context.handle(
         _ayahCountMeta,
@@ -190,6 +224,14 @@ class $SurahsTable extends Surahs with TableInfo<$SurahsTable, Surah> {
         DriftSqlType.string,
         data['${effectivePrefix}revelation_type'],
       )!,
+      nameRu: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name_ru'],
+      ),
+      subtitleRu: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subtitle_ru'],
+      ),
       ayahCount: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}ayah_count'],
@@ -213,6 +255,14 @@ class Surah extends DataClass implements Insertable<Surah> {
   final String nameEn;
   final String nameTransliteration;
   final String revelationType;
+
+  /// Русское название суры (например, «Аль-Фатиха»). Nullable —
+  /// в seed-данных из `quran_full.json` его нет. Заполняется
+  /// отдельной миграцией (см. v11→v12 в `app_database.dart`).
+  final String? nameRu;
+
+  /// Подзаголовок/значение на русском (например, «Открывающая»).
+  final String? subtitleRu;
   final int ayahCount;
   final int orderInMushaf;
   const Surah({
@@ -221,6 +271,8 @@ class Surah extends DataClass implements Insertable<Surah> {
     required this.nameEn,
     required this.nameTransliteration,
     required this.revelationType,
+    this.nameRu,
+    this.subtitleRu,
     required this.ayahCount,
     required this.orderInMushaf,
   });
@@ -232,6 +284,12 @@ class Surah extends DataClass implements Insertable<Surah> {
     map['name_en'] = Variable<String>(nameEn);
     map['name_transliteration'] = Variable<String>(nameTransliteration);
     map['revelation_type'] = Variable<String>(revelationType);
+    if (!nullToAbsent || nameRu != null) {
+      map['name_ru'] = Variable<String>(nameRu);
+    }
+    if (!nullToAbsent || subtitleRu != null) {
+      map['subtitle_ru'] = Variable<String>(subtitleRu);
+    }
     map['ayah_count'] = Variable<int>(ayahCount);
     map['order_in_mushaf'] = Variable<int>(orderInMushaf);
     return map;
@@ -244,6 +302,12 @@ class Surah extends DataClass implements Insertable<Surah> {
       nameEn: Value(nameEn),
       nameTransliteration: Value(nameTransliteration),
       revelationType: Value(revelationType),
+      nameRu: nameRu == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nameRu),
+      subtitleRu: subtitleRu == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subtitleRu),
       ayahCount: Value(ayahCount),
       orderInMushaf: Value(orderInMushaf),
     );
@@ -262,6 +326,8 @@ class Surah extends DataClass implements Insertable<Surah> {
         json['nameTransliteration'],
       ),
       revelationType: serializer.fromJson<String>(json['revelationType']),
+      nameRu: serializer.fromJson<String?>(json['nameRu']),
+      subtitleRu: serializer.fromJson<String?>(json['subtitleRu']),
       ayahCount: serializer.fromJson<int>(json['ayahCount']),
       orderInMushaf: serializer.fromJson<int>(json['orderInMushaf']),
     );
@@ -275,6 +341,8 @@ class Surah extends DataClass implements Insertable<Surah> {
       'nameEn': serializer.toJson<String>(nameEn),
       'nameTransliteration': serializer.toJson<String>(nameTransliteration),
       'revelationType': serializer.toJson<String>(revelationType),
+      'nameRu': serializer.toJson<String?>(nameRu),
+      'subtitleRu': serializer.toJson<String?>(subtitleRu),
       'ayahCount': serializer.toJson<int>(ayahCount),
       'orderInMushaf': serializer.toJson<int>(orderInMushaf),
     };
@@ -286,6 +354,8 @@ class Surah extends DataClass implements Insertable<Surah> {
     String? nameEn,
     String? nameTransliteration,
     String? revelationType,
+    Value<String?> nameRu = const Value.absent(),
+    Value<String?> subtitleRu = const Value.absent(),
     int? ayahCount,
     int? orderInMushaf,
   }) => Surah(
@@ -294,6 +364,8 @@ class Surah extends DataClass implements Insertable<Surah> {
     nameEn: nameEn ?? this.nameEn,
     nameTransliteration: nameTransliteration ?? this.nameTransliteration,
     revelationType: revelationType ?? this.revelationType,
+    nameRu: nameRu.present ? nameRu.value : this.nameRu,
+    subtitleRu: subtitleRu.present ? subtitleRu.value : this.subtitleRu,
     ayahCount: ayahCount ?? this.ayahCount,
     orderInMushaf: orderInMushaf ?? this.orderInMushaf,
   );
@@ -308,6 +380,10 @@ class Surah extends DataClass implements Insertable<Surah> {
       revelationType: data.revelationType.present
           ? data.revelationType.value
           : this.revelationType,
+      nameRu: data.nameRu.present ? data.nameRu.value : this.nameRu,
+      subtitleRu: data.subtitleRu.present
+          ? data.subtitleRu.value
+          : this.subtitleRu,
       ayahCount: data.ayahCount.present ? data.ayahCount.value : this.ayahCount,
       orderInMushaf: data.orderInMushaf.present
           ? data.orderInMushaf.value
@@ -323,6 +399,8 @@ class Surah extends DataClass implements Insertable<Surah> {
           ..write('nameEn: $nameEn, ')
           ..write('nameTransliteration: $nameTransliteration, ')
           ..write('revelationType: $revelationType, ')
+          ..write('nameRu: $nameRu, ')
+          ..write('subtitleRu: $subtitleRu, ')
           ..write('ayahCount: $ayahCount, ')
           ..write('orderInMushaf: $orderInMushaf')
           ..write(')'))
@@ -336,6 +414,8 @@ class Surah extends DataClass implements Insertable<Surah> {
     nameEn,
     nameTransliteration,
     revelationType,
+    nameRu,
+    subtitleRu,
     ayahCount,
     orderInMushaf,
   );
@@ -348,6 +428,8 @@ class Surah extends DataClass implements Insertable<Surah> {
           other.nameEn == this.nameEn &&
           other.nameTransliteration == this.nameTransliteration &&
           other.revelationType == this.revelationType &&
+          other.nameRu == this.nameRu &&
+          other.subtitleRu == this.subtitleRu &&
           other.ayahCount == this.ayahCount &&
           other.orderInMushaf == this.orderInMushaf);
 }
@@ -358,6 +440,8 @@ class SurahsCompanion extends UpdateCompanion<Surah> {
   final Value<String> nameEn;
   final Value<String> nameTransliteration;
   final Value<String> revelationType;
+  final Value<String?> nameRu;
+  final Value<String?> subtitleRu;
   final Value<int> ayahCount;
   final Value<int> orderInMushaf;
   const SurahsCompanion({
@@ -366,6 +450,8 @@ class SurahsCompanion extends UpdateCompanion<Surah> {
     this.nameEn = const Value.absent(),
     this.nameTransliteration = const Value.absent(),
     this.revelationType = const Value.absent(),
+    this.nameRu = const Value.absent(),
+    this.subtitleRu = const Value.absent(),
     this.ayahCount = const Value.absent(),
     this.orderInMushaf = const Value.absent(),
   });
@@ -375,6 +461,8 @@ class SurahsCompanion extends UpdateCompanion<Surah> {
     required String nameEn,
     required String nameTransliteration,
     required String revelationType,
+    this.nameRu = const Value.absent(),
+    this.subtitleRu = const Value.absent(),
     required int ayahCount,
     required int orderInMushaf,
   }) : nameAr = Value(nameAr),
@@ -389,6 +477,8 @@ class SurahsCompanion extends UpdateCompanion<Surah> {
     Expression<String>? nameEn,
     Expression<String>? nameTransliteration,
     Expression<String>? revelationType,
+    Expression<String>? nameRu,
+    Expression<String>? subtitleRu,
     Expression<int>? ayahCount,
     Expression<int>? orderInMushaf,
   }) {
@@ -399,6 +489,8 @@ class SurahsCompanion extends UpdateCompanion<Surah> {
       if (nameTransliteration != null)
         'name_transliteration': nameTransliteration,
       if (revelationType != null) 'revelation_type': revelationType,
+      if (nameRu != null) 'name_ru': nameRu,
+      if (subtitleRu != null) 'subtitle_ru': subtitleRu,
       if (ayahCount != null) 'ayah_count': ayahCount,
       if (orderInMushaf != null) 'order_in_mushaf': orderInMushaf,
     });
@@ -410,6 +502,8 @@ class SurahsCompanion extends UpdateCompanion<Surah> {
     Value<String>? nameEn,
     Value<String>? nameTransliteration,
     Value<String>? revelationType,
+    Value<String?>? nameRu,
+    Value<String?>? subtitleRu,
     Value<int>? ayahCount,
     Value<int>? orderInMushaf,
   }) {
@@ -419,6 +513,8 @@ class SurahsCompanion extends UpdateCompanion<Surah> {
       nameEn: nameEn ?? this.nameEn,
       nameTransliteration: nameTransliteration ?? this.nameTransliteration,
       revelationType: revelationType ?? this.revelationType,
+      nameRu: nameRu ?? this.nameRu,
+      subtitleRu: subtitleRu ?? this.subtitleRu,
       ayahCount: ayahCount ?? this.ayahCount,
       orderInMushaf: orderInMushaf ?? this.orderInMushaf,
     );
@@ -442,6 +538,12 @@ class SurahsCompanion extends UpdateCompanion<Surah> {
     if (revelationType.present) {
       map['revelation_type'] = Variable<String>(revelationType.value);
     }
+    if (nameRu.present) {
+      map['name_ru'] = Variable<String>(nameRu.value);
+    }
+    if (subtitleRu.present) {
+      map['subtitle_ru'] = Variable<String>(subtitleRu.value);
+    }
     if (ayahCount.present) {
       map['ayah_count'] = Variable<int>(ayahCount.value);
     }
@@ -459,6 +561,8 @@ class SurahsCompanion extends UpdateCompanion<Surah> {
           ..write('nameEn: $nameEn, ')
           ..write('nameTransliteration: $nameTransliteration, ')
           ..write('revelationType: $revelationType, ')
+          ..write('nameRu: $nameRu, ')
+          ..write('subtitleRu: $subtitleRu, ')
           ..write('ayahCount: $ayahCount, ')
           ..write('orderInMushaf: $orderInMushaf')
           ..write(')'))
@@ -1845,14 +1949,23 @@ class $RecitersTable extends Reciters with TableInfo<$RecitersTable, Reciter> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _nameRuMeta = const VerificationMeta('nameRu');
+  @override
+  late final GeneratedColumn<String> nameRu = GeneratedColumn<String>(
+    'name_ru',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _nameEnMeta = const VerificationMeta('nameEn');
   @override
   late final GeneratedColumn<String> nameEn = GeneratedColumn<String>(
     'name_en',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _styleMeta = const VerificationMeta('style');
   @override
@@ -1878,14 +1991,113 @@ class $RecitersTable extends Reciters with TableInfo<$RecitersTable, Reciter> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _isFavoriteMeta = const VerificationMeta(
+    'isFavorite',
+  );
+  @override
+  late final GeneratedColumn<bool> isFavorite = GeneratedColumn<bool>(
+    'is_favorite',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_favorite" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _mp3quranIdMeta = const VerificationMeta(
+    'mp3quranId',
+  );
+  @override
+  late final GeneratedColumn<int> mp3quranId = GeneratedColumn<int>(
+    'mp3quran_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mp3quranServerMeta = const VerificationMeta(
+    'mp3quranServer',
+  );
+  @override
+  late final GeneratedColumn<String> mp3quranServer = GeneratedColumn<String>(
+    'mp3quran_server',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mp3quranMoshafIdMeta = const VerificationMeta(
+    'mp3quranMoshafId',
+  );
+  @override
+  late final GeneratedColumn<int> mp3quranMoshafId = GeneratedColumn<int>(
+    'mp3quran_moshaf_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mp3quranSurahTotalMeta =
+      const VerificationMeta('mp3quranSurahTotal');
+  @override
+  late final GeneratedColumn<int> mp3quranSurahTotal = GeneratedColumn<int>(
+    'mp3quran_surah_total',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mp3quranRewayaMeta = const VerificationMeta(
+    'mp3quranRewaya',
+  );
+  @override
+  late final GeneratedColumn<String> mp3quranRewaya = GeneratedColumn<String>(
+    'mp3quran_rewaya',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mp3quranCachedAtMeta = const VerificationMeta(
+    'mp3quranCachedAt',
+  );
+  @override
+  late final GeneratedColumn<int> mp3quranCachedAt = GeneratedColumn<int>(
+    'mp3quran_cached_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mp3quranMoshafTypeMeta =
+      const VerificationMeta('mp3quranMoshafType');
+  @override
+  late final GeneratedColumn<int> mp3quranMoshafType = GeneratedColumn<int>(
+    'mp3quran_moshaf_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     slug,
     nameAr,
+    nameRu,
     nameEn,
     style,
     isDownloaded,
+    isFavorite,
+    mp3quranId,
+    mp3quranServer,
+    mp3quranMoshafId,
+    mp3quranSurahTotal,
+    mp3quranRewaya,
+    mp3quranCachedAt,
+    mp3quranMoshafType,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1920,13 +2132,17 @@ class $RecitersTable extends Reciters with TableInfo<$RecitersTable, Reciter> {
     } else if (isInserting) {
       context.missing(_nameArMeta);
     }
+    if (data.containsKey('name_ru')) {
+      context.handle(
+        _nameRuMeta,
+        nameRu.isAcceptableOrUnknown(data['name_ru']!, _nameRuMeta),
+      );
+    }
     if (data.containsKey('name_en')) {
       context.handle(
         _nameEnMeta,
         nameEn.isAcceptableOrUnknown(data['name_en']!, _nameEnMeta),
       );
-    } else if (isInserting) {
-      context.missing(_nameEnMeta);
     }
     if (data.containsKey('style')) {
       context.handle(
@@ -1942,6 +2158,72 @@ class $RecitersTable extends Reciters with TableInfo<$RecitersTable, Reciter> {
         isDownloaded.isAcceptableOrUnknown(
           data['is_downloaded']!,
           _isDownloadedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_favorite')) {
+      context.handle(
+        _isFavoriteMeta,
+        isFavorite.isAcceptableOrUnknown(data['is_favorite']!, _isFavoriteMeta),
+      );
+    }
+    if (data.containsKey('mp3quran_id')) {
+      context.handle(
+        _mp3quranIdMeta,
+        mp3quranId.isAcceptableOrUnknown(data['mp3quran_id']!, _mp3quranIdMeta),
+      );
+    }
+    if (data.containsKey('mp3quran_server')) {
+      context.handle(
+        _mp3quranServerMeta,
+        mp3quranServer.isAcceptableOrUnknown(
+          data['mp3quran_server']!,
+          _mp3quranServerMeta,
+        ),
+      );
+    }
+    if (data.containsKey('mp3quran_moshaf_id')) {
+      context.handle(
+        _mp3quranMoshafIdMeta,
+        mp3quranMoshafId.isAcceptableOrUnknown(
+          data['mp3quran_moshaf_id']!,
+          _mp3quranMoshafIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('mp3quran_surah_total')) {
+      context.handle(
+        _mp3quranSurahTotalMeta,
+        mp3quranSurahTotal.isAcceptableOrUnknown(
+          data['mp3quran_surah_total']!,
+          _mp3quranSurahTotalMeta,
+        ),
+      );
+    }
+    if (data.containsKey('mp3quran_rewaya')) {
+      context.handle(
+        _mp3quranRewayaMeta,
+        mp3quranRewaya.isAcceptableOrUnknown(
+          data['mp3quran_rewaya']!,
+          _mp3quranRewayaMeta,
+        ),
+      );
+    }
+    if (data.containsKey('mp3quran_cached_at')) {
+      context.handle(
+        _mp3quranCachedAtMeta,
+        mp3quranCachedAt.isAcceptableOrUnknown(
+          data['mp3quran_cached_at']!,
+          _mp3quranCachedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('mp3quran_moshaf_type')) {
+      context.handle(
+        _mp3quranMoshafTypeMeta,
+        mp3quranMoshafType.isAcceptableOrUnknown(
+          data['mp3quran_moshaf_type']!,
+          _mp3quranMoshafTypeMeta,
         ),
       );
     }
@@ -1966,10 +2248,14 @@ class $RecitersTable extends Reciters with TableInfo<$RecitersTable, Reciter> {
         DriftSqlType.string,
         data['${effectivePrefix}name_ar'],
       )!,
+      nameRu: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name_ru'],
+      ),
       nameEn: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}name_en'],
-      )!,
+      ),
       style: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}style'],
@@ -1978,6 +2264,38 @@ class $RecitersTable extends Reciters with TableInfo<$RecitersTable, Reciter> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_downloaded'],
       )!,
+      isFavorite: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_favorite'],
+      )!,
+      mp3quranId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}mp3quran_id'],
+      ),
+      mp3quranServer: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mp3quran_server'],
+      ),
+      mp3quranMoshafId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}mp3quran_moshaf_id'],
+      ),
+      mp3quranSurahTotal: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}mp3quran_surah_total'],
+      ),
+      mp3quranRewaya: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mp3quran_rewaya'],
+      ),
+      mp3quranCachedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}mp3quran_cached_at'],
+      ),
+      mp3quranMoshafType: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}mp3quran_moshaf_type'],
+      ),
     );
   }
 
@@ -1990,17 +2308,57 @@ class $RecitersTable extends Reciters with TableInfo<$RecitersTable, Reciter> {
 class Reciter extends DataClass implements Insertable<Reciter> {
   final String id;
   final String slug;
+
+  /// Локализованные имена чтеца. Из MP3Quran.net приходит одно
+  /// `name` за вызов; `syncFromApi` трижды дёргает `/reciters?
+  /// language=ar|ru|eng` и сливает результаты по `mp3quran_id`.
+  ///
+  /// При отображении в UI приоритет:
+  ///   ru → en → ar (по коду локали устройства).
+  ///
+  /// `nameAr` остаётся NOT NULL — mp3quran-арабское имя доступно
+  /// для всех ректоров (это «основное» имя в их системе). `nameRu`
+  /// и `nameEn` nullable, потому что mp3quran может не поддерживать
+  /// все локали для всех ректоров.
   final String nameAr;
-  final String nameEn;
+  final String? nameRu;
+  final String? nameEn;
   final String style;
   final bool isDownloaded;
+
+  /// Признак «избранного» — звёздочка в picker'е и быстрый доступ
+  /// через секцию «Избранные». UI синхронизирует с
+  /// [recitersRepositoryProvider.setFavorite].
+  final bool isFavorite;
+  final int? mp3quranId;
+  final String? mp3quranServer;
+  final int? mp3quranMoshafId;
+  final int? mp3quranSurahTotal;
+  final String? mp3quranRewaya;
+  final int? mp3quranCachedAt;
+
+  /// `moshaf_type` от MP3Quran (`moshaf[0].moshaf_type`). Используется
+  /// для определения «битрейта» в UI: типы 116/120/124 — Hafs, тип 51 —
+  /// Mujawwad, и т.д. Конкретное значение kbps mp3quran.net в URL не
+  /// отдаёт, но пути вида `/quran/audio/128/...` всегда 128 kbps, так что
+  /// для отображения показываем «128 kbps» с уточнением реваята.
+  final int? mp3quranMoshafType;
   const Reciter({
     required this.id,
     required this.slug,
     required this.nameAr,
-    required this.nameEn,
+    this.nameRu,
+    this.nameEn,
     required this.style,
     required this.isDownloaded,
+    required this.isFavorite,
+    this.mp3quranId,
+    this.mp3quranServer,
+    this.mp3quranMoshafId,
+    this.mp3quranSurahTotal,
+    this.mp3quranRewaya,
+    this.mp3quranCachedAt,
+    this.mp3quranMoshafType,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2008,9 +2366,36 @@ class Reciter extends DataClass implements Insertable<Reciter> {
     map['id'] = Variable<String>(id);
     map['slug'] = Variable<String>(slug);
     map['name_ar'] = Variable<String>(nameAr);
-    map['name_en'] = Variable<String>(nameEn);
+    if (!nullToAbsent || nameRu != null) {
+      map['name_ru'] = Variable<String>(nameRu);
+    }
+    if (!nullToAbsent || nameEn != null) {
+      map['name_en'] = Variable<String>(nameEn);
+    }
     map['style'] = Variable<String>(style);
     map['is_downloaded'] = Variable<bool>(isDownloaded);
+    map['is_favorite'] = Variable<bool>(isFavorite);
+    if (!nullToAbsent || mp3quranId != null) {
+      map['mp3quran_id'] = Variable<int>(mp3quranId);
+    }
+    if (!nullToAbsent || mp3quranServer != null) {
+      map['mp3quran_server'] = Variable<String>(mp3quranServer);
+    }
+    if (!nullToAbsent || mp3quranMoshafId != null) {
+      map['mp3quran_moshaf_id'] = Variable<int>(mp3quranMoshafId);
+    }
+    if (!nullToAbsent || mp3quranSurahTotal != null) {
+      map['mp3quran_surah_total'] = Variable<int>(mp3quranSurahTotal);
+    }
+    if (!nullToAbsent || mp3quranRewaya != null) {
+      map['mp3quran_rewaya'] = Variable<String>(mp3quranRewaya);
+    }
+    if (!nullToAbsent || mp3quranCachedAt != null) {
+      map['mp3quran_cached_at'] = Variable<int>(mp3quranCachedAt);
+    }
+    if (!nullToAbsent || mp3quranMoshafType != null) {
+      map['mp3quran_moshaf_type'] = Variable<int>(mp3quranMoshafType);
+    }
     return map;
   }
 
@@ -2019,9 +2404,36 @@ class Reciter extends DataClass implements Insertable<Reciter> {
       id: Value(id),
       slug: Value(slug),
       nameAr: Value(nameAr),
-      nameEn: Value(nameEn),
+      nameRu: nameRu == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nameRu),
+      nameEn: nameEn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nameEn),
       style: Value(style),
       isDownloaded: Value(isDownloaded),
+      isFavorite: Value(isFavorite),
+      mp3quranId: mp3quranId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mp3quranId),
+      mp3quranServer: mp3quranServer == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mp3quranServer),
+      mp3quranMoshafId: mp3quranMoshafId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mp3quranMoshafId),
+      mp3quranSurahTotal: mp3quranSurahTotal == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mp3quranSurahTotal),
+      mp3quranRewaya: mp3quranRewaya == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mp3quranRewaya),
+      mp3quranCachedAt: mp3quranCachedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mp3quranCachedAt),
+      mp3quranMoshafType: mp3quranMoshafType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mp3quranMoshafType),
     );
   }
 
@@ -2034,9 +2446,18 @@ class Reciter extends DataClass implements Insertable<Reciter> {
       id: serializer.fromJson<String>(json['id']),
       slug: serializer.fromJson<String>(json['slug']),
       nameAr: serializer.fromJson<String>(json['nameAr']),
-      nameEn: serializer.fromJson<String>(json['nameEn']),
+      nameRu: serializer.fromJson<String?>(json['nameRu']),
+      nameEn: serializer.fromJson<String?>(json['nameEn']),
       style: serializer.fromJson<String>(json['style']),
       isDownloaded: serializer.fromJson<bool>(json['isDownloaded']),
+      isFavorite: serializer.fromJson<bool>(json['isFavorite']),
+      mp3quranId: serializer.fromJson<int?>(json['mp3quranId']),
+      mp3quranServer: serializer.fromJson<String?>(json['mp3quranServer']),
+      mp3quranMoshafId: serializer.fromJson<int?>(json['mp3quranMoshafId']),
+      mp3quranSurahTotal: serializer.fromJson<int?>(json['mp3quranSurahTotal']),
+      mp3quranRewaya: serializer.fromJson<String?>(json['mp3quranRewaya']),
+      mp3quranCachedAt: serializer.fromJson<int?>(json['mp3quranCachedAt']),
+      mp3quranMoshafType: serializer.fromJson<int?>(json['mp3quranMoshafType']),
     );
   }
   @override
@@ -2046,9 +2467,18 @@ class Reciter extends DataClass implements Insertable<Reciter> {
       'id': serializer.toJson<String>(id),
       'slug': serializer.toJson<String>(slug),
       'nameAr': serializer.toJson<String>(nameAr),
-      'nameEn': serializer.toJson<String>(nameEn),
+      'nameRu': serializer.toJson<String?>(nameRu),
+      'nameEn': serializer.toJson<String?>(nameEn),
       'style': serializer.toJson<String>(style),
       'isDownloaded': serializer.toJson<bool>(isDownloaded),
+      'isFavorite': serializer.toJson<bool>(isFavorite),
+      'mp3quranId': serializer.toJson<int?>(mp3quranId),
+      'mp3quranServer': serializer.toJson<String?>(mp3quranServer),
+      'mp3quranMoshafId': serializer.toJson<int?>(mp3quranMoshafId),
+      'mp3quranSurahTotal': serializer.toJson<int?>(mp3quranSurahTotal),
+      'mp3quranRewaya': serializer.toJson<String?>(mp3quranRewaya),
+      'mp3quranCachedAt': serializer.toJson<int?>(mp3quranCachedAt),
+      'mp3quranMoshafType': serializer.toJson<int?>(mp3quranMoshafType),
     };
   }
 
@@ -2056,27 +2486,82 @@ class Reciter extends DataClass implements Insertable<Reciter> {
     String? id,
     String? slug,
     String? nameAr,
-    String? nameEn,
+    Value<String?> nameRu = const Value.absent(),
+    Value<String?> nameEn = const Value.absent(),
     String? style,
     bool? isDownloaded,
+    bool? isFavorite,
+    Value<int?> mp3quranId = const Value.absent(),
+    Value<String?> mp3quranServer = const Value.absent(),
+    Value<int?> mp3quranMoshafId = const Value.absent(),
+    Value<int?> mp3quranSurahTotal = const Value.absent(),
+    Value<String?> mp3quranRewaya = const Value.absent(),
+    Value<int?> mp3quranCachedAt = const Value.absent(),
+    Value<int?> mp3quranMoshafType = const Value.absent(),
   }) => Reciter(
     id: id ?? this.id,
     slug: slug ?? this.slug,
     nameAr: nameAr ?? this.nameAr,
-    nameEn: nameEn ?? this.nameEn,
+    nameRu: nameRu.present ? nameRu.value : this.nameRu,
+    nameEn: nameEn.present ? nameEn.value : this.nameEn,
     style: style ?? this.style,
     isDownloaded: isDownloaded ?? this.isDownloaded,
+    isFavorite: isFavorite ?? this.isFavorite,
+    mp3quranId: mp3quranId.present ? mp3quranId.value : this.mp3quranId,
+    mp3quranServer: mp3quranServer.present
+        ? mp3quranServer.value
+        : this.mp3quranServer,
+    mp3quranMoshafId: mp3quranMoshafId.present
+        ? mp3quranMoshafId.value
+        : this.mp3quranMoshafId,
+    mp3quranSurahTotal: mp3quranSurahTotal.present
+        ? mp3quranSurahTotal.value
+        : this.mp3quranSurahTotal,
+    mp3quranRewaya: mp3quranRewaya.present
+        ? mp3quranRewaya.value
+        : this.mp3quranRewaya,
+    mp3quranCachedAt: mp3quranCachedAt.present
+        ? mp3quranCachedAt.value
+        : this.mp3quranCachedAt,
+    mp3quranMoshafType: mp3quranMoshafType.present
+        ? mp3quranMoshafType.value
+        : this.mp3quranMoshafType,
   );
   Reciter copyWithCompanion(RecitersCompanion data) {
     return Reciter(
       id: data.id.present ? data.id.value : this.id,
       slug: data.slug.present ? data.slug.value : this.slug,
       nameAr: data.nameAr.present ? data.nameAr.value : this.nameAr,
+      nameRu: data.nameRu.present ? data.nameRu.value : this.nameRu,
       nameEn: data.nameEn.present ? data.nameEn.value : this.nameEn,
       style: data.style.present ? data.style.value : this.style,
       isDownloaded: data.isDownloaded.present
           ? data.isDownloaded.value
           : this.isDownloaded,
+      isFavorite: data.isFavorite.present
+          ? data.isFavorite.value
+          : this.isFavorite,
+      mp3quranId: data.mp3quranId.present
+          ? data.mp3quranId.value
+          : this.mp3quranId,
+      mp3quranServer: data.mp3quranServer.present
+          ? data.mp3quranServer.value
+          : this.mp3quranServer,
+      mp3quranMoshafId: data.mp3quranMoshafId.present
+          ? data.mp3quranMoshafId.value
+          : this.mp3quranMoshafId,
+      mp3quranSurahTotal: data.mp3quranSurahTotal.present
+          ? data.mp3quranSurahTotal.value
+          : this.mp3quranSurahTotal,
+      mp3quranRewaya: data.mp3quranRewaya.present
+          ? data.mp3quranRewaya.value
+          : this.mp3quranRewaya,
+      mp3quranCachedAt: data.mp3quranCachedAt.present
+          ? data.mp3quranCachedAt.value
+          : this.mp3quranCachedAt,
+      mp3quranMoshafType: data.mp3quranMoshafType.present
+          ? data.mp3quranMoshafType.value
+          : this.mp3quranMoshafType,
     );
   }
 
@@ -2086,16 +2571,40 @@ class Reciter extends DataClass implements Insertable<Reciter> {
           ..write('id: $id, ')
           ..write('slug: $slug, ')
           ..write('nameAr: $nameAr, ')
+          ..write('nameRu: $nameRu, ')
           ..write('nameEn: $nameEn, ')
           ..write('style: $style, ')
-          ..write('isDownloaded: $isDownloaded')
+          ..write('isDownloaded: $isDownloaded, ')
+          ..write('isFavorite: $isFavorite, ')
+          ..write('mp3quranId: $mp3quranId, ')
+          ..write('mp3quranServer: $mp3quranServer, ')
+          ..write('mp3quranMoshafId: $mp3quranMoshafId, ')
+          ..write('mp3quranSurahTotal: $mp3quranSurahTotal, ')
+          ..write('mp3quranRewaya: $mp3quranRewaya, ')
+          ..write('mp3quranCachedAt: $mp3quranCachedAt, ')
+          ..write('mp3quranMoshafType: $mp3quranMoshafType')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, slug, nameAr, nameEn, style, isDownloaded);
+  int get hashCode => Object.hash(
+    id,
+    slug,
+    nameAr,
+    nameRu,
+    nameEn,
+    style,
+    isDownloaded,
+    isFavorite,
+    mp3quranId,
+    mp3quranServer,
+    mp3quranMoshafId,
+    mp3quranSurahTotal,
+    mp3quranRewaya,
+    mp3quranCachedAt,
+    mp3quranMoshafType,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2103,57 +2612,112 @@ class Reciter extends DataClass implements Insertable<Reciter> {
           other.id == this.id &&
           other.slug == this.slug &&
           other.nameAr == this.nameAr &&
+          other.nameRu == this.nameRu &&
           other.nameEn == this.nameEn &&
           other.style == this.style &&
-          other.isDownloaded == this.isDownloaded);
+          other.isDownloaded == this.isDownloaded &&
+          other.isFavorite == this.isFavorite &&
+          other.mp3quranId == this.mp3quranId &&
+          other.mp3quranServer == this.mp3quranServer &&
+          other.mp3quranMoshafId == this.mp3quranMoshafId &&
+          other.mp3quranSurahTotal == this.mp3quranSurahTotal &&
+          other.mp3quranRewaya == this.mp3quranRewaya &&
+          other.mp3quranCachedAt == this.mp3quranCachedAt &&
+          other.mp3quranMoshafType == this.mp3quranMoshafType);
 }
 
 class RecitersCompanion extends UpdateCompanion<Reciter> {
   final Value<String> id;
   final Value<String> slug;
   final Value<String> nameAr;
-  final Value<String> nameEn;
+  final Value<String?> nameRu;
+  final Value<String?> nameEn;
   final Value<String> style;
   final Value<bool> isDownloaded;
+  final Value<bool> isFavorite;
+  final Value<int?> mp3quranId;
+  final Value<String?> mp3quranServer;
+  final Value<int?> mp3quranMoshafId;
+  final Value<int?> mp3quranSurahTotal;
+  final Value<String?> mp3quranRewaya;
+  final Value<int?> mp3quranCachedAt;
+  final Value<int?> mp3quranMoshafType;
   final Value<int> rowid;
   const RecitersCompanion({
     this.id = const Value.absent(),
     this.slug = const Value.absent(),
     this.nameAr = const Value.absent(),
+    this.nameRu = const Value.absent(),
     this.nameEn = const Value.absent(),
     this.style = const Value.absent(),
     this.isDownloaded = const Value.absent(),
+    this.isFavorite = const Value.absent(),
+    this.mp3quranId = const Value.absent(),
+    this.mp3quranServer = const Value.absent(),
+    this.mp3quranMoshafId = const Value.absent(),
+    this.mp3quranSurahTotal = const Value.absent(),
+    this.mp3quranRewaya = const Value.absent(),
+    this.mp3quranCachedAt = const Value.absent(),
+    this.mp3quranMoshafType = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   RecitersCompanion.insert({
     required String id,
     required String slug,
     required String nameAr,
-    required String nameEn,
+    this.nameRu = const Value.absent(),
+    this.nameEn = const Value.absent(),
     required String style,
     this.isDownloaded = const Value.absent(),
+    this.isFavorite = const Value.absent(),
+    this.mp3quranId = const Value.absent(),
+    this.mp3quranServer = const Value.absent(),
+    this.mp3quranMoshafId = const Value.absent(),
+    this.mp3quranSurahTotal = const Value.absent(),
+    this.mp3quranRewaya = const Value.absent(),
+    this.mp3quranCachedAt = const Value.absent(),
+    this.mp3quranMoshafType = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        slug = Value(slug),
        nameAr = Value(nameAr),
-       nameEn = Value(nameEn),
        style = Value(style);
   static Insertable<Reciter> custom({
     Expression<String>? id,
     Expression<String>? slug,
     Expression<String>? nameAr,
+    Expression<String>? nameRu,
     Expression<String>? nameEn,
     Expression<String>? style,
     Expression<bool>? isDownloaded,
+    Expression<bool>? isFavorite,
+    Expression<int>? mp3quranId,
+    Expression<String>? mp3quranServer,
+    Expression<int>? mp3quranMoshafId,
+    Expression<int>? mp3quranSurahTotal,
+    Expression<String>? mp3quranRewaya,
+    Expression<int>? mp3quranCachedAt,
+    Expression<int>? mp3quranMoshafType,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (slug != null) 'slug': slug,
       if (nameAr != null) 'name_ar': nameAr,
+      if (nameRu != null) 'name_ru': nameRu,
       if (nameEn != null) 'name_en': nameEn,
       if (style != null) 'style': style,
       if (isDownloaded != null) 'is_downloaded': isDownloaded,
+      if (isFavorite != null) 'is_favorite': isFavorite,
+      if (mp3quranId != null) 'mp3quran_id': mp3quranId,
+      if (mp3quranServer != null) 'mp3quran_server': mp3quranServer,
+      if (mp3quranMoshafId != null) 'mp3quran_moshaf_id': mp3quranMoshafId,
+      if (mp3quranSurahTotal != null)
+        'mp3quran_surah_total': mp3quranSurahTotal,
+      if (mp3quranRewaya != null) 'mp3quran_rewaya': mp3quranRewaya,
+      if (mp3quranCachedAt != null) 'mp3quran_cached_at': mp3quranCachedAt,
+      if (mp3quranMoshafType != null)
+        'mp3quran_moshaf_type': mp3quranMoshafType,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2162,18 +2726,36 @@ class RecitersCompanion extends UpdateCompanion<Reciter> {
     Value<String>? id,
     Value<String>? slug,
     Value<String>? nameAr,
-    Value<String>? nameEn,
+    Value<String?>? nameRu,
+    Value<String?>? nameEn,
     Value<String>? style,
     Value<bool>? isDownloaded,
+    Value<bool>? isFavorite,
+    Value<int?>? mp3quranId,
+    Value<String?>? mp3quranServer,
+    Value<int?>? mp3quranMoshafId,
+    Value<int?>? mp3quranSurahTotal,
+    Value<String?>? mp3quranRewaya,
+    Value<int?>? mp3quranCachedAt,
+    Value<int?>? mp3quranMoshafType,
     Value<int>? rowid,
   }) {
     return RecitersCompanion(
       id: id ?? this.id,
       slug: slug ?? this.slug,
       nameAr: nameAr ?? this.nameAr,
+      nameRu: nameRu ?? this.nameRu,
       nameEn: nameEn ?? this.nameEn,
       style: style ?? this.style,
       isDownloaded: isDownloaded ?? this.isDownloaded,
+      isFavorite: isFavorite ?? this.isFavorite,
+      mp3quranId: mp3quranId ?? this.mp3quranId,
+      mp3quranServer: mp3quranServer ?? this.mp3quranServer,
+      mp3quranMoshafId: mp3quranMoshafId ?? this.mp3quranMoshafId,
+      mp3quranSurahTotal: mp3quranSurahTotal ?? this.mp3quranSurahTotal,
+      mp3quranRewaya: mp3quranRewaya ?? this.mp3quranRewaya,
+      mp3quranCachedAt: mp3quranCachedAt ?? this.mp3quranCachedAt,
+      mp3quranMoshafType: mp3quranMoshafType ?? this.mp3quranMoshafType,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2190,6 +2772,9 @@ class RecitersCompanion extends UpdateCompanion<Reciter> {
     if (nameAr.present) {
       map['name_ar'] = Variable<String>(nameAr.value);
     }
+    if (nameRu.present) {
+      map['name_ru'] = Variable<String>(nameRu.value);
+    }
     if (nameEn.present) {
       map['name_en'] = Variable<String>(nameEn.value);
     }
@@ -2198,6 +2783,30 @@ class RecitersCompanion extends UpdateCompanion<Reciter> {
     }
     if (isDownloaded.present) {
       map['is_downloaded'] = Variable<bool>(isDownloaded.value);
+    }
+    if (isFavorite.present) {
+      map['is_favorite'] = Variable<bool>(isFavorite.value);
+    }
+    if (mp3quranId.present) {
+      map['mp3quran_id'] = Variable<int>(mp3quranId.value);
+    }
+    if (mp3quranServer.present) {
+      map['mp3quran_server'] = Variable<String>(mp3quranServer.value);
+    }
+    if (mp3quranMoshafId.present) {
+      map['mp3quran_moshaf_id'] = Variable<int>(mp3quranMoshafId.value);
+    }
+    if (mp3quranSurahTotal.present) {
+      map['mp3quran_surah_total'] = Variable<int>(mp3quranSurahTotal.value);
+    }
+    if (mp3quranRewaya.present) {
+      map['mp3quran_rewaya'] = Variable<String>(mp3quranRewaya.value);
+    }
+    if (mp3quranCachedAt.present) {
+      map['mp3quran_cached_at'] = Variable<int>(mp3quranCachedAt.value);
+    }
+    if (mp3quranMoshafType.present) {
+      map['mp3quran_moshaf_type'] = Variable<int>(mp3quranMoshafType.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -2211,9 +2820,18 @@ class RecitersCompanion extends UpdateCompanion<Reciter> {
           ..write('id: $id, ')
           ..write('slug: $slug, ')
           ..write('nameAr: $nameAr, ')
+          ..write('nameRu: $nameRu, ')
           ..write('nameEn: $nameEn, ')
           ..write('style: $style, ')
           ..write('isDownloaded: $isDownloaded, ')
+          ..write('isFavorite: $isFavorite, ')
+          ..write('mp3quranId: $mp3quranId, ')
+          ..write('mp3quranServer: $mp3quranServer, ')
+          ..write('mp3quranMoshafId: $mp3quranMoshafId, ')
+          ..write('mp3quranSurahTotal: $mp3quranSurahTotal, ')
+          ..write('mp3quranRewaya: $mp3quranRewaya, ')
+          ..write('mp3quranCachedAt: $mp3quranCachedAt, ')
+          ..write('mp3quranMoshafType: $mp3quranMoshafType, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6161,6 +6779,581 @@ class SettingsEntriesCompanion extends UpdateCompanion<SettingsEntry> {
   }
 }
 
+class $PlaybackSessionsTable extends PlaybackSessions
+    with TableInfo<$PlaybackSessionsTable, PlaybackSession> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PlaybackSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _reciterIdMeta = const VerificationMeta(
+    'reciterId',
+  );
+  @override
+  late final GeneratedColumn<String> reciterId = GeneratedColumn<String>(
+    'reciter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _surahIdMeta = const VerificationMeta(
+    'surahId',
+  );
+  @override
+  late final GeneratedColumn<int> surahId = GeneratedColumn<int>(
+    'surah_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ayahStartMeta = const VerificationMeta(
+    'ayahStart',
+  );
+  @override
+  late final GeneratedColumn<int> ayahStart = GeneratedColumn<int>(
+    'ayah_start',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ayahEndMeta = const VerificationMeta(
+    'ayahEnd',
+  );
+  @override
+  late final GeneratedColumn<int> ayahEnd = GeneratedColumn<int>(
+    'ayah_end',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startedAtMeta = const VerificationMeta(
+    'startedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
+    'started_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endedAtMeta = const VerificationMeta(
+    'endedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
+    'ended_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationPlayedMsMeta = const VerificationMeta(
+    'durationPlayedMs',
+  );
+  @override
+  late final GeneratedColumn<int> durationPlayedMs = GeneratedColumn<int>(
+    'duration_played_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _closeReasonMeta = const VerificationMeta(
+    'closeReason',
+  );
+  @override
+  late final GeneratedColumn<String> closeReason = GeneratedColumn<String>(
+    'close_reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    reciterId,
+    surahId,
+    ayahStart,
+    ayahEnd,
+    startedAt,
+    endedAt,
+    durationPlayedMs,
+    closeReason,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'playback_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PlaybackSession> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('reciter_id')) {
+      context.handle(
+        _reciterIdMeta,
+        reciterId.isAcceptableOrUnknown(data['reciter_id']!, _reciterIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reciterIdMeta);
+    }
+    if (data.containsKey('surah_id')) {
+      context.handle(
+        _surahIdMeta,
+        surahId.isAcceptableOrUnknown(data['surah_id']!, _surahIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_surahIdMeta);
+    }
+    if (data.containsKey('ayah_start')) {
+      context.handle(
+        _ayahStartMeta,
+        ayahStart.isAcceptableOrUnknown(data['ayah_start']!, _ayahStartMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ayahStartMeta);
+    }
+    if (data.containsKey('ayah_end')) {
+      context.handle(
+        _ayahEndMeta,
+        ayahEnd.isAcceptableOrUnknown(data['ayah_end']!, _ayahEndMeta),
+      );
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(
+        _startedAtMeta,
+        startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(
+        _endedAtMeta,
+        endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta),
+      );
+    }
+    if (data.containsKey('duration_played_ms')) {
+      context.handle(
+        _durationPlayedMsMeta,
+        durationPlayedMs.isAcceptableOrUnknown(
+          data['duration_played_ms']!,
+          _durationPlayedMsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('close_reason')) {
+      context.handle(
+        _closeReasonMeta,
+        closeReason.isAcceptableOrUnknown(
+          data['close_reason']!,
+          _closeReasonMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PlaybackSession map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PlaybackSession(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      reciterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reciter_id'],
+      )!,
+      surahId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}surah_id'],
+      )!,
+      ayahStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}ayah_start'],
+      )!,
+      ayahEnd: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}ayah_end'],
+      ),
+      startedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}started_at'],
+      )!,
+      endedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ended_at'],
+      ),
+      durationPlayedMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_played_ms'],
+      )!,
+      closeReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}close_reason'],
+      )!,
+    );
+  }
+
+  @override
+  $PlaybackSessionsTable createAlias(String alias) {
+    return $PlaybackSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class PlaybackSession extends DataClass implements Insertable<PlaybackSession> {
+  final int id;
+  final String reciterId;
+  final int surahId;
+  final int ayahStart;
+
+  /// Nullable: на момент `open()` ещё неизвестен — заполняется в
+  /// [PlaybackSessionsDao.close]. Использовать `closeReason='pending'`
+  /// как индикатор того, что сессия ещё не закрыта.
+  final int? ayahEnd;
+
+  /// UTC, для кросс-часовых поясов (отображается через `intl`).
+  final DateTime startedAt;
+
+  /// Nullable — на момент `open()` равно `startedAt`, обновляется в
+  /// `close()`. `closeReason='pending'` ⇔ `endedAt == startedAt`.
+  final DateTime? endedAt;
+
+  /// Длительность фактического воспроизведения (исключая паузы).
+  /// `ended - started` даст wall-clock, `durationPlayedMs` —
+  /// фактическое время в режиме play.
+  final int durationPlayedMs;
+
+  /// Причина закрытия: `pending` / `stop` / `surah_change` /
+  /// `pause_timeout` / `pause` / `app_exit`. Полезно для агрегации
+  /// в Phase 2 / Statistics.
+  final String closeReason;
+  const PlaybackSession({
+    required this.id,
+    required this.reciterId,
+    required this.surahId,
+    required this.ayahStart,
+    this.ayahEnd,
+    required this.startedAt,
+    this.endedAt,
+    required this.durationPlayedMs,
+    required this.closeReason,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['reciter_id'] = Variable<String>(reciterId);
+    map['surah_id'] = Variable<int>(surahId);
+    map['ayah_start'] = Variable<int>(ayahStart);
+    if (!nullToAbsent || ayahEnd != null) {
+      map['ayah_end'] = Variable<int>(ayahEnd);
+    }
+    map['started_at'] = Variable<DateTime>(startedAt);
+    if (!nullToAbsent || endedAt != null) {
+      map['ended_at'] = Variable<DateTime>(endedAt);
+    }
+    map['duration_played_ms'] = Variable<int>(durationPlayedMs);
+    map['close_reason'] = Variable<String>(closeReason);
+    return map;
+  }
+
+  PlaybackSessionsCompanion toCompanion(bool nullToAbsent) {
+    return PlaybackSessionsCompanion(
+      id: Value(id),
+      reciterId: Value(reciterId),
+      surahId: Value(surahId),
+      ayahStart: Value(ayahStart),
+      ayahEnd: ayahEnd == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ayahEnd),
+      startedAt: Value(startedAt),
+      endedAt: endedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endedAt),
+      durationPlayedMs: Value(durationPlayedMs),
+      closeReason: Value(closeReason),
+    );
+  }
+
+  factory PlaybackSession.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PlaybackSession(
+      id: serializer.fromJson<int>(json['id']),
+      reciterId: serializer.fromJson<String>(json['reciterId']),
+      surahId: serializer.fromJson<int>(json['surahId']),
+      ayahStart: serializer.fromJson<int>(json['ayahStart']),
+      ayahEnd: serializer.fromJson<int?>(json['ayahEnd']),
+      startedAt: serializer.fromJson<DateTime>(json['startedAt']),
+      endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+      durationPlayedMs: serializer.fromJson<int>(json['durationPlayedMs']),
+      closeReason: serializer.fromJson<String>(json['closeReason']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'reciterId': serializer.toJson<String>(reciterId),
+      'surahId': serializer.toJson<int>(surahId),
+      'ayahStart': serializer.toJson<int>(ayahStart),
+      'ayahEnd': serializer.toJson<int?>(ayahEnd),
+      'startedAt': serializer.toJson<DateTime>(startedAt),
+      'endedAt': serializer.toJson<DateTime?>(endedAt),
+      'durationPlayedMs': serializer.toJson<int>(durationPlayedMs),
+      'closeReason': serializer.toJson<String>(closeReason),
+    };
+  }
+
+  PlaybackSession copyWith({
+    int? id,
+    String? reciterId,
+    int? surahId,
+    int? ayahStart,
+    Value<int?> ayahEnd = const Value.absent(),
+    DateTime? startedAt,
+    Value<DateTime?> endedAt = const Value.absent(),
+    int? durationPlayedMs,
+    String? closeReason,
+  }) => PlaybackSession(
+    id: id ?? this.id,
+    reciterId: reciterId ?? this.reciterId,
+    surahId: surahId ?? this.surahId,
+    ayahStart: ayahStart ?? this.ayahStart,
+    ayahEnd: ayahEnd.present ? ayahEnd.value : this.ayahEnd,
+    startedAt: startedAt ?? this.startedAt,
+    endedAt: endedAt.present ? endedAt.value : this.endedAt,
+    durationPlayedMs: durationPlayedMs ?? this.durationPlayedMs,
+    closeReason: closeReason ?? this.closeReason,
+  );
+  PlaybackSession copyWithCompanion(PlaybackSessionsCompanion data) {
+    return PlaybackSession(
+      id: data.id.present ? data.id.value : this.id,
+      reciterId: data.reciterId.present ? data.reciterId.value : this.reciterId,
+      surahId: data.surahId.present ? data.surahId.value : this.surahId,
+      ayahStart: data.ayahStart.present ? data.ayahStart.value : this.ayahStart,
+      ayahEnd: data.ayahEnd.present ? data.ayahEnd.value : this.ayahEnd,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      durationPlayedMs: data.durationPlayedMs.present
+          ? data.durationPlayedMs.value
+          : this.durationPlayedMs,
+      closeReason: data.closeReason.present
+          ? data.closeReason.value
+          : this.closeReason,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlaybackSession(')
+          ..write('id: $id, ')
+          ..write('reciterId: $reciterId, ')
+          ..write('surahId: $surahId, ')
+          ..write('ayahStart: $ayahStart, ')
+          ..write('ayahEnd: $ayahEnd, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('durationPlayedMs: $durationPlayedMs, ')
+          ..write('closeReason: $closeReason')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    reciterId,
+    surahId,
+    ayahStart,
+    ayahEnd,
+    startedAt,
+    endedAt,
+    durationPlayedMs,
+    closeReason,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PlaybackSession &&
+          other.id == this.id &&
+          other.reciterId == this.reciterId &&
+          other.surahId == this.surahId &&
+          other.ayahStart == this.ayahStart &&
+          other.ayahEnd == this.ayahEnd &&
+          other.startedAt == this.startedAt &&
+          other.endedAt == this.endedAt &&
+          other.durationPlayedMs == this.durationPlayedMs &&
+          other.closeReason == this.closeReason);
+}
+
+class PlaybackSessionsCompanion extends UpdateCompanion<PlaybackSession> {
+  final Value<int> id;
+  final Value<String> reciterId;
+  final Value<int> surahId;
+  final Value<int> ayahStart;
+  final Value<int?> ayahEnd;
+  final Value<DateTime> startedAt;
+  final Value<DateTime?> endedAt;
+  final Value<int> durationPlayedMs;
+  final Value<String> closeReason;
+  const PlaybackSessionsCompanion({
+    this.id = const Value.absent(),
+    this.reciterId = const Value.absent(),
+    this.surahId = const Value.absent(),
+    this.ayahStart = const Value.absent(),
+    this.ayahEnd = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.durationPlayedMs = const Value.absent(),
+    this.closeReason = const Value.absent(),
+  });
+  PlaybackSessionsCompanion.insert({
+    this.id = const Value.absent(),
+    required String reciterId,
+    required int surahId,
+    required int ayahStart,
+    this.ayahEnd = const Value.absent(),
+    required DateTime startedAt,
+    this.endedAt = const Value.absent(),
+    this.durationPlayedMs = const Value.absent(),
+    this.closeReason = const Value.absent(),
+  }) : reciterId = Value(reciterId),
+       surahId = Value(surahId),
+       ayahStart = Value(ayahStart),
+       startedAt = Value(startedAt);
+  static Insertable<PlaybackSession> custom({
+    Expression<int>? id,
+    Expression<String>? reciterId,
+    Expression<int>? surahId,
+    Expression<int>? ayahStart,
+    Expression<int>? ayahEnd,
+    Expression<DateTime>? startedAt,
+    Expression<DateTime>? endedAt,
+    Expression<int>? durationPlayedMs,
+    Expression<String>? closeReason,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (reciterId != null) 'reciter_id': reciterId,
+      if (surahId != null) 'surah_id': surahId,
+      if (ayahStart != null) 'ayah_start': ayahStart,
+      if (ayahEnd != null) 'ayah_end': ayahEnd,
+      if (startedAt != null) 'started_at': startedAt,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (durationPlayedMs != null) 'duration_played_ms': durationPlayedMs,
+      if (closeReason != null) 'close_reason': closeReason,
+    });
+  }
+
+  PlaybackSessionsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? reciterId,
+    Value<int>? surahId,
+    Value<int>? ayahStart,
+    Value<int?>? ayahEnd,
+    Value<DateTime>? startedAt,
+    Value<DateTime?>? endedAt,
+    Value<int>? durationPlayedMs,
+    Value<String>? closeReason,
+  }) {
+    return PlaybackSessionsCompanion(
+      id: id ?? this.id,
+      reciterId: reciterId ?? this.reciterId,
+      surahId: surahId ?? this.surahId,
+      ayahStart: ayahStart ?? this.ayahStart,
+      ayahEnd: ayahEnd ?? this.ayahEnd,
+      startedAt: startedAt ?? this.startedAt,
+      endedAt: endedAt ?? this.endedAt,
+      durationPlayedMs: durationPlayedMs ?? this.durationPlayedMs,
+      closeReason: closeReason ?? this.closeReason,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (reciterId.present) {
+      map['reciter_id'] = Variable<String>(reciterId.value);
+    }
+    if (surahId.present) {
+      map['surah_id'] = Variable<int>(surahId.value);
+    }
+    if (ayahStart.present) {
+      map['ayah_start'] = Variable<int>(ayahStart.value);
+    }
+    if (ayahEnd.present) {
+      map['ayah_end'] = Variable<int>(ayahEnd.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<DateTime>(endedAt.value);
+    }
+    if (durationPlayedMs.present) {
+      map['duration_played_ms'] = Variable<int>(durationPlayedMs.value);
+    }
+    if (closeReason.present) {
+      map['close_reason'] = Variable<String>(closeReason.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlaybackSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('reciterId: $reciterId, ')
+          ..write('surahId: $surahId, ')
+          ..write('ayahStart: $ayahStart, ')
+          ..write('ayahEnd: $ayahEnd, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('durationPlayedMs: $durationPlayedMs, ')
+          ..write('closeReason: $closeReason')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6183,6 +7376,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SettingsEntriesTable settingsEntries = $SettingsEntriesTable(
     this,
   );
+  late final $PlaybackSessionsTable playbackSessions = $PlaybackSessionsTable(
+    this,
+  );
   late final SurahDao surahDao = SurahDao(this as AppDatabase);
   late final AyahDao ayahDao = AyahDao(this as AppDatabase);
   late final BookmarkDao bookmarkDao = BookmarkDao(this as AppDatabase);
@@ -6198,6 +7394,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final LearningDao learningDao = LearningDao(this as AppDatabase);
   late final NotesDao notesDao = NotesDao(this as AppDatabase);
+  late final PlaybackSessionsDao playbackSessionsDao = PlaybackSessionsDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6219,6 +7418,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     learningWords,
     audioCacheMetadata,
     settingsEntries,
+    playbackSessions,
   ];
 }
 
@@ -6229,6 +7429,8 @@ typedef $$SurahsTableCreateCompanionBuilder =
       required String nameEn,
       required String nameTransliteration,
       required String revelationType,
+      Value<String?> nameRu,
+      Value<String?> subtitleRu,
       required int ayahCount,
       required int orderInMushaf,
     });
@@ -6239,6 +7441,8 @@ typedef $$SurahsTableUpdateCompanionBuilder =
       Value<String> nameEn,
       Value<String> nameTransliteration,
       Value<String> revelationType,
+      Value<String?> nameRu,
+      Value<String?> subtitleRu,
       Value<int> ayahCount,
       Value<int> orderInMushaf,
     });
@@ -6274,6 +7478,16 @@ class $$SurahsTableFilterComposer
 
   ColumnFilters<String> get revelationType => $composableBuilder(
     column: $table.revelationType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nameRu => $composableBuilder(
+    column: $table.nameRu,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get subtitleRu => $composableBuilder(
+    column: $table.subtitleRu,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6322,6 +7536,16 @@ class $$SurahsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get nameRu => $composableBuilder(
+    column: $table.nameRu,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get subtitleRu => $composableBuilder(
+    column: $table.subtitleRu,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get ayahCount => $composableBuilder(
     column: $table.ayahCount,
     builder: (column) => ColumnOrderings(column),
@@ -6358,6 +7582,14 @@ class $$SurahsTableAnnotationComposer
 
   GeneratedColumn<String> get revelationType => $composableBuilder(
     column: $table.revelationType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get nameRu =>
+      $composableBuilder(column: $table.nameRu, builder: (column) => column);
+
+  GeneratedColumn<String> get subtitleRu => $composableBuilder(
+    column: $table.subtitleRu,
     builder: (column) => column,
   );
 
@@ -6403,6 +7635,8 @@ class $$SurahsTableTableManager
                 Value<String> nameEn = const Value.absent(),
                 Value<String> nameTransliteration = const Value.absent(),
                 Value<String> revelationType = const Value.absent(),
+                Value<String?> nameRu = const Value.absent(),
+                Value<String?> subtitleRu = const Value.absent(),
                 Value<int> ayahCount = const Value.absent(),
                 Value<int> orderInMushaf = const Value.absent(),
               }) => SurahsCompanion(
@@ -6411,6 +7645,8 @@ class $$SurahsTableTableManager
                 nameEn: nameEn,
                 nameTransliteration: nameTransliteration,
                 revelationType: revelationType,
+                nameRu: nameRu,
+                subtitleRu: subtitleRu,
                 ayahCount: ayahCount,
                 orderInMushaf: orderInMushaf,
               ),
@@ -6421,6 +7657,8 @@ class $$SurahsTableTableManager
                 required String nameEn,
                 required String nameTransliteration,
                 required String revelationType,
+                Value<String?> nameRu = const Value.absent(),
+                Value<String?> subtitleRu = const Value.absent(),
                 required int ayahCount,
                 required int orderInMushaf,
               }) => SurahsCompanion.insert(
@@ -6429,6 +7667,8 @@ class $$SurahsTableTableManager
                 nameEn: nameEn,
                 nameTransliteration: nameTransliteration,
                 revelationType: revelationType,
+                nameRu: nameRu,
+                subtitleRu: subtitleRu,
                 ayahCount: ayahCount,
                 orderInMushaf: orderInMushaf,
               ),
@@ -7151,9 +8391,18 @@ typedef $$RecitersTableCreateCompanionBuilder =
       required String id,
       required String slug,
       required String nameAr,
-      required String nameEn,
+      Value<String?> nameRu,
+      Value<String?> nameEn,
       required String style,
       Value<bool> isDownloaded,
+      Value<bool> isFavorite,
+      Value<int?> mp3quranId,
+      Value<String?> mp3quranServer,
+      Value<int?> mp3quranMoshafId,
+      Value<int?> mp3quranSurahTotal,
+      Value<String?> mp3quranRewaya,
+      Value<int?> mp3quranCachedAt,
+      Value<int?> mp3quranMoshafType,
       Value<int> rowid,
     });
 typedef $$RecitersTableUpdateCompanionBuilder =
@@ -7161,9 +8410,18 @@ typedef $$RecitersTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> slug,
       Value<String> nameAr,
-      Value<String> nameEn,
+      Value<String?> nameRu,
+      Value<String?> nameEn,
       Value<String> style,
       Value<bool> isDownloaded,
+      Value<bool> isFavorite,
+      Value<int?> mp3quranId,
+      Value<String?> mp3quranServer,
+      Value<int?> mp3quranMoshafId,
+      Value<int?> mp3quranSurahTotal,
+      Value<String?> mp3quranRewaya,
+      Value<int?> mp3quranCachedAt,
+      Value<int?> mp3quranMoshafType,
       Value<int> rowid,
     });
 
@@ -7191,6 +8449,11 @@ class $$RecitersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get nameRu => $composableBuilder(
+    column: $table.nameRu,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get nameEn => $composableBuilder(
     column: $table.nameEn,
     builder: (column) => ColumnFilters(column),
@@ -7203,6 +8466,46 @@ class $$RecitersTableFilterComposer
 
   ColumnFilters<bool> get isDownloaded => $composableBuilder(
     column: $table.isDownloaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isFavorite => $composableBuilder(
+    column: $table.isFavorite,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get mp3quranId => $composableBuilder(
+    column: $table.mp3quranId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mp3quranServer => $composableBuilder(
+    column: $table.mp3quranServer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get mp3quranMoshafId => $composableBuilder(
+    column: $table.mp3quranMoshafId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get mp3quranSurahTotal => $composableBuilder(
+    column: $table.mp3quranSurahTotal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mp3quranRewaya => $composableBuilder(
+    column: $table.mp3quranRewaya,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get mp3quranCachedAt => $composableBuilder(
+    column: $table.mp3quranCachedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get mp3quranMoshafType => $composableBuilder(
+    column: $table.mp3quranMoshafType,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7231,6 +8534,11 @@ class $$RecitersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get nameRu => $composableBuilder(
+    column: $table.nameRu,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get nameEn => $composableBuilder(
     column: $table.nameEn,
     builder: (column) => ColumnOrderings(column),
@@ -7243,6 +8551,46 @@ class $$RecitersTableOrderingComposer
 
   ColumnOrderings<bool> get isDownloaded => $composableBuilder(
     column: $table.isDownloaded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isFavorite => $composableBuilder(
+    column: $table.isFavorite,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get mp3quranId => $composableBuilder(
+    column: $table.mp3quranId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mp3quranServer => $composableBuilder(
+    column: $table.mp3quranServer,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get mp3quranMoshafId => $composableBuilder(
+    column: $table.mp3quranMoshafId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get mp3quranSurahTotal => $composableBuilder(
+    column: $table.mp3quranSurahTotal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mp3quranRewaya => $composableBuilder(
+    column: $table.mp3quranRewaya,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get mp3quranCachedAt => $composableBuilder(
+    column: $table.mp3quranCachedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get mp3quranMoshafType => $composableBuilder(
+    column: $table.mp3quranMoshafType,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -7265,6 +8613,9 @@ class $$RecitersTableAnnotationComposer
   GeneratedColumn<String> get nameAr =>
       $composableBuilder(column: $table.nameAr, builder: (column) => column);
 
+  GeneratedColumn<String> get nameRu =>
+      $composableBuilder(column: $table.nameRu, builder: (column) => column);
+
   GeneratedColumn<String> get nameEn =>
       $composableBuilder(column: $table.nameEn, builder: (column) => column);
 
@@ -7273,6 +8624,46 @@ class $$RecitersTableAnnotationComposer
 
   GeneratedColumn<bool> get isDownloaded => $composableBuilder(
     column: $table.isDownloaded,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isFavorite => $composableBuilder(
+    column: $table.isFavorite,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get mp3quranId => $composableBuilder(
+    column: $table.mp3quranId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get mp3quranServer => $composableBuilder(
+    column: $table.mp3quranServer,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get mp3quranMoshafId => $composableBuilder(
+    column: $table.mp3quranMoshafId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get mp3quranSurahTotal => $composableBuilder(
+    column: $table.mp3quranSurahTotal,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get mp3quranRewaya => $composableBuilder(
+    column: $table.mp3quranRewaya,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get mp3quranCachedAt => $composableBuilder(
+    column: $table.mp3quranCachedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get mp3quranMoshafType => $composableBuilder(
+    column: $table.mp3quranMoshafType,
     builder: (column) => column,
   );
 }
@@ -7308,17 +8699,35 @@ class $$RecitersTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> slug = const Value.absent(),
                 Value<String> nameAr = const Value.absent(),
-                Value<String> nameEn = const Value.absent(),
+                Value<String?> nameRu = const Value.absent(),
+                Value<String?> nameEn = const Value.absent(),
                 Value<String> style = const Value.absent(),
                 Value<bool> isDownloaded = const Value.absent(),
+                Value<bool> isFavorite = const Value.absent(),
+                Value<int?> mp3quranId = const Value.absent(),
+                Value<String?> mp3quranServer = const Value.absent(),
+                Value<int?> mp3quranMoshafId = const Value.absent(),
+                Value<int?> mp3quranSurahTotal = const Value.absent(),
+                Value<String?> mp3quranRewaya = const Value.absent(),
+                Value<int?> mp3quranCachedAt = const Value.absent(),
+                Value<int?> mp3quranMoshafType = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RecitersCompanion(
                 id: id,
                 slug: slug,
                 nameAr: nameAr,
+                nameRu: nameRu,
                 nameEn: nameEn,
                 style: style,
                 isDownloaded: isDownloaded,
+                isFavorite: isFavorite,
+                mp3quranId: mp3quranId,
+                mp3quranServer: mp3quranServer,
+                mp3quranMoshafId: mp3quranMoshafId,
+                mp3quranSurahTotal: mp3quranSurahTotal,
+                mp3quranRewaya: mp3quranRewaya,
+                mp3quranCachedAt: mp3quranCachedAt,
+                mp3quranMoshafType: mp3quranMoshafType,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7326,17 +8735,35 @@ class $$RecitersTableTableManager
                 required String id,
                 required String slug,
                 required String nameAr,
-                required String nameEn,
+                Value<String?> nameRu = const Value.absent(),
+                Value<String?> nameEn = const Value.absent(),
                 required String style,
                 Value<bool> isDownloaded = const Value.absent(),
+                Value<bool> isFavorite = const Value.absent(),
+                Value<int?> mp3quranId = const Value.absent(),
+                Value<String?> mp3quranServer = const Value.absent(),
+                Value<int?> mp3quranMoshafId = const Value.absent(),
+                Value<int?> mp3quranSurahTotal = const Value.absent(),
+                Value<String?> mp3quranRewaya = const Value.absent(),
+                Value<int?> mp3quranCachedAt = const Value.absent(),
+                Value<int?> mp3quranMoshafType = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RecitersCompanion.insert(
                 id: id,
                 slug: slug,
                 nameAr: nameAr,
+                nameRu: nameRu,
                 nameEn: nameEn,
                 style: style,
                 isDownloaded: isDownloaded,
+                isFavorite: isFavorite,
+                mp3quranId: mp3quranId,
+                mp3quranServer: mp3quranServer,
+                mp3quranMoshafId: mp3quranMoshafId,
+                mp3quranSurahTotal: mp3quranSurahTotal,
+                mp3quranRewaya: mp3quranRewaya,
+                mp3quranCachedAt: mp3quranCachedAt,
+                mp3quranMoshafType: mp3quranMoshafType,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -9550,6 +10977,286 @@ typedef $$SettingsEntriesTableProcessedTableManager =
       SettingsEntry,
       PrefetchHooks Function()
     >;
+typedef $$PlaybackSessionsTableCreateCompanionBuilder =
+    PlaybackSessionsCompanion Function({
+      Value<int> id,
+      required String reciterId,
+      required int surahId,
+      required int ayahStart,
+      Value<int?> ayahEnd,
+      required DateTime startedAt,
+      Value<DateTime?> endedAt,
+      Value<int> durationPlayedMs,
+      Value<String> closeReason,
+    });
+typedef $$PlaybackSessionsTableUpdateCompanionBuilder =
+    PlaybackSessionsCompanion Function({
+      Value<int> id,
+      Value<String> reciterId,
+      Value<int> surahId,
+      Value<int> ayahStart,
+      Value<int?> ayahEnd,
+      Value<DateTime> startedAt,
+      Value<DateTime?> endedAt,
+      Value<int> durationPlayedMs,
+      Value<String> closeReason,
+    });
+
+class $$PlaybackSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $PlaybackSessionsTable> {
+  $$PlaybackSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reciterId => $composableBuilder(
+    column: $table.reciterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get surahId => $composableBuilder(
+    column: $table.surahId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ayahStart => $composableBuilder(
+    column: $table.ayahStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get ayahEnd => $composableBuilder(
+    column: $table.ayahEnd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationPlayedMs => $composableBuilder(
+    column: $table.durationPlayedMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get closeReason => $composableBuilder(
+    column: $table.closeReason,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PlaybackSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PlaybackSessionsTable> {
+  $$PlaybackSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reciterId => $composableBuilder(
+    column: $table.reciterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get surahId => $composableBuilder(
+    column: $table.surahId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ayahStart => $composableBuilder(
+    column: $table.ayahStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get ayahEnd => $composableBuilder(
+    column: $table.ayahEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationPlayedMs => $composableBuilder(
+    column: $table.durationPlayedMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get closeReason => $composableBuilder(
+    column: $table.closeReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PlaybackSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PlaybackSessionsTable> {
+  $$PlaybackSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get reciterId =>
+      $composableBuilder(column: $table.reciterId, builder: (column) => column);
+
+  GeneratedColumn<int> get surahId =>
+      $composableBuilder(column: $table.surahId, builder: (column) => column);
+
+  GeneratedColumn<int> get ayahStart =>
+      $composableBuilder(column: $table.ayahStart, builder: (column) => column);
+
+  GeneratedColumn<int> get ayahEnd =>
+      $composableBuilder(column: $table.ayahEnd, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get durationPlayedMs => $composableBuilder(
+    column: $table.durationPlayedMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get closeReason => $composableBuilder(
+    column: $table.closeReason,
+    builder: (column) => column,
+  );
+}
+
+class $$PlaybackSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PlaybackSessionsTable,
+          PlaybackSession,
+          $$PlaybackSessionsTableFilterComposer,
+          $$PlaybackSessionsTableOrderingComposer,
+          $$PlaybackSessionsTableAnnotationComposer,
+          $$PlaybackSessionsTableCreateCompanionBuilder,
+          $$PlaybackSessionsTableUpdateCompanionBuilder,
+          (
+            PlaybackSession,
+            BaseReferences<
+              _$AppDatabase,
+              $PlaybackSessionsTable,
+              PlaybackSession
+            >,
+          ),
+          PlaybackSession,
+          PrefetchHooks Function()
+        > {
+  $$PlaybackSessionsTableTableManager(
+    _$AppDatabase db,
+    $PlaybackSessionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PlaybackSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PlaybackSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PlaybackSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> reciterId = const Value.absent(),
+                Value<int> surahId = const Value.absent(),
+                Value<int> ayahStart = const Value.absent(),
+                Value<int?> ayahEnd = const Value.absent(),
+                Value<DateTime> startedAt = const Value.absent(),
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<int> durationPlayedMs = const Value.absent(),
+                Value<String> closeReason = const Value.absent(),
+              }) => PlaybackSessionsCompanion(
+                id: id,
+                reciterId: reciterId,
+                surahId: surahId,
+                ayahStart: ayahStart,
+                ayahEnd: ayahEnd,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                durationPlayedMs: durationPlayedMs,
+                closeReason: closeReason,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String reciterId,
+                required int surahId,
+                required int ayahStart,
+                Value<int?> ayahEnd = const Value.absent(),
+                required DateTime startedAt,
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<int> durationPlayedMs = const Value.absent(),
+                Value<String> closeReason = const Value.absent(),
+              }) => PlaybackSessionsCompanion.insert(
+                id: id,
+                reciterId: reciterId,
+                surahId: surahId,
+                ayahStart: ayahStart,
+                ayahEnd: ayahEnd,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                durationPlayedMs: durationPlayedMs,
+                closeReason: closeReason,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PlaybackSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PlaybackSessionsTable,
+      PlaybackSession,
+      $$PlaybackSessionsTableFilterComposer,
+      $$PlaybackSessionsTableOrderingComposer,
+      $$PlaybackSessionsTableAnnotationComposer,
+      $$PlaybackSessionsTableCreateCompanionBuilder,
+      $$PlaybackSessionsTableUpdateCompanionBuilder,
+      (
+        PlaybackSession,
+        BaseReferences<_$AppDatabase, $PlaybackSessionsTable, PlaybackSession>,
+      ),
+      PlaybackSession,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -9586,4 +11293,6 @@ class $AppDatabaseManager {
       $$AudioCacheMetadataTableTableManager(_db, _db.audioCacheMetadata);
   $$SettingsEntriesTableTableManager get settingsEntries =>
       $$SettingsEntriesTableTableManager(_db, _db.settingsEntries);
+  $$PlaybackSessionsTableTableManager get playbackSessions =>
+      $$PlaybackSessionsTableTableManager(_db, _db.playbackSessions);
 }

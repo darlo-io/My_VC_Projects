@@ -24,17 +24,63 @@ import '../../../core/storage/app_preferences.dart';
 /// in-flight Future (предотвращает corrupted file при двойном tap).
 /// При ошибке загрузки — частичный файл удаляется.
 class AudioCache {
-  AudioCache({required this.dio, required this.dao, this.prefs});
+  AudioCache({
+    required this.dio,
+    required this.dao,
+    this.prefs,
+    this._rootFactory,
+  });
 
   final Dio dio;
   final AudioCacheDao dao;
   final AppPreferences? prefs;
+  final Future<Directory> Function()? _rootFactory;
 
   Directory? _root;
   final Map<String, Future<File>> _inFlight = {};
 
+  /// Санити-чек кешированного файла. MP3 начинается либо с
+  /// `ID3` (ID3v2 tag, `0x49 0x44 0x33`), либо с MPEG-фрейм-синхрона
+  /// `0xFF 0xFB/FA/F3/F2`. 271-байтный HTML-ответ 403 от
+  /// cdn.islamic.network / bahriya.net — типичный poison-кейс,
+  /// пробивавший прежнюю проверку `lengthSync() > 0`. Здесь —
+  /// две защиты: минимальный размер (1 КБ) **и** первые 3 байта.
+  bool _isLikelyValidMedia(File f) {
+    try {
+      final size = f.lengthSync();
+      if (size < 1024) return false;
+      final raf = f.openSync(mode: FileMode.read);
+      try {
+        final head = raf.readSync(3);
+        if (head.length < 3) return false;
+        // ID3v2 tag
+        if (head[0] == 0x49 && head[1] == 0x44 && head[2] == 0x33) {
+          return true;
+        }
+        // MPEG sync 0xFF + (0xFB/FA/F3/F2) + bitrate/channel byte
+        if (head[0] == 0xFF &&
+            (head[1] == 0xFB ||
+                head[1] == 0xFA ||
+                head[1] == 0xF3 ||
+                head[1] == 0xF2)) {
+          return true;
+        }
+        return false;
+      } finally {
+        raf.closeSync();
+      }
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Directory> _ensureRoot() async {
     if (_root != null) return _root!;
+    if (_rootFactory != null) {
+      _root = await _rootFactory();
+      if (!_root!.existsSync()) _root!.createSync(recursive: true);
+      return _root!;
+    }
     final docs = await getApplicationDocumentsDirectory();
     final dir = Directory(p.join(docs.path, 'audio_cache'));
     if (!dir.existsSync()) {
@@ -44,11 +90,19 @@ class AudioCache {
     return dir;
   }
 
+  /// Локальный путь к MP3 — в подкаталоге `audio_cache/{reciterId}/
+  /// {NNN}.mp3` (см. рекомендации в задаче и [audioCacheRelativePath]).
+  /// Подкаталог упрощает инспекцию кеша через adb / файл-менеджер
+  /// и совпадает с естественной структурой «один ректор — много файлов».
   Future<File> _localFile(String reciterId, int surah) async {
     final root = await _ensureRoot();
     final safeId = reciterId.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
-    final name = '${safeId}_${surah.toString().padLeft(3, '0')}.mp3';
-    return File(p.join(root.path, name));
+    final subdir = Directory(p.join(root.path, safeId));
+    if (!subdir.existsSync()) {
+      subdir.createSync(recursive: true);
+    }
+    final name = '${surah.toString().padLeft(3, '0')}.mp3';
+    return File(p.join(subdir.path, name));
   }
 
   String _key(String reciterId, int surah) => '$reciterId:$surah';
@@ -116,6 +170,7 @@ class AudioCache {
     required String url,
     void Function(double progress)? onProgress,
     int? maxBytesOverride,
+    CancelToken? cancelToken,
   }) async {
     final key = _key(reciterId, surah);
     final existing = _inFlight[key];
@@ -127,6 +182,7 @@ class AudioCache {
       url: url,
       onProgress: onProgress,
       maxBytesOverride: maxBytesOverride,
+      cancelToken: cancelToken,
     );
     _inFlight[key] = future;
     try {
@@ -142,14 +198,26 @@ class AudioCache {
     required String url,
     void Function(double progress)? onProgress,
     int? maxBytesOverride,
+    CancelToken? cancelToken,
   }) async {
     final file = await _localFile(reciterId, surah);
-    if (file.existsSync() && file.lengthSync() > 0) {
+    if (file.existsSync() && _isLikelyValidMedia(file)) {
       await _touchPlayed(reciterId, surah, file);
       return file;
     }
+    // Stale или неполный файл — удаляем и качаем заново.
+    if (file.existsSync()) {
+      try {
+        await file.delete();
+      } catch (_) {/* ignore */}
+    }
     try {
-      await _download(url, file, onProgress: onProgress);
+      await _download(
+        url,
+        file,
+        onProgress: onProgress,
+        cancelToken: cancelToken,
+      );
     } catch (e) {
       if (file.existsSync()) {
         try {
@@ -169,19 +237,69 @@ class AudioCache {
     return file;
   }
 
+  /// Загрузка с одной повторной попыткой на транзитные сетевые
+  /// ошибки (timeout / connection reset). Источник-фоллбэк
+  /// (primary → backup → archive.org) пробует уже верхний
+  /// слой — [AudioSourceResolver], поэтому тут держим ровно
+  /// один ретрай, а не бесконечный цикл.
+  ///
+  /// `validateStatus` пропускает 5xx на retry (сервер может
+  /// «отдохнуть»); 4xx остаются бросками — это сигнал «файл
+  /// не найден», и его выше обрабатывает `_resolveOrFetch` /
+  /// `AudioSourceResolver`.
   Future<void> _download(
     String url,
     File target, {
     void Function(double progress)? onProgress,
+    CancelToken? cancelToken,
   }) async {
-    await dio.download(
-      url,
-      target.path,
-      onReceiveProgress: (received, total) {
-        if (onProgress == null || total <= 0) return;
-        onProgress(received / total);
-      },
-    );
+    // 2 попытки на транзитные ошибки / 5xx + 1 длинная на 429.
+    // cdn.alislam.ru лимитирует: 10 req/s + 70/7s cumulative (см.
+    // community.islamic.network/knowledgebase/2-...). 100ms-throttle
+    // в [AudioPlayerController._playSurahByAyah] держит первый лимит;
+    // для второго при 70 аятах подряд нужен 7-секундный backoff.
+    const int maxAttempts = 2;
+    const int maxAttemptsWith429 = 3;
+    int attempt = 0;
+    while (true) {
+      attempt += 1;
+      try {
+        await dio.download(
+          url,
+          target.path,
+          cancelToken: cancelToken,
+          onReceiveProgress: (received, total) {
+            if (onProgress == null || total <= 0) return;
+            onProgress(received / total);
+          },
+          options: Options(
+            // 5xx + 429 — могут быть временными; именно для них
+            // включается retry. Прочие 4xx (404 и пр.) — это
+            // сигнал «next source» для [AudioSourceResolver],
+            // а не повод ретраить.
+            validateStatus: (s) =>
+                s != null && s < 500 && s != 429,
+          ),
+        );
+        return;
+      } on DioException catch (e) {
+        final code = e.response?.statusCode;
+        final isRateLimit = code == 429;
+        final transient = e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.connectionError;
+        final serverSide = code != null && code >= 500;
+        // 429 → ждём 7s и ретраим (cumulative 70/7s window).
+        if (isRateLimit && attempt < maxAttemptsWith429) {
+          await Future<void>.delayed(const Duration(seconds: 7));
+          continue;
+        }
+        if ((!transient && !serverSide) || attempt >= maxAttempts) rethrow;
+        // Backoff: 200ms × attempt (200ms, 400ms).
+        await Future<void>.delayed(Duration(milliseconds: 200 * attempt));
+      }
+    }
   }
 
   Future<void> _register(String reciterId, int surah, File file) async {

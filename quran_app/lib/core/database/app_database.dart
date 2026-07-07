@@ -10,6 +10,8 @@ import 'daos/ayah_dao.dart';
 import 'daos/bookmark_dao.dart';
 import 'daos/learning_dao.dart';
 import 'daos/notes_dao.dart';
+import 'surah_ru_names.dart';
+import 'daos/playback_sessions_dao.dart';
 import 'daos/position_dao.dart';
 import 'daos/reciter_dao.dart';
 import 'daos/surah_dao.dart';
@@ -38,6 +40,7 @@ part 'app_database.g.dart';
     LearningWords,
     AudioCacheMetadata,
     SettingsEntries,
+    PlaybackSessions,
   ],
   daos: [
     SurahDao,
@@ -51,6 +54,7 @@ part 'app_database.g.dart';
     WordTimingsDao,
     LearningDao,
     NotesDao,
+    PlaybackSessionsDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -59,7 +63,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -158,11 +162,127 @@ class AppDatabase extends _$AppDatabase {
           'ON learning_words (word_id)',
         );
       }
+
+      if (from < 9) {
+        // v8 -> v9: add audio-playback telemetry (master plan §4.4).
+        // Additive migration: new table `playback_sessions` + index
+        // on `(reciter_id, started_at)` for fast per-reciter queries
+        // from Phase 2 Statistics. No backfill needed — table starts
+        // empty and writes happen at runtime from the
+        // `AudioPlayerController`.
+        await m.createTable(playbackSessions);
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_playback_sessions_reciter_started '
+          'ON playback_sessions (reciter_id, started_at)',
+        );
+      }
+
+      if (from < 10) {
+        // v9 -> v10: MP3Quran.net integration (см. AGENTS.md
+        // «Audio playback»). Additive — добавляет nullable-колонки
+        // к `reciters` для хранения mp3quran-метаданных (server URL,
+        // moshaf id, rewaya, кэш timestamp). Не трогает существующие
+        // ряды: дефолтные 8 ректоров заполняются при следующем
+        // [Mp3QuranRepository.syncDefaultReciters]. Для новых
+        // ректоров из API — через [syncFromApi].
+        await m.addColumn(reciters, reciters.mp3quranId);
+        await m.addColumn(reciters, reciters.mp3quranServer);
+        await m.addColumn(reciters, reciters.mp3quranMoshafId);
+        await m.addColumn(reciters, reciters.mp3quranSurahTotal);
+        await m.addColumn(reciters, reciters.mp3quranRewaya);
+        await m.addColumn(reciters, reciters.mp3quranCachedAt);
+      }
+
+      if (from < 11) {
+        // v10 -> v11: редизайн listen-экрана (см. AGENTS.md
+        // «Audio playback»). Additive — добавляет к `reciters`:
+        //   * `nameRu` (nullable) — русское имя чтеца;
+        //   * `nameEn` (nullable) — английское имя (NB: name_en мог
+        //     быть создан в схеме v9; идемпотентность обязательна);
+        //   * `is_favorite` (default 0) — отметка избранного;
+        //   * `mp3quran_moshaf_type` (nullable) — тип мусхафа.
+        //
+        // SQLite НЕ поддерживает `ADD COLUMN IF NOT EXISTS` (это
+        // Postgres-фича). Используем `PRAGMA table_info` для проверки
+        // наличия колонки перед ALTER. Идемпотентно — повторный запуск
+        // с уже-применённой миграцией просто скипает существующие
+        // колонки.
+        Future<void> addColumnIfMissing(String col, String definition) async {
+          final rows = await m.database.customSelect(
+            "SELECT name FROM pragma_table_info('reciters')",
+          ).get();
+          final exists = rows.any((r) => r.read<String>('name') == col);
+          if (!exists) {
+            await m.database
+                .customStatement('ALTER TABLE reciters ADD COLUMN $col $definition');
+          }
+        }
+
+        await addColumnIfMissing('name_ru', 'TEXT');
+        await addColumnIfMissing('name_en', 'TEXT');
+        await addColumnIfMissing(
+            'is_favorite', 'INTEGER NOT NULL DEFAULT 0');
+        await addColumnIfMissing('mp3quran_moshaf_type', 'INTEGER');
+      }
+
+      if (from < 12) {
+        // v11 -> v12: редизайн listen-экрана, фаза 2 (см. AGENTS.md
+        // «Audio playback»). Additive — добавляет к `surahs`:
+        //   * `name_ru` (nullable) — русское название суры
+        //     («Аль-Фатиха», «Аль-Бакара» и т.д.);
+        //   * `subtitle_ru` (nullable) — русский подзаголовок
+        //     («Открывающая», «Корова» и т.д.).
+        //
+        // Старые ряды получают `name_ru = NULL` сразу после
+        // миграции. Ниже — backfill, который заполняет их из
+        // [kSurahRuNames] / [kSurahRuSubtitles] (см.
+        // `lib/core/database/surah_ru_names.dart`). Идемпотентно —
+        // повторный запуск с уже-заполненными рядами обновляет
+        // значения только если они NULL.
+        await m.addColumn(surahs, surahs.nameRu);
+        await m.addColumn(surahs, surahs.subtitleRu);
+        await _backfillRussianSurahNames(m.database);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
+
+  /// Backfill `name_ru` / `subtitle_ru` для сур — идемпотентно
+  /// (UPDATE только для NULL). Вызывается из миграции v11→v12.
+  ///
+  /// Использует [customUpdate] с явным указанием [surahs] в `updates:` —
+  /// это решает проблему с порядком параметров: `db.customStatement` без
+  /// `updates:` путает `?` позиции, а `customUpdate` привязывает их
+  /// к колонкам таблицы, так что первый `?` идёт в первую колонку
+  /// (`name_ru` / `subtitle_ru`), а второй — в `id`.
+  Future<void> _backfillRussianSurahNames(GeneratedDatabase db) async {
+    for (var i = 1; i <= 114; i++) {
+      final name = kSurahRuNames[i];
+      final sub = kSurahRuSubtitles[i];
+      if (name != null) {
+        await db.customUpdate(
+          'UPDATE surahs SET name_ru = ? WHERE id = ? AND name_ru IS NULL',
+          updates: {surahs},
+          variables: [
+            Variable.withString(name),
+            Variable.withInt(i),
+          ],
+        );
+      }
+      if (sub != null) {
+        await db.customUpdate(
+          'UPDATE surahs SET subtitle_ru = ? WHERE id = ? AND subtitle_ru IS NULL',
+          updates: {surahs},
+          variables: [
+            Variable.withString(sub),
+            Variable.withInt(i),
+          ],
+        );
+      }
+    }
+  }
 
   /// Destructive schema reset. Used ONLY for pre-v5 installs.
   /// Must not be reachable from a v5+ upgrade path.

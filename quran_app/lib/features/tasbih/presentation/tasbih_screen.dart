@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../../app/router/safe_pop.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/common_widgets.dart';
@@ -30,7 +30,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                   CircleIconButton(
                     icon: Icons.arrow_back_ios_new,
                     iconSize: 18,
-                    onTap: () => context.pop(),
+                    onTap: () => safePop(context),
                   ),
                   const SizedBox(width: 8),
                   Text(

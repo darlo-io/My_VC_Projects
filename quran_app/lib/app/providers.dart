@@ -1,3 +1,6 @@
+import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,6 +16,7 @@ import '../core/data/quran_repository.dart';
 import '../core/data/search_repository.dart';
 import '../core/database/app_database.dart';
 import '../core/database/daos/audio_cache_dao.dart';
+import '../core/database/daos/playback_sessions_dao.dart';
 import '../core/database/daos/ayah_dao.dart';
 import '../core/database/daos/bookmark_dao.dart';
 import '../core/database/daos/learning_dao.dart';
@@ -29,10 +33,13 @@ import '../features/audio/data/quran_audio_handler.dart';
 import '../features/test/data/quiz_service.dart';
 import '../features/test/data/quiz_session.dart';
 import '../core/networking/api_client.dart';
+import '../core/networking/dns_aware_dio.dart';
+import '../core/networking/doh_resolver.dart';
 import '../core/storage/app_preferences.dart';
 import '../features/audio/data/audio_cache.dart';
 import '../features/audio/data/audio_player_controller.dart';
 import '../features/audio/data/reciters_repository.dart';
+import '../features/audio/data/reciters_sync_service.dart';
 
 /// DI-граф приложения.
 
@@ -118,23 +125,66 @@ Future<void> setFontSize(double v) =>
 Future<void> setLanguageCode(String? code) =>
     _setAndNotify(() => state.setLanguageCode(code));
 
-Future<void> setReadingMode(String mode) async {
-  // **НЕ** триггерим `state = ...` — это вызвало бы app-wide
-  // rebuild, который ломает навигацию GoRouter (пользователь
-  // оказывается на пустом Home). Локальный `setState` в
-  // `ReaderScreenState` (через `_readingMode`) уже обновляет
-  // UI. В SharedPreferences запись нужна для сохранения
-  // между сессиями. На следующем mount / refresh Reader
-  // прочитает свежее значение через
-  // `appPreferencesProvider.readingMode` (старт сессии).
-  await state.setReadingMode(mode);
-}
+  Future<void> setReadingMode(String mode) async {
+    // **НЕ** триггерим `state = ...` — это вызвало бы app-wide
+    // rebuild, который ломает навигацию GoRouter (пользователь
+    // оказывается на пустом Home). Локальный `setState` в
+    // `ReaderScreenState` (через `_readingMode`) уже обновляет
+    // UI. В SharedPreferences запись нужна для сохранения
+    // между сессиями. На следующем mount / refresh Reader
+    // прочитает свежее значение через
+    // `appPreferencesProvider.readingMode` (старт сессии).
+    await state.setReadingMode(mode);
+  }
+
+  // Custom DNS settings — НЕ триггерим app-wide rebuild
+  // автоматически; пользователь явно нажимает Save в Settings,
+  // и `dioProvider` сделает `_ref.invalidate(...)` явно через
+  // отдельный путь, чтобы UI не пересобирался.
+
+  /// Включает/выключает [DnsAwareInterceptor]. См. `appPreferencesProvider.useCustomDns`.
+  ///
+  /// ⚠️ НЕ делаем `state = AppPreferences(_prefs)` — это app-wide
+  /// rebuild, который ломает GoRouter-stack (см. round-7/8 hotfix).
+  /// Вместо этого инкрементим [dnsSettingsVersionProvider] —
+  /// `dioProvider` слушает его и переcоздаёт `Dio` точечно, без
+  /// каскада на `apiClientProvider` / `audioCacheProvider` /
+  /// `audioPlayerControllerProvider`.
+  Future<void> setUseCustomDns(bool v) async {
+    debugPrint('[DNS_NOTIFIER] setUseCustomDns start v=$v');
+    await state.setUseCustomDns(v);
+    debugPrint('[DNS_NOTIFIER] state.setUseCustomDns ok');
+    _ref.read(dnsSettingsVersionProvider.notifier).update((s) => s + 1);
+    debugPrint('[DNS_NOTIFIER] dnsSettingsVersionProvider updated to '
+        '${_ref.read(dnsSettingsVersionProvider) + 0}');
+  }
+
+  /// Устанавливает DoH-endpoint URL. При включении
+  /// [setUseCustomDns] `true` все HTTP-запросы идут через него.
+  Future<void> setCustomDohUrl(String? url) async {
+    debugPrint('[DNS_NOTIFIER] setCustomDohUrl start url=$url');
+    await state.setCustomDohUrl(url);
+    debugPrint('[DNS_NOTIFIER] state.setCustomDohUrl ok');
+    _ref.read(dnsSettingsVersionProvider.notifier).update((s) => s + 1);
+  }
 
 Future<void> setTranslationLang(String lang) =>
     _setAndNotify(() => state.setTranslationLang(lang));
 
-Future<void> setReciterId(String id) =>
-    _setAndNotify(() => state.setReciterId(id));
+Future<void> setReciterId(String id) async {
+  // Записываем напрямую в SharedPreferences **БЕЗ** `state = AppPreferences(...)`
+  // — потому что app-wide rebuild ломает GoRouter-stack
+  // (пользователь оказывается на пустом Home — см. round-7
+  // hotfix report). Dependents, которым нужен свежий `reciterId`,
+  // читают его напрямую через `appPreferencesProvider.reciterId`
+  // (геттер), который `SharedPreferences` синхронизирует
+  // синхронно.
+  await state.setReciterId(id);
+  // Без `state = AppPreferences(_prefs)`. См. комментарий в
+  // setReadingMode (line 126) — аналогичный паттерн для
+  // избежания app-wide rebuild на пользовательских actions
+  // (выбор ректора, переключение языка чтения).
+}
 
 Future<void> setThemeMode(String mode) =>
     _setAndNotify(() => state.setThemeMode(mode));
@@ -156,7 +206,108 @@ final appPreferencesProvider =
   (ref) => AppPreferencesNotifier(ref.watch(sharedPreferencesProvider), ref),
 );
 
-final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
+/// Bump-counter, который `setUseCustomDns` / `setCustomDohUrl`
+/// в `AppPreferencesNotifier` инкрементят. `dnsSettingsProvider`
+/// watch'ит этот counter — инкремент переcоздаёт его, и при
+/// новом вычислении мы читаем свежее значение из
+/// `appPreferencesProvider` БЕЗ `state = AppPreferences(_prefs)`
+/// (т.е. без app-wide rebuild).
+///
+/// В обычном lifecycle (без пользовательского изменения DNS)
+/// counter не меняется → dependents кешируются.
+final dnsSettingsVersionProvider = StateProvider<int>((_) => 0);
+
+/// Изолированный sub-selector для DNS-настроек. Существует
+/// чтобы `dioProvider` мог watch'ить **только** `useCustomDns`/
+/// и `customDohUrl` (а не весь `appPreferencesProvider` целиком)
+/// — иначе любое изменение `reciterId` / `fontSize` /
+/// `themeMode` приводило бы к переcозданию `Dio` и invalidate
+/// каскада dependents (включая `audioPlayerControllerProvider`,
+/// чей `dispose()` мог ронять Drift — см. round-8 hotfix).
+final dnsSettingsProvider = Provider<({bool enabled, String? url})>((ref) {
+  // Watch the bump-counter, not the underlying prefs (which never
+  // notify when `setUseCustomDns` writes without `state = ...`).
+  ref.watch(dnsSettingsVersionProvider);
+  final prefs = ref.read(appPreferencesProvider);
+  return (
+    enabled: prefs.useCustomDns,
+    url: prefs.customDohUrl,
+  );
+});
+
+/// `Dio`-клиент для **JSON-API** (Quran API, content-updates, search).
+/// Реактивно пересоздаётся **только** при изменении DNS-настроек
+/// (см. [dnsSettingsProvider]).
+///
+/// ВАЖНО: `audioCacheProvider` НЕ зависит от этого провайдера —
+/// см. [audioDioProvider] и [audioCacheProvider]. Иначе cascade
+/// invalidate на смене DNS уничтожал бы `audioPlayerControllerProvider`
+/// (StateNotifier) и его Drift-операции в `dispose()` (см.
+/// round-9 hotfix).
+final dioProvider = Provider<Dio>((ref) {
+  final dns = ref.watch(dnsSettingsProvider);
+  final dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 20),
+      receiveTimeout: const Duration(seconds: 60),
+      sendTimeout: const Duration(seconds: 30),
+      responseType: ResponseType.json,
+    ),
+  );
+
+  if (dns.enabled && (dns.url ?? '').isNotEmpty) {
+    // Резолвер живёт на отдельном Dio-инстансе, чтобы не
+    // закольцеваться (если бы он шёл через `dioProvider`,
+    // тот же DnsAwareAdapter бы перехватил наш собственный
+    // запрос и зарезолвил бы `1.1.1.1` через `1.1.1.1` —
+    // бесконечная рекурсия).
+    final resolverDio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
+        responseType: ResponseType.json,
+      ),
+    );
+    final resolver = DohResolver(
+      dio: resolverDio,
+      endpoint: dns.url!,
+    );
+    dio.httpClientAdapter = DnsAwareAdapter(
+      inner: IOHttpClientAdapter(),
+      resolver: resolver,
+    );
+  }
+  return dio;
+});
+
+/// Обёрнутый в [ApiClient] для удобного JSON API.
+final apiClientProvider = Provider<ApiClient>(
+  (ref) => ApiClient(dio: ref.watch(dioProvider)),
+);
+
+/// **Статический** `Dio` для аудио-кеша и плеера. **НЕ зависит**
+/// ни от `dnsSettingsProvider`, ни от `appPreferencesProvider` —
+/// чтобы invalidate cascade на смене DNS **никогда** не доходил
+/// до `audioCacheProvider` / `audioPlayerControllerProvider`
+/// (StateNotifier, чей `dispose()` может ронять Drift — см.
+/// round-9 hotfix).
+///
+/// **Компромисс**: при включённом Custom DNS аудио-загрузки идут
+/// через системный DNS (тот же captive DNS, что и до этого
+/// фикса). Это значит, что DoH на audio-кеш не работает. JSON
+/// API при этом ходит через `dioProvider` → DnsAwareAdapter.
+/// Это разумный trade-off: cache-miss-страдает меньше, чем
+/// крашащийся UI на каждом клике по Settings.
+final audioDioProvider = Provider<Dio>((ref) {
+  return Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 20),
+      receiveTimeout: const Duration(seconds: 90),
+      sendTimeout: const Duration(seconds: 60),
+      responseType: ResponseType.bytes,
+    ),
+  );
+});
 
 final quranApiProvider = Provider<QuranApi>(
   (ref) => QuranApi(ref.watch(apiClientProvider)),
@@ -283,6 +434,10 @@ final reciterDaoProvider = Provider<ReciterDao>(
 final audioCacheDaoProvider = Provider<AudioCacheDao>(
   (ref) => ref.watch(appDatabaseProvider).audioCacheDao,
 );
+
+final playbackSessionsDaoProvider = Provider<PlaybackSessionsDao>(
+  (ref) => ref.watch(appDatabaseProvider).playbackSessionsDao,
+);
 final wordsDaoProvider = Provider<WordsDao>(
   (ref) => ref.watch(appDatabaseProvider).wordsDao,
 );
@@ -302,13 +457,27 @@ final recitersRepositoryProvider = Provider<RecitersRepository>(
   (ref) => RecitersRepository(ref.watch(reciterDaoProvider)),
 );
 
+/// Фоновый воркер синхронизации mp3quran-ректоров. Singleton, потому
+/// что у него есть in-memory `ValueNotifier<RecitersSyncState>` — при
+/// каждом [ForceRefresh]-стиле инвалидировании состояние терялось бы.
+///
+/// `ref.watch(recitersSyncServiceProvider)` подписан UI, который
+/// может показать «синхронизация идёт» / «последний sync был X».
+final recitersSyncServiceProvider = Provider<RecitersSyncService>((ref) {
+  return RecitersSyncService(ref.watch(recitersRepositoryProvider));
+});
+
 final audioCacheProvider = Provider<AudioCache>(
   (ref) => AudioCache(
-    dio: ref.watch(apiClientProvider).raw,
+    // `audioDioProvider` (НЕ `apiClientProvider`) — это разрывает
+    // cascade invalidate до `audioPlayerControllerProvider`
+    // (StateNotifier, чей `dispose()` мог ронять Drift — см.
+    // round-9 hotfix). При смене DNS DoH автоматически
+    // подменяет `httpClientAdapter` через [DnsAwareAdapter].
+    dio: ref.watch(audioDioProvider),
     dao: ref.watch(audioCacheDaoProvider),
-    // `prefs` нужен для LRU-eviction в play-path (раньше
-    // eviction вызывался ТОЛЬКО из Settings). Provider
-    // инжектится, чтобы избежать прямой зависимости от
+    // `prefs` нужен для LRU-eviction в play-path. Provider
+    // инжектируется, чтобы избежать прямой зависимости от
     // SharedPreferences в audio-подсистеме.
     prefs: ref.watch(appPreferencesProvider),
   ),
@@ -320,6 +489,7 @@ final audioPlayerControllerProvider =
     cache: ref.watch(audioCacheProvider),
     reciters: ref.watch(recitersRepositoryProvider),
     surahDao: ref.watch(surahDaoProvider),
+    sessions: ref.watch(playbackSessionsDaoProvider),
   ),
 );
 
@@ -335,6 +505,49 @@ final quranAudioHandlerProvider = Provider<QuranAudioHandler>((ref) {
 
 final recitersStreamProvider = StreamProvider(
   (ref) => ref.watch(recitersRepositoryProvider).watchAll(),
+);
+
+/// Ключ для [ayahTextProvider] — пара (surahId, ayahNumber).
+class SurahAyahRef {
+  const SurahAyahRef({required this.surahId, required this.ayahNumber});
+  final int surahId;
+  final int ayahNumber;
+  @override
+  bool operator ==(Object other) =>
+      other is SurahAyahRef &&
+      other.surahId == surahId &&
+      other.ayahNumber == ayahNumber;
+  @override
+  int get hashCode => Object.hash(surahId, ayahNumber);
+}
+
+/// Ключ для [_surahByIdProvider] — просто ID суры (для FutureProvider.family).
+class SurahIdKey {
+  const SurahIdKey(this.id);
+  final int id;
+  @override
+  bool operator ==(Object other) =>
+      other is SurahIdKey && other.id == id;
+  @override
+  int get hashCode => id.hashCode;
+}
+
+/// Provider для асинхронной загрузки суры по id. Используется
+/// [_SurahAyahSelectors] для получения актуального `ayahCount` —
+/// до вызова `playSurah()` (когда `state.surah` ещё пустой).
+final surahByIdProvider = FutureProvider.family<Surah?, SurahIdKey>(
+  (ref, key) => ref.watch(surahDaoProvider).getById(key.id),
+);
+
+/// Асинхронная загрузка аята из БД (Uthmani-текст) для отображения в
+/// [_AyahPanel]. Использует FutureProvider.family — Riverpod
+/// автоматически дедуплицирует одинаковые ключи, поэтому при
+/// смене currentAyah не происходит лишних запросов.
+final ayahTextProvider = FutureProvider.family<Ayah?, SurahAyahRef>(
+  (ref, key) async {
+    final dao = ref.watch(ayahDaoProvider);
+    return dao.getBySurahAndNumber(key.surahId, key.ayahNumber);
+  },
 );
 
 /// Поток общего размера аудио-кеша в байтах (для UI).
@@ -395,6 +608,10 @@ final contentBootstrapperProvider = Provider<ContentBootstrapper>(
     // `checkAndApply()` без жёсткой DI-зависимости.
     final updateService = ref.watch(contentUpdateServiceProvider);
     bootstrapper.contentUpdateService = updateService;
+    // Фоновая синхронизация списка чтецов с mp3quran.net —
+    // [RecitersSyncService.maybeSync] в фоне после `ensureSeeded`.
+    bootstrapper.recitersSyncService =
+        ref.watch(recitersSyncServiceProvider);
     return bootstrapper;
   },
 );

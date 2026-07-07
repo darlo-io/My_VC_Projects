@@ -102,6 +102,8 @@ class SettingsScreen extends ConsumerWidget {
                 _ClearCacheTile(),
                 const Divider(height: 1),
                 _DownloadsTile(),
+                const Divider(height: 1),
+                _CustomDnsTile(),
               ],
             ),
           ),
@@ -464,7 +466,7 @@ class _CacheLimitTile extends ConsumerWidget {
                       );
                     }
                   },
-                ),
+              ),
             ],
           ),
         );
@@ -901,3 +903,193 @@ class _ReciterTile extends ConsumerWidget {
     );
   }
 }
+
+/// Custom DNS через DNS-over-HTTPS. Полезно в сетях с captive
+/// portal (гостиничный Wi-Fi, корпоративный прокси), где обычный
+/// системный DNS-резолвер Android подменён. При включении все
+/// HTTP-запросы приложения ходят через указанный DoH-endpoint
+/// (Cloudflare, Google, Quad9 — любой совместимый).
+///
+/// См. master-plan / hotfix round 4 — это UI для captive-bypass.
+class _CustomDnsTile extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_CustomDnsTile> createState() => _CustomDnsTileState();
+}
+
+class _CustomDnsTileState extends ConsumerState<_CustomDnsTile> {
+  late TextEditingController _urlController;
+
+  @override
+  void initState() {
+    super.initState();
+    final prefs = ref.read(appPreferencesProvider);
+    _urlController = TextEditingController(
+      text: prefs.customDohUrl ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onSave() async {
+    debugPrint('[DNS_TILE] _onSave start url=${_urlController.text}');
+    final url = _urlController.text.trim();
+    final notifier = ref.read(appPreferencesProvider.notifier);
+    try {
+      if (url.isEmpty) {
+        await notifier.setCustomDohUrl(null);
+      } else {
+        await notifier.setCustomDohUrl(url);
+      }
+      debugPrint('[DNS_TILE] _onSave setCustomDohUrl finished ok');
+    } catch (e, st) {
+      debugPrint('[DNS_TILE] _onSave setCustomDohUrl THREW: $e\n$st');
+      rethrow;
+    }
+    if (!mounted) {
+      debugPrint('[DNS_TILE] _onSave: mounted=false after await, abort');
+      return;
+    }
+    final t = AppLocalizations.of(context);
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t.settingsCustomDnsSaved)),
+      );
+    } catch (e, st) {
+      debugPrint('[DNS_TILE] showSnackBar THREW: $e\n$st');
+    }
+  }
+
+  String? _validate(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    final uri = Uri.tryParse(raw);
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+      return 'https://… URL expected';
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final prefs = ref.watch(appPreferencesProvider);
+    // DEBUG-ONLY: трекаем, как часто ребилдится tile и что
+    // показывает `prefs.useCustomDns` в момент построения.
+    debugPrint('[DNS_TILE] build prefs.useCustomDns=${prefs.useCustomDns} '
+        'prefs.customDohUrl=${prefs.customDohUrl}');
+    final enabledLabel = prefs.useCustomDns
+        ? '${t.settingsCustomDnsEnabled} — ${prefs.customDohUrl ?? ''}'
+        : t.settingsCustomDnsDisabled;
+    return SettingsTile(
+      icon: Icons.dns_outlined,
+      title: t.settingsCustomDnsTitle,
+      trailing: Switch(
+        value: prefs.useCustomDns,
+        onChanged: (v) async {
+          debugPrint('[DNS_TILE] Switch.onChanged v=$v '
+              '(started at ${DateTime.now().toIso8601String()})');
+          try {
+            await ref.read(appPreferencesProvider.notifier).setUseCustomDns(v);
+            debugPrint('[DNS_TILE] setUseCustomDns($v) finished ok');
+          } catch (e, st) {
+            debugPrint('[DNS_TILE] setUseCustomDns($v) THREW: $e\n$st');
+            rethrow;
+          }
+        },
+      ),
+      onTap: () {
+        debugPrint('[DNS_TILE] onTap → _showEditorSheet');
+        _showEditorSheet(context, enabledLabel);
+      },
+    );
+  }
+
+  Future<void> _showEditorSheet(BuildContext context, String subtitle) async {
+    debugPrint('[DNS_TILE] _showEditorSheet start');
+    final t = AppLocalizations.of(context);
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetCtx) {
+          debugPrint('[DNS_TILE] bottom-sheet builder invoked');
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 16, right: 16,
+              bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 16,
+              top: 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.settingsCustomDnsTitle,
+                  style: Theme.of(sheetCtx).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  t.settingsCustomDnsHint,
+                  style: Theme.of(sheetCtx).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: Theme.of(sheetCtx).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _urlController,
+                  keyboardType: TextInputType.url,
+                  decoration: InputDecoration(
+                    labelText: t.settingsCustomDnsUrlLabel,
+                    hintText: 'https://1.1.1.1/dns-query',
+                    helperText: t.settingsCustomDnsExamples,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(sheetCtx),
+                      child: Text(t.cancel),
+                    ),
+                    const Spacer(),
+                    FilledButton(
+                      onPressed: () async {
+                        debugPrint('[DNS_TILE] Save button pressed');
+                        final err = _validate(_urlController.text.trim());
+                        if (err != null) {
+                          debugPrint('[DNS_TILE] validation err=$err');
+                          ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                            SnackBar(content: Text(err)),
+                          );
+                          return;
+                        }
+                        await _onSave();
+                        if (sheetCtx.mounted) {
+                          debugPrint('[DNS_TILE] popping bottom-sheet');
+                          Navigator.pop(sheetCtx);
+                        }
+                      },
+                      child: Text(t.save),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e, st) {
+      debugPrint('[DNS_TILE] _showEditorSheet THREW: $e\n$st');
+    }
+  }
+}
+

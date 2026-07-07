@@ -161,7 +161,7 @@ class _SurahList extends StatelessWidget {
         // Названия на языке интерфейса приложения: для `ru` —
         // `surahMeaningRu`, для `en` — `surahEn`, для прочих
         // локалей — `null` (поиск по значению скрывается).
-        final localizedMeaning = (int id) =>
+        String? localizedMeaning(int id) =>
             LocalizedNames.surahMeaning(id, locale)?.toLowerCase();
 
         // Название на текущей локали через ARB (`surahName{id}`):
@@ -169,7 +169,7 @@ class _SurahList extends StatelessWidget {
         // (`Аль-Бакара`), в `en` — английское значение (`The Cow`).
         // Для арабской локали ARB-значение пустое (арабские
         // пользователи используют `nameAr` из БД).
-        final localizedName = (int id) =>
+        String localizedName(int id) =>
             t.surahName(id, fallback: '').toLowerCase();
 
         // Дополнительно всегда индексируем русское значение
@@ -177,9 +177,9 @@ class _SurahList extends StatelessWidget {
         // пользователь может искать «Корова» или «Аль-Бакара»,
         // потому что это короткие узнаваемые слова (и в БД их
         // нет — переводы хранятся в коде и в ARB).
-        final ruMeaning = (int id) =>
+        String? ruMeaning(int id) =>
             LocalizedNames.surahMeaningRu[id]?.toLowerCase();
-        final ruTransliteration = (int id) =>
+        String ruTransliteration(int id) =>
             LocalizedNames.surahTransliterationRu[id]?.toLowerCase() ?? '';
 
         final filtered = items.where((s) {

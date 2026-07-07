@@ -167,7 +167,7 @@ class SurahRow extends StatelessWidget {
                 textDirection: TextDirection.rtl,
                 style: const TextStyle(
                   fontSize: 46,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w400,
                   color: AppColors.gold,
                   fontFamily: surahNameV4FontFamily,
                   height: 1.0,

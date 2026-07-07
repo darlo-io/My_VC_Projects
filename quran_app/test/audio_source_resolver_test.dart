@@ -58,11 +58,13 @@ void main() {
       expect(() => chain.urlAt(99, 1), throwsA(isA<RangeError>()));
     });
 
-    test('default chain has 2 sources (primary + backup)', () {
+    test('default chain has 3 sources (primary + backup + archive)',
+        () {
       final chain = defaultAudioSourceChain();
-      expect(chain.sources.length, 2);
+      expect(chain.sources.length, 3);
       expect(chain.sources[0].id, 'primary');
       expect(chain.sources[1].id, 'backup');
+      expect(chain.sources[2].id, 'archive');
     });
 
     test('urlAt(0, 1) → first source URL with surah=001', () {
@@ -159,6 +161,7 @@ void main() {
       final dio = buildDio(stubs: {
         'islamic.network': _Stub(statusCode: 500),
         'everyayah.com': _Stub(statusCode: 404),
+        'archive.org': _Stub(statusCode: 404),
       });
       final resolver = AudioSourceResolver(
         dio: dio,
@@ -168,7 +171,7 @@ void main() {
         await resolver.resolve(reciterId: 'ar.alafasy', surahId: 1);
         fail('expected AllSourcesFailed');
       } on AllSourcesFailed catch (e) {
-        expect(e.attempts.length, 2);
+        expect(e.attempts.length, 3);
         expect(e.reciterId, 'ar.alafasy');
         expect(e.surahId, 1);
       }

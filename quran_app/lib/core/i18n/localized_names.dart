@@ -139,7 +139,7 @@ extension SurahAndReciterNames on AppLocalizations {
   /// Localized name of the reciter with id [id] (e.g. `ar.alafasy`).
   /// The id is the full id from the database (`ar.<slug>`); we strip
   /// the `ar.` prefix and look up the corresponding key.
-  String reciterName(String id, {String fallback = '?'}) {
+  String reciterName(String id, {String? fallback}) {
     switch (id) {
       case 'ar.alafasy': return reciterNameAlafasy;
       case 'ar.abdulbasitmurattal': return reciterNameAbdulbasitmurattal;
@@ -149,7 +149,7 @@ extension SurahAndReciterNames on AppLocalizations {
       case 'ar.saaborimadina': return reciterNameSaaborimadina;
       case 'ar.hudhaify': return reciterNameHudhaify;
       case 'ar.ahmedajamy': return reciterNameAhmedajamy;
-      default: return fallback;
+      default: return fallback ?? '?';
     }
   }
 }

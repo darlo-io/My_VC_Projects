@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/database/app_database.dart';
-import '../../../../core/i18n/arabic_digits.dart';
 import '../../../../core/i18n/surah_name_glyph.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/ornaments.dart';
@@ -570,44 +569,52 @@ class _NoteButton extends ConsumerWidget {
   }
 }
 
-/// Заголовок суры в стиле бумажной Mushaf: ornament-рамка с
-/// 4 угловыми звёздами + арабским названием («سُورَةُ ٱلْفَاتِحَةِ» / …
-/// ) и номером суры.
+/// Заголовок суры на экране чтения: арабское название суры
+/// обрамляется декоративным ornament'ом-рамкой (изображение
+/// `assets/images/ornaments/surah_header_frame.webp`).
 ///
-/// Рендерится **один раз** в начале суры (см. `_buildLineByLine`
-/// и `_buildBookStyle` в `reader_screen.dart`), как и в печатной
-/// Mushaf — ornament-header на первой странице каждой суры.
+/// Рендерится в **обоих** режимах чтения (lineByLine и book) — см.
+/// `_buildLineByLine` и `_buildBookStyle` в `reader_screen.dart`.
+/// Как и в печатной Mushaf, header появляется один раз в начале
+/// каждой суры.
 ///
-/// **Дизайн** (3 яруса, в одном фрейме):
-///   1. Внешняя ornament-рамка — двойная золотая (внешняя толще,
-///      внутренняя тоньше) с 4 угловыми 8-конечными звёздами
-///      и центральной звездой внизу.
-///   2. Название суры — крупным glyph-шрифтом `Surah Name V2`
-///      (`surah001` → U+E001 и т.д.), цветом основного текста
-///      Quran (`textColor`).
-///   3. Номер суры арабскими цифрами + ornament-глиф `۝` —
-///      мелким золотым под названием; рендерится пользовательским
-///      Quran-шрифтом (`fontFamily`).
+/// **Дизайн** (2 слоя в одном фрейме):
+///   1. Фон — ornament-изображение (золотая рамка с угловыми
+///      узорами, центральными звёздами сверху/снизу и пустым
+///      центром для текста). Сохраняет пропорции исходника.
+///   2. Арабское название суры — крупным glyph-шрифтом
+///      `Surah Name V2` (`surah001` → U+E001 и т.д.), цветом
+///      основного текста Quran (`textColor`), строго по центру
+///      свободной области рамки.
+///
+/// Размер названия автоматически масштабируется под доступное
+/// пространство через `FittedBox` — на узких экранах текст
+/// уменьшается, на широких — увеличивается, не выходя за
+/// безопасную зону между боковыми ornament-узорами.
 class SurahHeader extends StatelessWidget {
   const SurahHeader({
     required this.surahNumber,
-    required this.fontFamily,
     required this.textColor,
     super.key,
   });
 
-  /// Номер суры 1..114. Используется для двух целей:
-  ///   - как glyph-key в `Surah Name V2.ttf` для арабского названия;
-  ///   - как значение для арабских цифр в ornament-строке «۝ N».
+  /// Номер суры 1..114. Используется как glyph-key в
+  /// `Surah Name V2.ttf` для арабского названия.
   final int surahNumber;
-
-  /// Пользовательский шрифт Quran для ornament-строки «۝ N».
-  /// Используется только в нижней надписи (мелкий, золотой).
-  final String? fontFamily;
 
   /// Цвет основного текста Quran (из `ReaderPalette`). Им
   /// окрашивается крупное название суры (glyph из V2).
   final Color textColor;
+
+  /// Путь к ornament-изображению рамки. Вынесено в константу,
+  /// чтобы можно было подменить в тестах/превью.
+  static const String _frameAsset =
+      'assets/images/ornaments/surah_header_frame.webp';
+
+  /// Пропорции исходного ornament-изображения (≈600×230 px).
+  /// Используются для расчёта высоты рамки по ширине, чтобы
+  /// ornament не растягивался и не сжимался.
+  static const double _frameAspectRatio = 600 / 230;
 
   @override
   Widget build(BuildContext context) {
@@ -620,203 +627,59 @@ class SurahHeader extends StatelessWidget {
       //    или от предыдущего контента).
       //  - bottom: 16 (отступ снизу — от первого аята).
       padding: const EdgeInsets.fromLTRB(4, 24, 4, 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Ornament-рамка с угловыми звёздами + арабское название +
-          // номер суры внутри. Рисуется через CustomPaint, чтобы
-          // получить полный контроль над ornament'ом (рамка, звёзды,
-          // центральный ornament) без зависимости от конкретного шрифта.
-          CustomPaint(
-            size: const Size(double.infinity, 130),
-            painter: _SurahHeaderFramePainter(
-              surahNumber: surahNumber,
-              glyphFontFamily: surahNameV2FontFamily,
-              // Шрифт пользователя для ornament-строки «۝ N».
-              quranFontFamily: fontFamily,
-              textColor: textColor,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          if (width <= 0) return const SizedBox.shrink();
+          final height = width / _frameAspectRatio;
+          return SizedBox(
+            width: width,
+            height: height,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // 1) Ornament-рамка как фон.
+                Image.asset(
+                  _frameAsset,
+                  fit: BoxFit.fill,
+                  filterQuality: FilterQuality.medium,
+                ),
+                // 2) Арабское название суры по центру свободной
+                //    области рамки. Горизонтальный safe-area
+                //    оставляет место под боковые ornament-узоры;
+                //    `FittedBox` подгоняет размер шрифта, чтобы
+                //    название всегда помещалось и при этом
+                //    выглядело максимально крупным.
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 72,
+                    vertical: 32,
+                  ),
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        surahNameGlyph(surahNumber),
+                        textDirection: TextDirection.rtl,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        style: TextStyle(
+                            fontSize: 64,
+                            fontWeight: FontWeight.w400,
+                            color: textColor,
+                            fontFamily: surahNameV2FontFamily,
+                            height: 1.0,
+                            letterSpacing: 0.5,
+                          ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
-}
-
-/// Рисует ornament-рамку в стиле бумажной Mushaf:
-///   - двойная золотая рамка (внешняя + внутренняя);
-///   - 4 угловые 8-конечные звёзды;
-///   - центральная 8-конечная звезда снизу;
-///   - арабское название суры по центру;
-///   - номер суры арабскими цифрами с ornament-глифом `۝`.
-///
-/// **Почему `CustomPainter`, а не `Container` + `Stack` + `Text`?**
-///   1. Двойная рамка с точно выверенными отступами
-///      (`outerStroke = 1.5 px`, `innerStroke = 0.6 px`, `gap = 4 px`).
-///   2. 8-конечные звёзды в углах — нарисованы вручную
-///      (CustomPaint), а не как Image.asset (не зависят от шрифта,
-///      одинаково выглядят на всех темах).
-///   3. `Text` внутри painter — для точного центрирования
-///      названия между ornament-элементами.
-class _SurahHeaderFramePainter extends CustomPainter {
-  _SurahHeaderFramePainter({
-    required this.surahNumber,
-    required this.glyphFontFamily,
-    required this.quranFontFamily,
-    required this.textColor,
-  });
-
-  final int surahNumber;
-
-  /// Шрифт для крупного арабского названия суры —
-  /// `Surah Name V2` (glyph-шрифт; `surah001` → U+E001 и т.д.).
-  final String glyphFontFamily;
-
-  /// Шрифт для нижней надписи «۝ N» — пользовательский
-  /// Quran-шрифт (Amiri / Scheherazade / …).
-  final String? quranFontFamily;
-  final Color textColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const gold = AppColors.gold;
-    final w = size.width;
-    final h = size.height;
-    final goldPaint = Paint()..color = gold;
-
-    // ─── Внешняя золотая рамка (толще) ──────────────────────────
-    final outer = Paint()
-      ..color = gold.withValues(alpha: 0.85)
-      ..strokeWidth = 1.4
-      ..style = PaintingStyle.stroke;
-    const outerInset = 6.0;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(outerInset, outerInset, w - 2 * outerInset, h - 2 * outerInset),
-        const Radius.circular(8),
-      ),
-      outer,
-    );
-
-    // ─── Внутренняя золотая рамка (тоньше) ─────────────────────
-    final inner = Paint()
-      ..color = gold.withValues(alpha: 0.55)
-      ..strokeWidth = 0.6
-      ..style = PaintingStyle.stroke;
-    const innerInset = 12.0;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(innerInset, innerInset, w - 2 * innerInset, h - 2 * innerInset),
-        const Radius.circular(4),
-      ),
-      inner,
-    );
-
-    // ─── 4 угловые 8-конечные звёзды ───────────────────────────
-    const starSize = 12.0;
-    _drawEightStar(canvas, Offset(outerInset + starSize / 2, outerInset + starSize / 2), starSize, goldPaint);
-    _drawEightStar(canvas, Offset(w - outerInset - starSize / 2, outerInset + starSize / 2), starSize, goldPaint);
-    _drawEightStar(canvas, Offset(outerInset + starSize / 2, h - outerInset - starSize / 2), starSize, goldPaint);
-    _drawEightStar(canvas, Offset(w - outerInset - starSize / 2, h - outerInset - starSize / 2), starSize, goldPaint);
-
-    // ─── Центральная 8-конечная звезда внизу ───────────────────
-    //   (между номером суры и нижней рамкой)
-    const centerStarSize = 14.0;
-    _drawEightStar(
-      canvas,
-      Offset(w / 2, h - outerInset - centerStarSize / 2 - 4),
-      centerStarSize,
-      goldPaint,
-    );
-
-    // ─── Текст: арабское название суры (glyph из V2) ───────────
-    // `surahNameGlyph(surahNumber)` возвращает один символ из
-    // Private Use Area (`U+E000 + id`); рендеринг идёт через
-    // glyphFontFamily = `Surah Name V2`.
-    final namePainter = TextPainter(
-      text: TextSpan(
-        text: surahNameGlyph(surahNumber),
-        style: TextStyle(
-          fontSize: 34,
-          fontWeight: FontWeight.w700,
-          color: textColor,
-          fontFamily: glyphFontFamily,
-          height: 1.2,
-          letterSpacing: 0.5,
-        ),
-      ),
-      textDirection: TextDirection.rtl,
-      textAlign: TextAlign.center,
-    )..layout(maxWidth: w - 4 * innerInset);
-    // Название — вертикально по центру фрейма (но сдвинуто чуть
-    // выше центра, чтобы оставить место под центральную звезду).
-    final nameOffset = Offset(
-      (w - namePainter.width) / 2,
-      (h - namePainter.height) / 2 - 6,
-    );
-    namePainter.paint(canvas, nameOffset);
-
-    // ─── Номер суры арабскими цифрами + ornament `۝` ───────────
-    final numPainter = TextPainter(
-      text: TextSpan(
-        text: '۝ ${toArabicDigits(surahNumber)}',
-        style: TextStyle(
-          fontSize: 16,
-          color: gold,
-          fontFamily: quranFontFamily,
-          fontWeight: FontWeight.w600,
-          height: 1.0,
-        ),
-      ),
-      textDirection: TextDirection.rtl,
-      textAlign: TextAlign.center,
-    )..layout(maxWidth: w - 4 * innerInset);
-    final numOffset = Offset(
-      (w - numPainter.width) / 2,
-      h - outerInset - 22,
-    );
-    numPainter.paint(canvas, numOffset);
-  }
-
-  /// Рисует 8-конечную звезду (два квадрата, повёрнутых на 45°,
-  /// образуют 8 лучей) в указанной позиции.
-  ///
-  /// Используется для угловых ornament'ов и центральной звезды
-  /// в [SurahHeader] — соответствует классическим арабским
-  /// ornament'ам в печатной Mushaf.
-  void _drawEightStar(Canvas canvas, Offset center, double size, Paint paint) {
-    // 8-конечная звезда = 2 квадрата, повёрнутых на 45° относительно
-    // друг друга. Это классическая Islamic geometric ornament форма.
-    const halfDiag = 0.7071; // sqrt(2) / 2
-    final r = size * halfDiag / 2; // половина диагонали
-
-    // Квадрат 1 (горизонтально-вертикальный).
-    final path1 = Path()
-      ..moveTo(center.dx - r, center.dy - r)
-      ..lineTo(center.dx + r, center.dy - r)
-      ..lineTo(center.dx + r, center.dy + r)
-      ..lineTo(center.dx - r, center.dy + r)
-      ..close();
-    canvas.drawPath(path1, paint);
-
-    // Квадрат 2 (повёрнут на 45°).
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.rotate(0.785398); // 45° в радианах
-    final path2 = Path()
-      ..moveTo(-r, -r)
-      ..lineTo(r, -r)
-      ..lineTo(r, r)
-      ..lineTo(-r, r)
-      ..close();
-    canvas.drawPath(path2, paint);
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(_SurahHeaderFramePainter old) =>
-      old.surahNumber != surahNumber ||
-      old.glyphFontFamily != glyphFontFamily ||
-      old.quranFontFamily != quranFontFamily ||
-      old.textColor != textColor;
 }

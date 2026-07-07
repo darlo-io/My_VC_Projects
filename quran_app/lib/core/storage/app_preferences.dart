@@ -18,6 +18,8 @@ class AppPreferences {
   static const _kThemeMode = 'app.themeMode';
   static const _kCacheLimitMb = 'audio.cacheLimitMb';
   static const _kReadingMode = 'reader.readingMode';
+  static const _kUseCustomDns = 'net.useCustomDns';
+  static const _kCustomDohUrl = 'net.customDohUrl';
 
   /// Снимок всех display-настроек Reader'а в виде JSON-строки.
   /// Сюда пишет [setDisplaySettings]; на чтение — [displaySettings]
@@ -65,6 +67,35 @@ class AppPreferences {
   Future<void> setReadingMode(String v) =>
       _prefs.setString(_kReadingMode, v);
 
+  // ─── Custom DNS (Captive-bypass) ────────────────────────────────
+  //
+  // Помогает в сетях, где системный DNS-резолвер подменён
+  // (captive portal, корпоративный прокси, гостиничный Wi-Fi).
+  // Включается пользователем вручную в Settings → Audio → Custom DNS.
+  // При включении все HTTP-запросы приложения (CDN аудио,
+  // content-update, search) идут через указанный DoH-endpoint,
+  // минуя локальный DNS-резолвер Android.
+
+  /// Использовать ли пользовательский DNS-over-HTTPS.
+  /// `false` (default) — обычный системный DNS.
+  bool get useCustomDns => _prefs.getBool(_kUseCustomDns) ?? false;
+  Future<void> setUseCustomDns(bool v) =>
+      _prefs.setBool(_kUseCustomDns, v);
+
+  /// URL DoH-endpoint. Должен поддерживать Cloudflare-style
+  /// JSON API: `GET <url>?name=<host>&type=A` →
+  /// `{"Answer":[{"data":"1.2.3.4"}]}`.
+  /// Примеры: `https://1.1.1.1/dns-query`, `https://dns.google/resolve`,
+  /// `https://9.9.9.9/dns-query`. По умолчанию `null`.
+  String? get customDohUrl => _prefs.getString(_kCustomDohUrl);
+  Future<void> setCustomDohUrl(String? url) async {
+    if (url == null || url.isEmpty) {
+      await _prefs.remove(_kCustomDohUrl);
+    } else {
+      await _prefs.setString(_kCustomDohUrl, url);
+    }
+  }
+
   String? getString(String key) => _prefs.getString(key);
   Future<void> setString(String key, String value) =>
       _prefs.setString(key, value);
@@ -111,7 +142,8 @@ class AppPreferences {
   Future<void> clearAll() async {
     final keys = _prefs.getKeys().where((k) => k.startsWith('app.') ||
         k.startsWith('reader.') ||
-        k.startsWith('audio.'));
+        k.startsWith('audio.') ||
+        k.startsWith('net.'));
     for (final k in keys) {
       await _prefs.remove(k);
     }

@@ -198,6 +198,29 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settingsClearCache => 'مسح ذاكرة الصوت';
 
   @override
+  String get settingsCustomDnsTitle => 'DNS مخصص';
+
+  @override
+  String get settingsCustomDnsEnabled => 'مفعّل';
+
+  @override
+  String get settingsCustomDnsDisabled => 'معطّل (افتراضي — نظام DNS)';
+
+  @override
+  String get settingsCustomDnsHint =>
+      'استخدم DNS-over-HTTPS لتجاوز بوابات الاستضافة واعتراض DNS المؤسسي.';
+
+  @override
+  String get settingsCustomDnsUrlLabel => 'رابط DoH';
+
+  @override
+  String get settingsCustomDnsExamples =>
+      'أمثلة: https://1.1.1.1/dns-query, https://dns.google/resolve, https://9.9.9.9/dns-query';
+
+  @override
+  String get settingsCustomDnsSaved => 'تم حفظ DNS المخصص';
+
+  @override
   String get settingsAbout => 'حول التطبيق';
 
   @override

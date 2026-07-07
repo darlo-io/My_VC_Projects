@@ -7,6 +7,14 @@ class Surahs extends Table {
   TextColumn get nameEn => text().named('name_en')();
   TextColumn get nameTransliteration => text()();
   TextColumn get revelationType => text()();
+
+  /// Русское название суры (например, «Аль-Фатиха»). Nullable —
+  /// в seed-данных из `quran_full.json` его нет. Заполняется
+  /// отдельной миграцией (см. v11→v12 в `app_database.dart`).
+  TextColumn get nameRu => text().named('name_ru').nullable()();
+  /// Подзаголовок/значение на русском (например, «Открывающая»).
+  TextColumn get subtitleRu => text().named('subtitle_ru').nullable()();
+
   IntColumn get ayahCount => integer()();
   IntColumn get orderInMushaf => integer()();
 
@@ -57,13 +65,58 @@ class WordTimings extends Table {
 }
 
 /// Чтецы.
+///
+/// `id` хранит синтетический `mp3quran:<mp3quran_id>` для всех ректоров,
+/// приходящих из MP3Quran.net API через [Mp3QuranRepository.syncFromApi].
+/// Старые app-id (`ar.alafasy`, …) больше не используются — UI
+/// показывает русские/английские/арабские имена через fallback-логику.
+///
+/// Колонки `mp3quran_*` nullable: для ректоров, которых mp3quran.net
+/// не отдаёт (legacy, крайне редко после первой полной синхронизации).
 class Reciters extends Table {
   TextColumn get id => text()();
   TextColumn get slug => text()();
+
+  /// Локализованные имена чтеца. Из MP3Quran.net приходит одно
+  /// `name` за вызов; `syncFromApi` трижды дёргает `/reciters?
+  /// language=ar|ru|eng` и сливает результаты по `mp3quran_id`.
+  ///
+  /// При отображении в UI приоритет:
+  ///   ru → en → ar (по коду локали устройства).
+  ///
+  /// `nameAr` остаётся NOT NULL — mp3quran-арабское имя доступно
+  /// для всех ректоров (это «основное» имя в их системе). `nameRu`
+  /// и `nameEn` nullable, потому что mp3quran может не поддерживать
+  /// все локали для всех ректоров.
   TextColumn get nameAr => text()();
-  TextColumn get nameEn => text()();
+  TextColumn get nameRu => text().nullable()();
+  TextColumn get nameEn => text().nullable()();
   TextColumn get style => text()();
   BoolColumn get isDownloaded => boolean().withDefault(const Constant(false))();
+
+  /// Признак «избранного» — звёздочка в picker'е и быстрый доступ
+  /// через секцию «Избранные». UI синхронизирует с
+  /// [recitersRepositoryProvider.setFavorite].
+  BoolColumn get isFavorite =>
+      boolean().withDefault(const Constant(false))();
+
+  // mp3quran.net lookup. Nullable: null = ректор не найден на
+  // mp3quran.net или ещё не синхронизирован.
+  IntColumn get mp3quranId => integer().nullable()();
+  TextColumn get mp3quranServer =>
+      text().nullable()(); // e.g. "https://server8.mp3quran.net/afs/"
+  IntColumn get mp3quranMoshafId => integer().nullable()();
+  IntColumn get mp3quranSurahTotal => integer().nullable()();
+  TextColumn get mp3quranRewaya => text().nullable()(); // "Hafs A'n Assem - Murattal"
+  IntColumn get mp3quranCachedAt =>
+      integer().nullable()(); // DateTime timestamp; null = default seed
+
+  /// `moshaf_type` от MP3Quran (`moshaf[0].moshaf_type`). Используется
+  /// для определения «битрейта» в UI: типы 116/120/124 — Hafs, тип 51 —
+  /// Mujawwad, и т.д. Конкретное значение kbps mp3quran.net в URL не
+  /// отдаёт, но пути вида `/quran/audio/128/...` всегда 128 kbps, так что
+  /// для отображения показываем «128 kbps» с уточнением реваята.
+  IntColumn get mp3quranMoshafType => integer().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -207,4 +260,41 @@ class SettingsEntries extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {key};
+}
+
+/// Телеметрия аудио-прослушивания (master plan §4.4 + §11). Одна
+/// запись на сессию: открывается в `AudioPlayerController.play(...)`,
+/// закрывается на `stop`/смене суры/длинной паузе.
+///
+/// Retention: старше 90 дней подчищается [workmanager]-таском (см.
+/// follow-up). Размер строки держим компактным: только то, что
+/// потом пригодится Phase 2 (Statistics).
+@DataClassName('PlaybackSession')
+class PlaybackSessions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get reciterId => text()();
+  IntColumn get surahId => integer().references(Surahs, #id)();
+  IntColumn get ayahStart => integer()();
+
+  /// Nullable: на момент `open()` ещё неизвестен — заполняется в
+  /// [PlaybackSessionsDao.close]. Использовать `closeReason='pending'`
+  /// как индикатор того, что сессия ещё не закрыта.
+  IntColumn get ayahEnd => integer().nullable()();
+
+  /// UTC, для кросс-часовых поясов (отображается через `intl`).
+  DateTimeColumn get startedAt => dateTime()();
+
+  /// Nullable — на момент `open()` равно `startedAt`, обновляется в
+  /// `close()`. `closeReason='pending'` ⇔ `endedAt == startedAt`.
+  DateTimeColumn get endedAt => dateTime().nullable()();
+
+  /// Длительность фактического воспроизведения (исключая паузы).
+  /// `ended - started` даст wall-clock, `durationPlayedMs` —
+  /// фактическое время в режиме play.
+  IntColumn get durationPlayedMs => integer().withDefault(const Constant(0))();
+
+  /// Причина закрытия: `pending` / `stop` / `surah_change` /
+  /// `pause_timeout` / `pause` / `app_exit`. Полезно для агрегации
+  /// в Phase 2 / Statistics.
+  TextColumn get closeReason => text().withDefault(const Constant('pending'))();
 }

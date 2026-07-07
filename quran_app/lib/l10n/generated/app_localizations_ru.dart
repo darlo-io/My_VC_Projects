@@ -196,6 +196,30 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsClearCache => 'Очистить аудио-кеш';
 
   @override
+  String get settingsCustomDnsTitle => 'Свой DNS';
+
+  @override
+  String get settingsCustomDnsEnabled => 'Включён';
+
+  @override
+  String get settingsCustomDnsDisabled =>
+      'Выключен (по умолчанию — системный DNS)';
+
+  @override
+  String get settingsCustomDnsHint =>
+      'DNS-over-HTTPS — обход captive portal и подмены DNS в корпоративных/гостиничных сетях.';
+
+  @override
+  String get settingsCustomDnsUrlLabel => 'URL DoH';
+
+  @override
+  String get settingsCustomDnsExamples =>
+      'Примеры: https://1.1.1.1/dns-query, https://dns.google/resolve, https://9.9.9.9/dns-query';
+
+  @override
+  String get settingsCustomDnsSaved => 'Custom DNS сохранён';
+
+  @override
   String get settingsAbout => 'О приложении';
 
   @override

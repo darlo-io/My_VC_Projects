@@ -430,6 +430,48 @@ abstract class AppLocalizations {
   /// **'Clear audio cache'**
   String get settingsClearCache;
 
+  /// No description provided for @settingsCustomDnsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom DNS'**
+  String get settingsCustomDnsTitle;
+
+  /// No description provided for @settingsCustomDnsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get settingsCustomDnsEnabled;
+
+  /// No description provided for @settingsCustomDnsDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Off (default — system DNS)'**
+  String get settingsCustomDnsDisabled;
+
+  /// No description provided for @settingsCustomDnsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use DNS-over-HTTPS to bypass captive portals and corporate DNS hijack. Recommended in hotel / café Wi-Fi.'**
+  String get settingsCustomDnsHint;
+
+  /// No description provided for @settingsCustomDnsUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'DoH URL'**
+  String get settingsCustomDnsUrlLabel;
+
+  /// No description provided for @settingsCustomDnsExamples.
+  ///
+  /// In en, this message translates to:
+  /// **'Examples: https://1.1.1.1/dns-query, https://dns.google/resolve, https://9.9.9.9/dns-query'**
+  String get settingsCustomDnsExamples;
+
+  /// No description provided for @settingsCustomDnsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom DNS saved'**
+  String get settingsCustomDnsSaved;
+
   /// No description provided for @settingsAbout.
   ///
   /// In en, this message translates to:

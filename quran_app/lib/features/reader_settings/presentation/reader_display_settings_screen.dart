@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+
+import '../../../../app/router/safe_pop.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -87,7 +88,7 @@ class _ReaderDisplaySettingsScreenState
     // пересчитывать).
     await ref.read(displaySettingsProvider.notifier).set(_draft);
     if (!mounted) return;
-    context.pop();
+    safePop(context);
   }
 
   Future<void> _resetToDefaults() async {
@@ -125,7 +126,7 @@ class _ReaderDisplaySettingsScreenState
       final discard = await _confirmDiscard();
       if (!discard) return;
     }
-    if (mounted) context.pop();
+    if (mounted) safePop(context);
   }
 
   @override

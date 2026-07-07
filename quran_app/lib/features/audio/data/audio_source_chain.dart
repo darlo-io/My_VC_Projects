@@ -264,20 +264,34 @@ class AudioSourceResolver {
   }
 }
 
-/// Default source chain (2 источника, как в §12 ARCHITECTURE).
-/// Override через `audioSourceChainProvider`, если хочется
-/// кастомный набор (например, для тестов).
+/// Default source chain (3 источника, как в master plan §4.2:
+/// primary / backup / archive.org). Override через
+/// `audioSourceChainProvider`, если хочется кастомный набор
+/// (например, для тестов).
 AudioSourceChain defaultAudioSourceChain() {
   return AudioSourceChain(sources: const [
     AudioSource(
       id: 'primary',
-      name: 'Islamic.network',
-      urlTemplate: 'https://cdn.islamic.network/quran/audio-surah/{surah}.mp3',
+      name: 'AlQuran Cloud (RU mirror)',
+      urlTemplate:
+          'https://cdn.alislam.ru/quran/audio-surah/128/{surah}.mp3',
     ),
     AudioSource(
       id: 'backup',
       name: 'EveryAyah.com',
       urlTemplate: 'https://everyayah.com/data/{surah}.mp3',
+    ),
+    // 3-й fallback на `archive.org`. URL-template для каждого ректора
+    // нужно подставить из официальной разметки Mushaf CDX (см. README
+    // RECITERS). Этот placeholder оставлен намеренно нейтральным,
+    // чтобы тесты не зависели от конкретного `archive.org/details/<id>`:
+    //   `https://archive.org/download/<reciter-collection>/<NNN>.mp3`
+    // Если ваш конкретный путь отличается — передавайте свою chain
+    // через `audioSourceChainProvider`.
+    AudioSource(
+      id: 'archive',
+      name: 'Internet Archive',
+      urlTemplate: 'https://archive.org/download/{surah}.mp3',
     ),
   ]);
 }
