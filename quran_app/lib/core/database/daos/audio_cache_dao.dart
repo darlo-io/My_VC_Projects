@@ -56,4 +56,18 @@ class AudioCacheDao extends DatabaseAccessor<AppDatabase>
       readsFrom: {audioCacheMetadata},
     ).watchSingle().map((r) => r.read<int>('s'));
   }
+
+  /// Стрим ID ректоров, для которых скачаны **все** суры (>= [totalSurahs]
+  /// MP3). Используется в picker'е для иконки «загружено» / «загрузить».
+  /// Пустой Set если ни один ректор не имеет полного кеша.
+  Stream<Set<String>> watchFullyCachedReciters({int totalSurahs = 114}) {
+    return customSelect(
+      'SELECT reciter_id FROM audio_cache_metadata '
+      'GROUP BY reciter_id HAVING COUNT(DISTINCT surah_id) >= ?',
+      variables: [Variable.withInt(totalSurahs)],
+      readsFrom: {audioCacheMetadata},
+    ).watch().map(
+          (rows) => rows.map((r) => r.read<String>('reciter_id')).toSet(),
+        );
+  }
 }

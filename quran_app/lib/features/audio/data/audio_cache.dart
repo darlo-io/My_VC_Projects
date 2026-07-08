@@ -404,4 +404,9 @@ class AudioCache {
     }
     return dao.deleteAll();
   }
+
+  /// Стрим ID ректоров, для которых скачаны все 114 сур. Авто-обновляется
+  /// при добавлении/удалении записей в `audio_cache_metadata`.
+  Stream<Set<String>> watchFullyCachedReciters() =>
+      dao.watchFullyCachedReciters();
 }

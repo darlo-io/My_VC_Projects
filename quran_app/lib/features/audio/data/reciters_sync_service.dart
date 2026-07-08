@@ -145,13 +145,17 @@ class RecitersSyncService {
     );
     try {
       final n = await _repo.syncFromApi();
+      // Дополнительно исправляем nameRu в БД для существующих
+      // записей (override + fallback на nameEn для сломанных
+      // значений вроде «Мшари Аль Ифаси» от id=123).
+      final fixed = await _repo.applyNameOverrides();
       state.value = RecitersSyncState(
         stage: RecitersSyncStage.completed,
         lastSyncedAt: DateTime.now(),
         insertedCount: n,
       );
       developer.log(
-        'reciters sync: completed, inserted=$n',
+        'reciters sync: completed, inserted=$n, nameOverrides applied=$fixed',
         name: 'reciters_sync',
       );
     } catch (e, st) {

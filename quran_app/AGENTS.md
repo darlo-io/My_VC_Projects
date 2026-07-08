@@ -8,8 +8,9 @@ The `flutter-skill` MCP server at `tools/flutter-skill-patched/` is a patched co
 
 - Config: `.kilo/kilo.jsonc` → `mcp.flutter-skill.command = ["node", "tools/flutter-skill-patched/bin/cli.js", "server"]`
 - Permission: global `C:\Users\007\.config\kilo\kilo.jsonc` → `permission.flutter_skill_* = "allow"`
+- **Глобальный `mcp.flutter-skill` отключён** (`enabled: false`) в `C:\Users\007\.config\kilo\kilo.jsonc` — он указывал на непропатченный `flutter-skill server` из PATH и конфликтовал с проектной записью. Только проектный `.kilo/kilo.jsonc` → `tools/flutter-skill-patched/` используется.
 
-### Patches applied (5 bugs in upstream 0.9.36)
+### Patches applied (6 bugs in upstream 0.9.36)
 
 | Bug | File | Fix |
 |---|---|---|
@@ -18,6 +19,7 @@ The `flutter-skill` MCP server at `tools/flutter-skill-patched/` is a patched co
 | Wrong package name in entry-point import | `dart/bin/server.dart` | `package:flutter_skill` → `package:flutter_skill_npm` |
 | `Process.start('flutter')` fails (no `flutter.exe`, only `.bat`) | `dart/lib/src/cli/server.dart`, `dart/lib/src/cli/launch.dart` | `runInShell: true` |
 | URI regex drops the `=` token char | `dart/lib/src/cli/server.dart` | `[a-zA-Z0-9.:/-]+` → `[a-zA-Z0-9.:/=_\-?&#]+` |
+| 0-byte stub respawn defense (Windows `spawn()` → `EFTYPE`) | `bin/cli.js` (`main()`, перед `runNativeBinary`) | `if (statSync(path).size === 0) { unlinkSync; runWithDart(); }` — теперь stub не валит MCP, а тихо удаляется и идёт Dart-fallback |
 
 ### Maintenance
 

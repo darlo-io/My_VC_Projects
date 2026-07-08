@@ -85,6 +85,18 @@ async function main() {
 
   // Try to use existing native binary
   if (localBinaryPath && fs.existsSync(localBinaryPath)) {
+    // Defend against 0-byte stubs left behind by a failed postinstall
+    // download (HTTP non-2xx leaves the WriteStream open file empty).
+    // Windows spawn() then crashes with EFTYPE. Delete and fall back.
+    try {
+      const sz = fs.statSync(localBinaryPath).size;
+      if (sz === 0) {
+        console.error('[flutter-skill] Empty native binary found, removing and using Dart runtime');
+        try { fs.unlinkSync(localBinaryPath); } catch (_) {}
+        runWithDart();
+        return;
+      }
+    } catch (_) {}
     // Always ensure the execute bit is set before spawning.
     // postinstall chmodSync can silently fail on some npm configurations
     // (e.g. restricted sandbox, npm run as root on certain macOS setups),

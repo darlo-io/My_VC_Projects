@@ -16,6 +16,7 @@ import '../database/daos/surah_dao.dart';
 import '../database/daos/translation_dao.dart';
 import '../database/daos/word_timings_dao.dart';
 import '../database/daos/words_dao.dart';
+import '../database/surah_ru_names.dart';
 import '../search/arabic_normalizer.dart';
 import 'content_manifest.dart';
 import 'content_update_service.dart';
@@ -86,6 +87,14 @@ class ContentBootstrapper {
         progress.value = const BootstrapProgress.loadingLocal();
         final result = await localSeed.load();
         await _applyLocalSeed(result, payloadSha256: await _sha256OfAsset());
+      } else {
+        // Repair-pass: на старых install'ах v11→v12 backfill отработал
+        // вхолостую (таблица surahs была ещё пуста на момент миграции),
+        // и `name_ru`/`subtitle_ru` остались NULL. Заполняем
+        // идемпотентно из констант — один UPDATE на колонку. Это
+        // срабатывает один раз на «починенном» устройстве, на
+        // следующих запусках — no-op (rows already set).
+        await _backfillMissingRussianSurahNames();
       }
       progress.value = const BootstrapProgress.complete(offline: true);
     } else {
@@ -146,6 +155,30 @@ class ContentBootstrapper {
     }
   }
 
+  /// Repair-pass: заполняет `name_ru`/`subtitle_ru` для строк,
+  /// у которых они NULL. Идемпотентно — UPDATE с `WHERE col IS NULL`
+  /// ничего не меняет, если данные уже есть. Нужно для устройств,
+  /// которые установили v12 до того, как мы начали заполнять русские
+  /// имена при bootstrap'е (см. `_applyLocalSeed`).
+  Future<void> _backfillMissingRussianSurahNames() async {
+    for (var i = 1; i <= 114; i++) {
+      final name = kSurahRuNames[i];
+      if (name != null) {
+        await db.customStatement(
+          'UPDATE surahs SET name_ru = ? WHERE id = ? AND name_ru IS NULL',
+          [name, i],
+        );
+      }
+      final sub = kSurahRuSubtitles[i];
+      if (sub != null) {
+        await db.customStatement(
+          'UPDATE surahs SET subtitle_ru = ? WHERE id = ? AND subtitle_ru IS NULL',
+          [sub, i],
+        );
+      }
+    }
+  }
+
   /// SHA256 hex-хеш `assets/quran_seed/quran_full.json` (payload,
   /// который зовётся [LocalSeedService.load]). Вызывается перед
   /// [_applyLocalSeed] — хеш сохраняется в manifest
@@ -186,16 +219,28 @@ class ContentBootstrapper {
       await surahDao.insertAll(
         result.surahs
             .map(
-              (s) => SurahsCompanion.insert(
-                id: Value(s['number'] as int),
-                nameAr: (s['name'] as String?) ?? '',
-                nameEn: (s['englishName'] as String?) ?? '',
-                nameTransliteration:
-                    (s['englishNameTranslation'] as String?) ?? '',
-                revelationType: (s['revelationType'] as String?) ?? '',
-                ayahCount: s['numberOfAyahs'] as int,
-                orderInMushaf: s['number'] as int,
-              ),
+              (s) {
+                final number = s['number'] as int;
+                return SurahsCompanion.insert(
+                  id: Value(number),
+                  nameAr: (s['name'] as String?) ?? '',
+                  nameEn: (s['englishName'] as String?) ?? '',
+                  nameTransliteration:
+                      (s['englishNameTranslation'] as String?) ?? '',
+                  revelationType: (s['revelationType'] as String?) ?? '',
+                  ayahCount: s['numberOfAyahs'] as int,
+                  orderInMushaf: number,
+                  // `quran_full.json` не содержит русских имён
+                  // (источник: alquran.cloud API), поэтому миграция
+                  // v11→v12 backfill отрабатывает вхолостую — таблица
+                  // ещё пуста на момент её выполнения. Заполняем
+                  // здесь, прямо при bootstrap'е. Идемпотентно:
+                  // insertAll использует `ON CONFLICT REPLACE`,
+                  // повторный запуск обновит значения, не дублируя.
+                  nameRu: Value(kSurahRuNames[number]),
+                  subtitleRu: Value(kSurahRuSubtitles[number]),
+                );
+              },
             )
             .toList(),
       );

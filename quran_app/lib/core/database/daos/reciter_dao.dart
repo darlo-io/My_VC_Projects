@@ -173,4 +173,12 @@ class ReciterDao extends DatabaseAccessor<AppDatabase>
       ),
     );
   }
+
+  /// Обновляет только [nameRu] для одной записи (используется
+  /// в [RecitersRepository.applyNameOverrides] для fix-up).
+  Future<int> updateNameRu(String id, String newNameRu) {
+    return (update(reciters)..where((r) => r.id.equals(id))).write(
+      RecitersCompanion(nameRu: Value(newNameRu)),
+    );
+  }
 }

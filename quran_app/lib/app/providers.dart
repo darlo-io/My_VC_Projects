@@ -38,6 +38,7 @@ import '../core/networking/doh_resolver.dart';
 import '../core/storage/app_preferences.dart';
 import '../features/audio/data/audio_cache.dart';
 import '../features/audio/data/audio_player_controller.dart';
+import '../features/audio/data/reciter_download_controller.dart';
 import '../features/audio/data/reciters_repository.dart';
 import '../features/audio/data/reciters_sync_service.dart';
 
@@ -481,6 +482,26 @@ final audioCacheProvider = Provider<AudioCache>(
     // SharedPreferences в audio-подсистеме.
     prefs: ref.watch(appPreferencesProvider),
   ),
+);
+
+/// Стрим ID ректоров, у которых скачаны все 114 MP3.
+/// Используется в reciter picker'е для иконки «полностью загружен».
+final fullyCachedRecitersProvider = StreamProvider<Set<String>>(
+  (ref) => ref.watch(audioCacheProvider).watchFullyCachedReciters(),
+);
+
+/// Контроллер фоновой загрузки всех MP3 для ректора (prefetch all).
+/// Singleton, один слот — см. [ReciterDownloadController].
+final reciterDownloadControllerProvider =
+    StateNotifierProvider<ReciterDownloadController, ReciterDownloadState>(
+  (ref) {
+    final controller = ReciterDownloadController(
+      cache: ref.watch(audioCacheProvider),
+      reciters: ref.watch(recitersRepositoryProvider),
+    );
+    ref.onDispose(controller.cancel);
+    return controller;
+  },
 );
 
 final audioPlayerControllerProvider =

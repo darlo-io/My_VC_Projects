@@ -180,21 +180,22 @@ String _displayNameForLocale(Reciter r, Locale locale) {
   return r.nameAr;
 }
 
-/// Subtitle: либо арабское имя (если оно отличается от displayName),
-/// либо информация о rewaya / slug.
+/// Subtitle: сначала rewaya (короткая форма) — это disambiguator
+/// для ректоров с одинаковыми именами, потом арабское/английское
+/// имя, потом slug.
 String _subtitleForLocale(Reciter r, Locale locale) {
   final isRu = locale.languageCode.toLowerCase() == 'ru';
   final display = _displayNameForLocale(r, locale);
+  final rewaya = shortRewaya(r.mp3quranRewaya);
+  if (rewaya != null && rewaya.isNotEmpty) return rewaya;
   String? native;
   if (isRu) {
-    // На русском показываем оригинал (английский/арабский) как подсказку
     native = (r.nameEn != null && r.nameEn != display) ? r.nameEn : r.nameAr;
   } else {
-    // На других — арабский как «аутентичное» имя
     native = (r.nameAr != display) ? r.nameAr : r.nameEn;
   }
   if (native != null && native.isNotEmpty) return native;
-  return r.mp3quranRewaya ?? r.slug;
+  return r.slug;
 }
 
 /// Tile одного ректора в списке выбора.
