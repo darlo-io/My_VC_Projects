@@ -10,12 +10,16 @@ class AudioCacheDao extends DatabaseAccessor<AppDatabase>
     with _$AudioCacheDaoMixin {
   AudioCacheDao(super.db);
 
-  Future<AudioCacheMetadatum?> findByKey(String reciterId, int surahId) =>
-      (select(audioCacheMetadata)
-            ..where(
-              (r) => r.reciterId.equals(reciterId) & r.surahId.equals(surahId),
-            ))
-          .getSingleOrNull();
+  Future<AudioCacheMetadatum?> findByKey(String reciterId, int surahId) async {
+    final row = await (select(audioCacheMetadata)
+          ..where(
+            (r) => r.reciterId.equals(reciterId) & r.surahId.equals(surahId),
+          ))
+        .getSingleOrNull();
+    // ignore: avoid_print
+    print('audio_cache.findByKey($reciterId, $surahId) = ${row?.id}');
+    return row;
+  }
 
   Future<void> insert(AudioCacheMetadatum data) =>
       into(audioCacheMetadata).insertOnConflictUpdate(data);
@@ -59,15 +63,100 @@ class AudioCacheDao extends DatabaseAccessor<AppDatabase>
 
   /// Стрим ID ректоров, для которых скачаны **все** суры (>= [totalSurahs]
   /// MP3). Используется в picker'е для иконки «загружено» / «загрузить».
-  /// Пустой Set если ни один ректор не имеет полного кеша.
+  ///
+  /// Под капотом: `customSelect` с `SELECT reciter_id AS r ... GROUP BY
+  /// reciter_id HAVING COUNT(DISTINCT surah_id) >= ?`. Возвращает строки
+  /// с одной колонкой `r` (string), маппим в Set.
+  ///
+  /// Исторически баг был из-за column alias'а `AS reciter_id` — Drift
+  /// мапил её как `reciter_id` напрямую, а не `r`, поэтому
+  /// `r.read<String>('r')` возвращал null. Сейчас alias'а нет —
+  /// читаем напрямую по column name (он без AS = column name из SQL).
   Stream<Set<String>> watchFullyCachedReciters({int totalSurahs = 114}) {
     return customSelect(
-      'SELECT reciter_id FROM audio_cache_metadata '
-      'GROUP BY reciter_id HAVING COUNT(DISTINCT surah_id) >= ?',
+      'SELECT reciter_id, COUNT(DISTINCT surah_id) AS cnt '
+      'FROM audio_cache_metadata '
+      'GROUP BY reciter_id '
+      'HAVING COUNT(DISTINCT surah_id) >= ?',
       variables: [Variable.withInt(totalSurahs)],
       readsFrom: {audioCacheMetadata},
-    ).watch().map(
-          (rows) => rows.map((r) => r.read<String>('reciter_id')).toSet(),
-        );
+    ).watch().map((rows) {
+      // ignore: avoid_print
+      print('audio_cache.watchFullyCachedReciters fired with ${rows.length} rows: '
+          '${rows.map((r) => r.read<String>('reciter_id')).toList()}');
+      return rows
+          .map((r) => r.read<String>('reciter_id'))
+          .where((s) => s != null)
+          .cast<String>()
+          .toSet();
+    });
+  }
+
+  /// True если сура [surahId] для ректора [reciterId] уже скачана
+  /// и её метаданные записаны в `audio_cache_metadata`. Используется
+  /// в prefetch'е для пропуска уже закешированных файлов.
+  Future<bool> isCached({required String reciterId, required int surahId}) async {
+    // Сначала замерим TOTAL — если все запросы возвращают одинаковое
+    // число, значит WHERE игнорируется.
+    final total = await customSelect(
+      'SELECT COUNT(*) AS c FROM audio_cache_metadata',
+      readsFrom: {audioCacheMetadata},
+    ).getSingle();
+    final totalCount = total.read<int>('c');
+
+    // Теперь с WHERE.
+    final row = await customSelect(
+      'SELECT COUNT(*) AS cnt FROM audio_cache_metadata '
+      'WHERE reciter_id = ? AND surah_id = ?',
+      variables: [Variable.withString(reciterId), Variable.withInt(surahId)],
+      readsFrom: {audioCacheMetadata},
+    ).getSingle();
+    final n = row.read<int>('cnt');
+    // ignore: avoid_print
+    print('audio_cache.isCached($reciterId, $surahId) raw cnt=$n total=$totalCount');
+    return n > 0;
+  }
+
+  /// `INSERT OR REPLACE` через raw SQL.
+  ///
+  /// Заменил `into(audioCacheMetadata).insertOnConflictUpdate(data)`
+  /// с `data.id: 0` — он не работал под параллельным prefetch'ом:
+  /// SQLite `AUTOINCREMENT` трактует 0 как литерал 0 (а не NULL/auto)
+  /// и второй параллельный INSERT для другого (reciter_id, surah_id)
+  /// мог конфликтовать с уже-вставленным id=0 (PK = id, autoIncrement
+  /// накладывает дополнительные ограничения). В итоге 0 строк в БД
+  /// при 100+ файлах на диске.
+  ///
+  /// `INSERT OR REPLACE` решает:
+  ///   1) На конфликте UNIQUE(reciter_id, surah_id) SQLite сам
+  ///      удалит старую строку и вставит новую — никаких manual
+  ///      `id` или autoIncrement-quirks.
+  ///   2) Атомарно, без гонок с другими writers.
+  ///   3) Работает под `BEGIN IMMEDIATE`-транзакцией для in-flight
+  ///      serializability.
+  Future<void> upsertCacheEntry({
+    required String reciterId,
+    required int surahId,
+    required String filePath,
+    required int fileSizeBytes,
+    DateTime? downloadedAt,
+    DateTime? lastPlayedAt,
+  }) {
+    final now = DateTime.now();
+    return customInsert(
+      'INSERT OR REPLACE INTO audio_cache_metadata '
+      '(reciter_id, surah_id, file_path, file_size_bytes, '
+      ' downloaded_at, last_played_at) '
+      'VALUES (?, ?, ?, ?, ?, ?)',
+      variables: [
+        Variable.withString(reciterId),
+        Variable.withInt(surahId),
+        Variable.withString(filePath),
+        Variable.withInt(fileSizeBytes),
+        Variable.withDateTime(downloadedAt ?? now),
+        Variable.withDateTime(lastPlayedAt ?? now),
+      ],
+      updates: {audioCacheMetadata},
+    );
   }
 }

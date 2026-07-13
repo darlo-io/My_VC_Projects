@@ -6,18 +6,92 @@ on:
   pull_request:
     branches: [main]
 
+# Отменяем предыдущий in-flight run на новый push в ту же ветку.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  analyze-and-test:
+    name: analyze · test · build APK
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: quran_app
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.0'
+          flutter-version: '3.44.3'
+          channel: stable
+          cache: true
+
+      - name: Print Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Кэш build/ для ускорения incremental-билдов (Drift, codegen).
+      - name: Cache .dart_tool/
+        uses: actions/cache@v4
+        with:
+          path: |
+            .dart_tool/
+            .packages
+          key: ${{ runner.os }}-dart-tool-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-dart-tool-
+
+      - name: Generate Drift / localizations
+        run: |
+          dart run build_runner build --delete-conflicting-outputs
+          flutter gen-l10n
+
+      - name: Analyze (warnings = errors)
+        # AGP 9 + Flutter 3.44 incompatibility — Flutter покажет false-positive
+        # warning. Используем || true чтобы не ломать pipeline, но фактические
+        # ошибки lint'ов упадут через exit code.
+        run: flutter analyze --no-fatal-infos --fatal-infos --fatal-warnings
+
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib/ test/
+
+      - name: Run tests
+        run: flutter test --coverage
+        env:
+          CI: true
+
+      - name: Build APK (debug, smoke)
+        run: flutter build apk --debug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
+
+      - name: Upload coverage
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage/lcov.info
+          retention-days: 14
+
+  build-release:
+    name: build release APK
+    # Только при push в main, не на каждый PR (медленно).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: analyze-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.3'
           channel: stable
           cache: true
 
@@ -29,11 +103,12 @@ jobs:
           dart run build_runner build --delete-conflicting-outputs
           flutter gen-l10n
 
-      - name: Analyze
-        run: flutter analyze --no-fatal-infos
+      - name: Build release APK
+        run: flutter build apk --release
 
-      - name: Test
-        run: flutter test
-
-      - name: Build APK (debug, smoke)
-        run: flutter build apk --debug
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30

@@ -142,6 +142,12 @@ abstract class AppLocalizations {
   /// **'Listen'**
   String get navListen;
 
+  /// No description provided for @navListenSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen to the Quran with the best reciters'**
+  String get navListenSubtitle;
+
   /// No description provided for @navLearn.
   ///
   /// In en, this message translates to:

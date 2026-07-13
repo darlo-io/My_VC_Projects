@@ -9,6 +9,7 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import '../../features/audio/data/reciters_repository.dart';
 import '../../features/audio/data/reciters_sync_service.dart';
+import '../../features/audio/data/audio_cache.dart';
 import '../../features/quran/data/al_fatiha_seed.dart';
 import '../database/app_database.dart';
 import '../database/daos/ayah_dao.dart';
@@ -52,6 +53,12 @@ class ContentBootstrapper {
   /// [contentBootstrapperProvider]) — иначе fallback к
   /// `downloader.downloadAll()` без проверки.
   ContentUpdateService? contentUpdateService;
+
+  /// Опциональный [AudioCache] для self-heal'а на bootstrap'е:
+  /// просканировать `app_flutter/audio_cache/` и зарегистрировать
+  /// файлы, у которых нет строки в `audio_cache_metadata`. Передаётся
+  /// через DI.
+  AudioCache? audioCache;
 
   /// Опциональный [RecitersSyncService] для фоновой синхронизации
   /// списка чтецов с mp3quran.net после bootstrap. Если не передан —
@@ -131,6 +138,20 @@ class ContentBootstrapper {
         _safeRun(
           () => recitersSyncService!.maybeSync(),
           name: 'reciters background sync',
+        ),
+      );
+    }
+
+    // 2c) Self-heal: просканировать `app_flutter/audio_cache/`
+    // и зарегистрировать в БД файлы, у которых нет строки в
+    // `audio_cache_metadata` (старый баг с `id: 0` в `_register`
+    // оставлял файлы на диске без DB-записи). Без этого `isCached`
+    // возвращал false и плеер качал заново уже-имеющееся.
+    if (audioCache != null) {
+      unawaited(
+        _safeRun(
+          () => audioCache!.rebuildMissingFromDisk(),
+          name: 'audio cache rebuild',
         ),
       );
     }

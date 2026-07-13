@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 
-import 'package:flutter_skill/flutter_skill.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,9 +11,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
 import 'app/providers.dart';
+import 'core/observability/sentry_bootstrap.dart';
 import 'features/audio/data/quran_audio_handler.dart';
 
 Future<void> main() async {
+  // Sentry init ДО WidgetsFlutterBinding — чтобы caught errors
+  // в platform channels тоже попадали в Sentry. Без DSN — no-op.
+  await SentryBootstrap.init();
+
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -95,7 +100,6 @@ Future<void> main() async {
   // resolves) but before runApp, so the initial PlaybackState is already
   // broadcast by the time the first widget listens.
   handler.attach(container.read(audioPlayerControllerProvider.notifier));
-  FlutterSkillBinding.ensureInitialized();	
 
   runApp(
     UncontrolledProviderScope(

@@ -30,6 +30,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get navListen => 'Слушать';
 
   @override
+  String get navListenSubtitle => 'Слушайте Коран с лучшими чтецами';
+
+  @override
   String get navLearn => 'Учить';
 
   @override

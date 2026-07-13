@@ -6,7 +6,6 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../../core/database/app_database.dart';
 import '../../../core/database/daos/audio_cache_dao.dart';
 import '../../../core/storage/app_preferences.dart';
 
@@ -226,7 +225,19 @@ class AudioCache {
       }
       rethrow;
     }
-    await _register(reciterId, surah, file);
+    // Регистрация в `audio_cache_metadata` — НЕ критична для
+    // самого факта скачивания (файл уже на диске, плеер его
+    // найдёт в следующий раз через `_touchPlayed` → `_register`).
+    // Если INSERT падает (concurrent write race в Drift под
+    // параллельным prefetch'ом), не должно валить весь worker —
+    // иначе один сбой БД-транзакции обнулит весь prefetch и юзер
+    // увидит «ничего не скачалось», хотя файлы реально лежат.
+    try {
+      await _register(reciterId, surah, file);
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('audio_cache._register failed for $reciterId/$surah: $e\n$st');
+    }
     // Eviction ВСЕГДА (не только при `maxBytesOverride`):
     // раньше eviction вызывался только из Settings, что
     // позволяло кешу расти неограниченно.
@@ -304,22 +315,27 @@ class AudioCache {
 
   Future<void> _register(String reciterId, int surah, File file) async {
     final size = await file.length();
-    await dao.insert(
-      AudioCacheMetadatum(
-        id: 0, // autoIncrement подставит реальный id
+    // ignore: avoid_print
+    print('audio_cache: _register $reciterId/$surah size=$size');
+    try {
+      await dao.upsertCacheEntry(
         reciterId: reciterId,
         surahId: surah,
         filePath: file.path,
         fileSizeBytes: size,
-        downloadedAt: DateTime.now(),
-        lastPlayedAt: DateTime.now(),
-      ),
-    );
+      );
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('audio_cache: _register FAILED for $reciterId/$surah: $e\n$st');
+      rethrow;
+    }
   }
 
   Future<void> _touchPlayed(String reciterId, int surah, File file) async {
     final existing = await dao.findByKey(reciterId, surah);
     if (existing == null) {
+      // ignore: avoid_print
+      print('audio_cache: _touchPlayed MISS for $reciterId/$surah, registering');
       await _register(reciterId, surah, file);
     } else {
       await dao.touchPlayed(existing.id, DateTime.now());
@@ -405,8 +421,152 @@ class AudioCache {
     return dao.deleteAll();
   }
 
+  /// Self-heal: просканировать `app_flutter/audio_cache/` и
+  /// зарегистрировать в БД все валидные MP3, которых там нет.
+  /// Запускается на bootstrap'е, чтобы восстановить консистентность
+  /// после старых багов (файлы скачались, но INSERT
+  /// `audio_cache_metadata` упал под concurrent write race в
+  /// старой версии с `id: 0`).
+  ///
+  /// Возвращает число восстановленных записей.
+  Future<int> rebuildMissingFromDisk() async {
+    final root = await _ensureRoot();
+    if (!root.existsSync()) {
+      // ignore: avoid_print
+      print('audio_cache.rebuild: root does not exist: ${root.path}');
+      return 0;
+    }
+    // ignore: avoid_print
+    print('audio_cache.rebuild: root=${root.path}');
+    var restored = 0;
+    var scanned = 0;
+    var skipped = 0;
+    // Один прогон по всем reciter-подкаталогам + 114 файлов в каждом.
+    // Стоимость: ~570 stat'ов на 5 ректоров, 10-50мс в сумме.
+    final subdirs = root.listSync().whereType<Directory>().toList();
+    // ignore: avoid_print
+    print('audio_cache.rebuild: found ${subdirs.length} reciter dirs');
+    for (final sub in subdirs) {
+      final reciterId = sub.path.split(p.separator).last;
+      // reciterId типа 'mp3quran_112' → 'mp3quran:112'
+      final canonicalId = reciterId.replaceFirst('_', ':');
+      final files = sub.listSync().whereType<File>().toList();
+      for (final file in files) {
+        if (!file.path.endsWith('.mp3')) continue;
+        if (!_isLikelyValidMedia(file)) {
+          skipped++;
+          continue;
+        }
+        final surah = int.tryParse(
+          p.basename(file.path).replaceAll('.mp3', ''),
+        );
+        if (surah == null) continue;
+        scanned++;
+        if (await dao.isCached(reciterId: canonicalId, surahId: surah)) {
+          continue;
+        }
+        try {
+          final size = await file.length();
+          await dao.upsertCacheEntry(
+            reciterId: canonicalId,
+            surahId: surah,
+            filePath: file.path,
+            fileSizeBytes: size,
+            // back-dating: файлы могли быть скачаны давно
+            downloadedAt: DateTime.now(),
+            lastPlayedAt: DateTime.now(),
+          );
+          restored++;
+        } catch (e) {
+          // ignore: avoid_print
+          print('audio_cache.rebuild: failed $file: $e');
+        }
+      }
+    }
+    // ignore: avoid_print
+    print('audio_cache.rebuild: scanned=$scanned skipped_invalid=$skipped restored=$restored');
+    return restored;
+  }
+
   /// Стрим ID ректоров, для которых скачаны все 114 сур. Авто-обновляется
   /// при добавлении/удалении записей в `audio_cache_metadata`.
   Stream<Set<String>> watchFullyCachedReciters() =>
       dao.watchFullyCachedReciters();
+
+  /// `true` если сура [surah] для ректора [reciterId] уже скачана.
+  /// Используется в [ReciterDownloadController] для skip'а уже
+  /// закешированных сур.
+  Future<bool> isCached({required String reciterId, required int surah}) =>
+      dao.isCached(reciterId: reciterId, surahId: surah);
+
+  /// Prefetch-вариант `getOrDownload` — НЕ запускает `evictIfNeeded`.
+  /// Eviction теперь single-shot после prefetch'а (см.
+  /// [ReciterDownloadController]), чтобы eviction не выкидывал
+  /// только-что-вставленные строки других workers.
+  Future<File> getOrDownloadNoEvict({
+    required String reciterId,
+    required int surah,
+    required String url,
+    CancelToken? cancelToken,
+  }) async {
+    final key = _key(reciterId, surah);
+    final existing = _inFlight[key];
+    if (existing != null) return existing;
+    final future = _resolveOrFetchNoEvict(
+      reciterId: reciterId,
+      surah: surah,
+      url: url,
+      cancelToken: cancelToken,
+    );
+    _inFlight[key] = future;
+    try {
+      return await future;
+    } finally {
+      unawaited(_inFlight.remove(key));
+    }
+  }
+
+  Future<File> _resolveOrFetchNoEvict({
+    required String reciterId,
+    required int surah,
+    required String url,
+    CancelToken? cancelToken,
+  }) async {
+    final file = await _localFile(reciterId, surah);
+    if (file.existsSync() && _isLikelyValidMedia(file)) {
+      await _touchPlayed(reciterId, surah, file);
+      return file;
+    }
+    if (file.existsSync()) {
+      try {
+        await file.delete();
+      } catch (_) {/* ignore */}
+    }
+    try {
+      await _download(url, file, cancelToken: cancelToken);
+    } catch (e) {
+      if (file.existsSync()) {
+        try {
+          await file.delete();
+        } catch (_) {/* ignore */}
+      }
+      rethrow;
+    }
+    try {
+      await _register(reciterId, surah, file);
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('audio_cache._register no-evict failed for $reciterId/$surah: $e\n$st');
+    }
+    return file;
+  }
+
+  /// Single-shot eviction после prefetch'а. Раньше eviction гонялся
+  /// после КАЖДОЙ загрузки (с гонками под concurrent workers). Теперь
+  /// вызывается ровно один раз в конце prefetch'а.
+  Future<int> evictIfNeededNow({int? maxBytesOverride}) async {
+    final maxBytes = await _maxBytes(maxBytesOverride);
+    if (maxBytes <= 0) return 0;
+    return evictIfNeeded(maxBytes: maxBytes);
+  }
 }

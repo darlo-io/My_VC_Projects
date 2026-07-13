@@ -30,6 +30,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get navListen => 'استماع';
 
   @override
+  String get navListenSubtitle => 'استمع إلى القرآن مع أفضل القرّاء';
+
+  @override
   String get navLearn => 'تعلّم';
 
   @override

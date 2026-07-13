@@ -22,6 +22,28 @@ class TranslationDao extends DatabaseAccessor<AppDatabase>
     with _$TranslationDaoMixin {
   TranslationDao(super.db);
 
+  /// Возвращает перевод конкретного аята на конкретном языке, или
+  /// `null` если перевода нет. Используется в [_AyahPanel] для
+  /// маленького субтитра под арабским аятом.
+  Future<String?> getForAyah({
+    required int ayahId,
+    required String languageCode,
+  }) async {
+    final rows = await customSelect(
+      '''
+      SELECT t.text AS text
+      FROM translations t
+      INNER JOIN translators tr ON tr.id = t.translator_id
+      WHERE t.ayah_id = ? AND tr.language_code = ?
+      LIMIT 1
+      ''',
+      variables: [Variable.withInt(ayahId), Variable.withString(languageCode)],
+      readsFrom: {translations, translators},
+    ).get();
+    if (rows.isEmpty) return null;
+    return rows.first.read<String>('text');
+  }
+
   /// Возвращает переводы аятов конкретной суры на конкретном языке.
   Future<List<TranslationRow>> getForSurah({
     required int surahId,

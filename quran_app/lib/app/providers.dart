@@ -314,6 +314,24 @@ final quranApiProvider = Provider<QuranApi>(
   (ref) => QuranApi(ref.watch(apiClientProvider)),
 );
 
+/// Асинхронная загрузка перевода текущего аята на языке приложения.
+/// Возвращает `null` если перевода нет в БД — тогда в [_AyahPanel]
+/// мелкий сабтайтл просто не показывается.
+final ayahTranslationProvider =
+    FutureProvider.family<String?, SurahAyahRef>(
+  (ref, key) async {
+    // Берём язык из [AppPreferences] — он синхронизирован с локалью
+    // приложения через [LocaleSettingsNotifier]. `WidgetsBinding` тут
+    // не сработает — нам нужен BuildContext, а в провайдере его нет.
+    final prefs = ref.watch(appPreferencesProvider);
+    final lang = prefs.languageCode ?? 'ru';
+    final dao = ref.watch(translationDaoProvider);
+    final ayah = await ref.watch(ayahTextProvider(key).future);
+    if (ayah == null) return null;
+    return dao.getForAyah(ayahId: ayah.id, languageCode: lang);
+  },
+);
+
 final appDatabaseProvider = Provider<AppDatabase>(
   (ref) {
     final db = AppDatabase();

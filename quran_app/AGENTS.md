@@ -2,68 +2,134 @@
 
 Project-specific notes that are non-obvious. General Flutter/Dart rules live in the global Kilo instructions.
 
-## MCP `flutter-skill` is patched locally — do not break it
+## MCP `flutter-mcp-toolkit` (Arenukvern/mcp_flutter) — server-only integration
 
-The `flutter-skill` MCP server at `tools/flutter-skill-patched/` is a patched copy of `flutter-skill@0.9.36`. The global npm install (`%APPDATA%\npm\node_modules\flutter-skill`) is **not used** — Kilo's MCP config points at the project copy:
+**Замена `flutter-skill` (патченного 0.9.36) на современный, поддерживаемый MCP-сервер.** Upstream mcp_flutter активный (347★, 1014 коммитов, релизы 4.x), MseeP.ai security assessment. Мотивация, история миграции и список багов flutter-skill, которых больше нет — в `docs/mcp-migration.mdx` (TODO).
 
-- Config: `.kilo/kilo.jsonc` → `mcp.flutter-skill.command = ["node", "tools/flutter-skill-patched/bin/cli.js", "server"]`
-- Permission: global `C:\Users\007\.config\kilo\kilo.jsonc` → `permission.flutter_skill_* = "allow"`
-- **Глобальный `mcp.flutter-skill` отключён** (`enabled: false`) в `C:\Users\007\.config\kilo\kilo.jsonc` — он указывал на непропатченный `flutter-skill server` из PATH и конфликтовал с проектной записью. Только проектный `.kilo/kilo.jsonc` → `tools/flutter-skill-patched/` используется.
+**Текущий режим: server-only (Option A)**, без in-app пакета `mcp_toolkit`:
+- *Почему не in-app*: `mcp_toolkit` транзитивно тянет `intentcall_platform`, чей `build.gradle` ломает Android-сборку (NullPointerException в `FlutterPluginUtils.getLegacyAndroidExtension$gradle`). Это upstream-баг mcp_flutter v4.x — `intentcall_platform` не готов для standalone Android-использования.
+- *Что теряем*: semantic snapshot (`fmt_capture_ui_snapshot` возвращает ограниченный layout), dynamic tools (`quran.play_ayah`, `quran.reciter_status`).
+- *Что работает*: 30 `fmt_*` tools через прямой VM service connection (`fmt_connect_debug_app`). Один раз подключаем — все инструменты доступны.
 
-### Patches applied (6 bugs in upstream 0.9.36)
+- **Репозиторий**: `F:\My_VC_Projects\mcp_flutter` (клон Arenukvern/mcp_flutter@main)
+- **Бинарь (Windows)**: `F:\My_VC_Projects\mcp_flutter\build\flutter-mcp-toolkit-server.exe` — AOT-compiled через `dart compile exe` (т.к. upstream не публикует Windows release artifacts)
+- **MCP config** (`.kilo/kilo.jsonc`):
+  ```jsonc
+  "flutter-mcp-toolkit": {
+    "type": "local",
+    "command": ["F:\\My_VC_Projects\\mcp_flutter\\build\\flutter-mcp-toolkit-server.exe"],
+    "args": ["--no-await-dnd"],
+    "enabled": true
+  }
+  ```
+- **Workflow**: запускаем `flutter run --debug` вручную (или через `tools/dev/supervisor.ps1`), получаем VM URI из stdout, передаём в `fmt_connect_debug_app` через MCP. После подключения все `fmt_*` tools доступны.
+- **Permission** (global `C:\Users\007\.config\kilo\kilo.jsonc`): `permission.flutter_skill_*` оставлены от старого MCP — можно удалить.
 
-| Bug | File | Fix |
-|---|---|---|
-| Stale 0-byte stub blocks Dart fallback | `~/.flutter-skill/bin/flutter-skill-windows-x64.exe-v0.9.36` | Delete the stub; package falls back to Dart |
-| `spawn('dart')` fails on Windows (no `dart.exe`) | `bin/cli.js` | `shell: true` |
-| Wrong package name in entry-point import | `dart/bin/server.dart` | `package:flutter_skill` → `package:flutter_skill_npm` |
-| `Process.start('flutter')` fails (no `flutter.exe`, only `.bat`) | `dart/lib/src/cli/server.dart`, `dart/lib/src/cli/launch.dart` | `runInShell: true` |
-| URI regex drops the `=` token char | `dart/lib/src/cli/server.dart` | `[a-zA-Z0-9.:/-]+` → `[a-zA-Z0-9.:/=_\-?&#]+` |
-| 0-byte stub respawn defense (Windows `spawn()` → `EFTYPE`) | `bin/cli.js` (`main()`, перед `runNativeBinary`) | `if (statSync(path).size === 0) { unlinkSync; runWithDart(); }` — теперь stub не валит MCP, а тихо удаляется и идёт Dart-fallback |
+### Tool surface (30 tools, prefix `fmt_*`)
+
+- **Lifecycle**: `fmt_connect_debug_app`, `fmt_discover_debug_apps`, `fmt_hot_reload_flutter`, `fmt_get_vm`, `fmt_get_extension_rpcs`
+- **Inspection**: `fmt_inspect_widget_at_point`, `fmt_capture_ui_snapshot` (screenshot + layout + errors in one bundle — заменяет пару `flutter-skill.screenshot` + `flutter-skill.inspect`)
+- **Dynamic**: `fmt_list_client_tools_and_resources`, `fmt_client_tool`, `fmt_client_resource` — для app-registered tools (`quran.play_ayah` появится здесь после `addMcpTool`)
+- **Debug**: `fmt_recent_logs`, `fmt_evaluate_dart` (Dart eval в VM)
+- **Interaction** (через semantic-snapshot refs): `fmt_tap_widget`, `fmt_enter_text`, `fmt_scroll`, `fmt_swipe`
+
+См. `instructions` поле в `initialize` response — там полный список с описаниями.
 
 ### Maintenance
 
-- **Never run `npm update -g flutter-skill` blindly** — it would re-introduce the bugs above. If you do, immediately run:
+- **One-time setup** (на новой машине):
   ```powershell
-  pwsh tools/install-patched-mcp.ps1
-  ```
-  This re-copies `tools/flutter-skill-patched/` over the global install and re-runs `dart pub get`.
+  # 1. Клонируем MCP-сервер
+  git clone --depth 1 https://github.com/Arenukvern/mcp_flutter.git F:\My_VC_Projects\mcp_flutter
 
-- After cloning the repo on a new machine, run once:
+  # 2. Собираем Windows AOT-бинарь (у upstream нет Windows release)
+  $env:Path = "C:\Users\007\develop\flutter\bin;$env:Path"
+  pwsh tools/dev/install-mcp-flutter.ps1
+
+  # 3. In-app пакет НЕ добавляем (см. «server-only (Option A)» выше —
+  # `mcp_toolkit` ломает Android-сборку). Используем только бинарь.
+  cd F:\My_VC_Projects\quran_app
+  flutter pub get
+  ```
+
+- **После обновления upstream**:
+  ```bash
+  cd F:\My_VC_Projects\mcp_flutter && git pull
+  pwsh tools/dev/install-mcp-flutter.ps1
+  ```
+  В отличие от старого `flutter-skill`, ручной re-patch не нужен — upstream чистый.
+
+- **Smoke test** (без подключения к Flutter app — сервер ждёт):
   ```powershell
   $env:Path = "C:\Users\007\develop\flutter\bin;$env:Path"
-  dart pub get  # inside tools/flutter-skill-patched/dart/
+  Get-Process -Name 'flutter-mcp-toolkit' -ErrorAction SilentlyContinue | Stop-Process -Force
+  $proc = Start-Process -FilePath 'F:\My_VC_Projects\mcp_flutter\build\flutter-mcp-toolkit-server.exe' `
+      -RedirectStandardInput 'F:\dev\mcp-smoke2.in' `
+      -RedirectStandardOutput 'F:\dev\mcp-smoke2.out' `
+      -NoNewWindow -PassThru
+  Get-Content F:\dev\mcp-smoke2.out | Select-Object -First 5
   ```
+  Ожидаем `{"ok":true,"data":{"protocolVersion":"2024-11-05",...}}` (с `tools.listChanged: true` и подробными `instructions` в `serverInfo`).
 
-- When upstream fixes land, drop them into `tools/flutter-skill-patched/` and re-run the smoke test:
-  ```bash
-  echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}
-       {"jsonrpc":"2.0","method":"notifications/initialized","params":{}}
-       {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
-  | node tools/flutter-skill-patched/bin/cli.js server
-  ```
-  Expected: `{"jsonrpc":"2.0","id":1,"result":{"serverInfo":{"name":"flutter-skill", ...}}}` plus a `tools/list` payload.
+### Hard rules
 
-## Using `flutter-skill` from Kilo
+- **Always** `flutter run --debug` — release-mode игнорирует mcp_flutter (asserts в VM extensions).
+- **Tools не появятся** пока нет debug-сессии с подключённым `fmt_connect_debug_app`. Это не баг сервера — он ждёт app.
+- **Не запускай `dart compile exe` в режиме debug** — это упадёт с ошибкой "Debug builds cannot be AOT compiled". Если нужно пересобрать, сначала `flutter clean`.
+- **`flutter run` на устройстве должен быть без VM URI issues** — `mcp_server_dart` сам находит Flutter debug targets через machine discovery (`flutter attach --machine`), не нужно копировать URI руками.
+- **In-app `mcp_toolkit` пока не подключаем** — upstream-баг в `intentcall_platform` ломает Android Gradle. Когда пофиксят — переключимся на hybrid-режим (server + in-app dynamic tools).
 
-Once the MCP is loaded, these tools are available directly:
+## Using `flutter-mcp-toolkit` from Kilo
+
+Once the MCP is loaded, these tools are available directly (prefix `fmt_*`):
 
 | Tool | Use |
 |---|---|
-| `flutter_skill_launch_app` | Spawn `flutter run` and auto-connect |
-| `flutter_skill_connect_app` | Attach to an already-running VM service |
-| `flutter_skill_screenshot` | Capture the Flutter frame as PNG |
-| `flutter_skill_tap` / `swipe` / `long_press` / `double_trap` | Interact by `key` or visible `text` |
-| `flutter_skill_inspect` | List tappable elements with bounds |
-| `flutter_skill_get_text_content` | Dump all on-screen text |
-| `flutter_skill_get_widget_tree` | Widget tree up to N levels |
-| `flutter_skill_hot_reload` | Trigger reload on the running app |
+| `fmt_discover_debug_apps` | List running Flutter debug targets with canonical ws URIs |
+| `fmt_connect_debug_app` | Connect to a target (auto-discovered or by URI) |
+| `fmt_hot_reload_flutter` | Hot reload the app for instant UI updates |
+| `fmt_capture_ui_snapshot` | Screenshot + layout + errors in one bundle (заменяет `flutter_skill.screenshot` + `flutter_skill.inspect`) |
+| `fmt_inspect_widget_at_point` | Map screenshot coordinates to widget/render node |
+| `fmt_recent_logs` | Ring buffer of `print` / `debugPrint` output |
+| `fmt_evaluate_dart` | Evaluate Dart expressions в VM (мощно для проверки state) |
+| `fmt_list_client_tools_and_resources` | List dynamic tools/resources registered by app code (`quran.play_ayah`, `quran.reciter_status`) |
+| `fmt_client_tool` / `fmt_client_resource` | Execute dynamic entries |
+
+**Semantic-snapshot** — главное отличие от flutter-skill: один JSON-snapshot даёт `Element` tree с stable refs. После можно тапать по ref (а не по координатам), и сервер сам маппит ref → widget → action. Tap/enter_text/scroll/swipe принимают ref, а не pixel coords.
 
 Prefer these over `adb exec-out screencap` / `adb shell input tap` — they are widget-aware, not pixel-aware.
 
 ## Active device
 
 Currently paired: `c1316607` (OPPO CPH2653, Android). VM service URI after `flutter run` looks like `ws://127.0.0.1:<port>/<token>=/ws` and is printed in the `flutter run` stdout.
+
+## Device development helpers (`tools/dev/`)
+
+Scripts в `tools/dev/` решают 4 хронические боли отладки:
+
+| Боль | Решение |
+|---|---|
+| PowerShell `>` кодирует бинарь в UTF-16 LE → corrupted DB-дампы | `Copy-AppDatabase` использует `adb exec-out ... base64 -w 0` + native decode |
+| Координаты: `adb input tap` принимает **device px**, Flutter inspect — **DP** | `Invoke-AdbTapDp` сам считает `effectiveDensity/160`. Для c1316607 это `3` (effective density 480). |
+| Скриншоты 1080×2376 не открываются MCP image-tools | `Save-ScreenOut` через System.Drawing ресайзит до 720px по длинной стороне в один вызов |
+| VM connection отваливается каждые ~3 мин после `am force-stop` → реконнект цикл ~5 мин | `Start-FlutterSupervisor` запускает watchdog-loop: перезапускает APK каждые `pidof` check, перезапускает flutter run если умер, **публикует VM URL в `F:\dev\device_state.json`** |
+
+См. `tools/dev/README.md` для полного описания и примеров.
+
+### После любого реконнекта
+
+```powershell
+. "F:\My_VC_Projects\quran_app\tools\dev\adb-helpers.ps1"
+. "F:\My_VC_Projects\quran_app\tools\dev\flutter-supervisor.ps1"
+Get-FlutterState | Format-List       # → vmUri, fwdPort, appPid
+```
+
+Затем `flutter-skill_connect_app` с этим `vmUri`.
+
+### Hard rules
+
+- **Не убивай `am force-stop com.quran.app.quran_app` пока supervisor жив** — он сам restart'нет APK. Если force-stop обязателен, сначала `Stop-FlutterSupervisor` чтобы не было гонки.
+- **adb forward** всегда на **tcp:22080** (фиксированный порт supervisor'а). Не пересоздавай через `adb forward tcp:N tcp:M` — fix в `flutter-supervisor.ps1`. Порт 10808 занят Xray VPN — не использовать.
 
 ## Audio playback — CDN and cache (rebuilt 2026-07-05)
 

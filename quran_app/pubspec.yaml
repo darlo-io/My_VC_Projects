@@ -46,16 +46,31 @@ dependencies:
 
   # SVG-иконки для главного экрана и других UI-мест.
   flutter_svg: ^2.0.10+1
-  flutter_skill: ^0.9.36
+  # MCP Toolkit in-app package (Arenukvern/mcp_flutter) НЕ добавлен —
+  # транзитивная зависимость `intentcall_platform` ломает сборку
+  # Android через NullPointerException в Flutter Gradle Plugin 1.0.0
+  # (`FlutterPluginUtils.getLegacyAndroidExtension`). Upstream баг.
+  # Используем только бинарь MCP-сервера + Flutter run --debug вручную;
+  # semantic snapshot фича недоступна, но 30 fmt_* tools работают через
+  # прямой VM service connection (fmt_connect_debug_app). См. AGENTS.md.
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  test: ^1.25.0
+  # `test` не указано явно — `flutter_test` уже тянет compatible версию.
+  # `test ^1.25.0` здесь ломал pub-resolve с riverpod_generator
+  # (тянет analyzer ^6.7.0 vs flutter_test ≥1.25.0 analyzer <11.0.0).
   flutter_lints: ^6.0.0
   drift_dev: ^2.21.2
   build_runner: ^2.4.13
   args: ^2.5.0
+  # riverpod_generator — code-gen для @riverpod аннотаций.
+  # Sprint 1.4: scaffold (только deps + один @riverpod в providers.dart
+  # как proof-of-concept). Полная миграция всех 25+ провайдеров — отдельный
+  # PR после Sprint 2, когда будет покрытие тестами.
+  riverpod_generator: ^2.6.3
+  riverpod_annotation: ^2.6.1
+  custom_lint: ^0.7.0
 
 flutter:
   uses-material-design: true

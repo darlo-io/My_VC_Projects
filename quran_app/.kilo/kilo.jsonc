@@ -1,9 +1,11 @@
 {
   "$schema": "https://app.kilo.ai/config.json",
   "mcp": {
-    "flutter-skill": {
+    "flutter-mcp-toolkit": {
+      "_comment": "Arenukvern/mcp_flutter v4.0.0-dev.6 — in-app integration через mcp_toolkit; бинарь собран из исходников (нет Windows release).",
       "type": "local",
-      "command": ["node", "tools/flutter-skill-patched/bin/cli.js", "server"],
+      "command": ["F:\\My_VC_Projects\\mcp_flutter\\build\\flutter-mcp-toolkit-server.exe"],
+      "args": ["--no-await-dnd"],
       "enabled": true,
       "timeout": 30000
     }
