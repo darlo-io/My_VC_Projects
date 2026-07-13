@@ -3,6 +3,7 @@ import 'dart:async';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/daos/reciter_dao.dart';
 import 'mp3quran_api.dart';
+import 'quran_com_reciter_mapping.dart';
 import 'reciter_ru_names.dart';
 
 /// Режим загрузки для ректора. Все mp3quran-ректоры имеют per-surah
@@ -25,6 +26,33 @@ String? resolveSurahUrl(Reciter reciter, int surahNumber) {
   final surahStr = surahNumber.toString().padLeft(3, '0');
   final base = server.endsWith('/') ? server : '$server/';
   return '$base$surahStr.mp3';
+}
+
+/// Резолв URL суры через Quran.com CDN (Sprint 1.5).
+///
+/// Источник истины — [kMp3quranToQuranCom]. `null` если для mp3quran.id
+/// нет маппинга (fallback на [resolveSurahUrl]).
+String? resolveQuranComSurahUrl(int? mp3quranId, int surahNumber) {
+  if (mp3quranId == null) return null;
+  final m = kMp3quranToQuranCom[mp3quranId];
+  if (m == null) return null;
+  final surahStr = surahNumber.toString().padLeft(3, '0');
+  // Per-surah URL — Quran.com тоже отдаёт per-surah (Alafasy/mp3/001.mp3
+  // содержит все 7 аятов Surah 1). Для per-ayah см. resolveQuranComAyahUrl.
+  return 'https://verses.quran.com/${m.path}/mp3/$surahStr.mp3';
+}
+
+/// Резолв URL конкретного аята (Sprint 1.5, Phase 2).
+///
+/// Per-ayah URL формат: `{reciter_path}/mp3/{SSSAYY}.mp3` где
+/// SSS = 3-значный номер суры, AYY = 3-значный номер аята.
+String? resolveQuranComAyahUrl(int? mp3quranId, int surahNumber, int ayahNumber) {
+  if (mp3quranId == null) return null;
+  final m = kMp3quranToQuranCom[mp3quranId];
+  if (m == null) return null;
+  final surahStr = surahNumber.toString().padLeft(3, '0');
+  final ayahStr = ayahNumber.toString().padLeft(3, '0');
+  return 'https://verses.quran.com/${m.path}/mp3/$surahStr$ayahStr.mp3';
 }
 
 /// Префикс кэш-файла. Использует [Reciter.id] (формат `mp3quran:N`)
