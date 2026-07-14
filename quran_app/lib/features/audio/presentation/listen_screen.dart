@@ -10,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../data/audio_player_controller.dart';
 import '../data/reciters_repository.dart';
+import '../data/quran_com_reciter_mapping.dart';
 
 // === Theme constants for the redesigned listen screen ===
 // Тёмная изумрудная палитра в духе референса `docs/images/listen.png`.
@@ -1603,11 +1604,18 @@ class _ReciterDropdownTile extends ConsumerWidget {
     // мелким серым текстом в нижней строке, не мешая основному имени.
     final meta = subtitleForReciter(reciter, localeCode);
     final style = shortStyle(reciter.mp3quranRewaya);
+    // Sprint 1.5d: индикатор источника. Используем static mapping —
+    // `kMp3quranToQuranCom` уже синхронизирован с `QuranComReciters`
+    // таблицей при sync. Если у ректора есть Quran.com-вариант —
+    // показываем «Q.com» бейдж (vs «mp3quran» для legacy).
+    final hasQuranCom = reciter.mp3quranId != null &&
+        kMp3quranToQuranCom.containsKey(reciter.mp3quranId);
     final metaParts = <String>[
       if (meta.isNotEmpty && meta != display) meta,
     ];
     final metaLine = metaParts.join(' · ');
     final tailsLine = [
+      if (hasQuranCom) 'Q.com' else 'mp3quran',
       '128 kbps',
       if (style != null && style.isNotEmpty) style,
     ].join(' · ');

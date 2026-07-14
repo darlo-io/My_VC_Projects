@@ -144,18 +144,33 @@ class RecitersSyncService {
       error: null,
     );
     try {
-      final n = await _repo.syncFromApi();
+      // Sprint 1.5d: dual-source sync. Сначала mp3quran (legacy),
+      // потом Quran.com (новый источник). Если Quran.com упадёт —
+      // приложение продолжит работать на mp3quran.
+      final nMp3quran = await _repo.syncFromApi();
+      int nQuranCom = 0;
+      try {
+        nQuranCom = await _repo.syncQuranComFromApi();
+      } catch (qcError) {
+        // Не критично: mp3quran работает, Quran.com — optional.
+        developer.log(
+          'quran_com sync failed (continuing with mp3quran only): $qcError',
+          name: 'reciters_sync',
+        );
+      }
       // Дополнительно исправляем nameRu в БД для существующих
       // записей (override + fallback на nameEn для сломанных
       // значений вроде «Мшари Аль Ифаси» от id=123).
       final fixed = await _repo.applyNameOverrides();
+      final total = nMp3quran + nQuranCom;
       state.value = RecitersSyncState(
         stage: RecitersSyncStage.completed,
         lastSyncedAt: DateTime.now(),
-        insertedCount: n,
+        insertedCount: total,
       );
       developer.log(
-        'reciters sync: completed, inserted=$n, nameOverrides applied=$fixed',
+        'reciters sync: completed, mp3quran=$nMp3quran, '
+        'quranCom=$nQuranCom, nameOverrides applied=$fixed',
         name: 'reciters_sync',
       );
     } catch (e, st) {
