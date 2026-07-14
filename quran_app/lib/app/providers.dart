@@ -23,6 +23,7 @@ import '../core/database/daos/learning_dao.dart';
 import '../core/database/daos/notes_dao.dart';
 import '../core/database/daos/position_dao.dart';
 import '../core/database/daos/reciter_dao.dart';
+import '../core/database/daos/quran_com_reciter_dao.dart';
 import '../core/database/daos/surah_dao.dart';
 import '../core/database/daos/translation_dao.dart';
 import '../core/database/daos/word_timings_dao.dart';
@@ -450,6 +451,14 @@ final quizSessionProvider = FutureProvider<QuizSession?>((ref) async {
 final reciterDaoProvider = Provider<ReciterDao>(
   (ref) => ref.watch(appDatabaseProvider).reciterDao,
 );
+
+/// Quran.com audio metadata (Sprint 1.5). Отдельная таблица для
+/// per-reciter URL'ов Quran.com CDN. Static mapping через
+/// [kMp3quranToQuranCom] работает без неё; эта таблица — для
+/// overrides и custom-импортов.
+final quranComReciterDaoProvider = Provider<QuranComReciterDao>(
+  (ref) => ref.watch(appDatabaseProvider).quranComReciterDao,
+);
 final audioCacheDaoProvider = Provider<AudioCacheDao>(
   (ref) => ref.watch(appDatabaseProvider).audioCacheDao,
 );
@@ -473,7 +482,10 @@ final notesDaoProvider = Provider<NotesDao>(
 );
 
 final recitersRepositoryProvider = Provider<RecitersRepository>(
-  (ref) => RecitersRepository(ref.watch(reciterDaoProvider)),
+  (ref) => RecitersRepository(
+    ref.watch(reciterDaoProvider),
+    quranComDao: ref.watch(quranComReciterDaoProvider),
+  ),
 );
 
 /// Фоновый воркер синхронизации mp3quran-ректоров. Singleton, потому

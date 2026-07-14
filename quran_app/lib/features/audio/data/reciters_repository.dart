@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import '../../../core/database/app_database.dart';
+import '../../../core/database/daos/quran_com_reciter_dao.dart';
 import '../../../core/database/daos/reciter_dao.dart';
 import 'mp3quran_api.dart';
+import 'quran_com_api.dart';
 import 'quran_com_reciter_mapping.dart';
 import 'reciter_ru_names.dart';
 
@@ -205,10 +208,19 @@ String subtitleForSurah(Surah s, String localeCode) {
 /// БД нет ректоров — UI показывает «Нажмите Обновить». Полный
 /// список появится после первого `syncFromApi()`.
 class RecitersRepository {
-  RecitersRepository(this._dao, {Mp3QuranApi? api}) : _api = api ?? Mp3QuranApi();
+  RecitersRepository(
+    this._dao, {
+    Mp3QuranApi? api,
+    QuranComApi? quranComApi,
+    QuranComReciterDao? quranComDao,
+  })  : _api = api ?? Mp3QuranApi(),
+        _quranComApi = quranComApi ?? QuranComApi(),
+        _quranComDao = quranComDao;
 
   final ReciterDao _dao;
   final Mp3QuranApi _api;
+  final QuranComApi _quranComApi;
+  final QuranComReciterDao? _quranComDao;
 
   /// Legacy stub — раньше тут засеивались 8 дефолтных ректоров.
   /// Теперь UI показывает «Список пуст, нажмите Обновить» пока
@@ -285,6 +297,74 @@ class RecitersRepository {
 
   /// Стрим всех ректоров из БД.
   Stream<List<Reciter>> watchAll() => _dao.watchAll();
+
+  /// Sync Quran.com recitations — Sprint 1.5.
+  ///
+  /// Дёргает `/api/v4/resources/recitations?language=ru` (multi-locale
+  /// fallback ar+en+ru), для каждого результата ищет соответствующий
+  /// mp3quran-id через [kMp3quranToQuranCom] и записывает в
+  /// [QuranComReciters]. Reciters без mp3quran-аналога (Quran.com-only)
+  /// сохраняются с `reciterId = "quran_com:N"`.
+  ///
+  /// Идемпотентно — повторный вызов перезаписывает `syncedAt` и
+  /// обновляет `nameLocalized`.
+  ///
+  /// Возвращает количество синхронизированных записей. `0` если
+  /// [QuranComReciterDao] не инициализирован (опциональная зависимость).
+  Future<int> syncQuranComFromApi({
+    List<String> languages = const ['ru', 'en', 'ar'],
+  }) async {
+    if (_quranComDao == null) return 0;
+    final merged = await _quranComApi.fetchRecitationsMultiLocale(
+      languages: languages,
+    );
+    final now = DateTime.now();
+    var inserted = 0;
+    // Map Quran.com id → (mp3quranId, path) для обратной ссылки.
+    final quranComToMp3quran = <int, int>{};
+    kMp3quranToQuranCom.forEach((mp3quranId, m) {
+      quranComToMp3quran[m.quranComId] = mp3quranId;
+    });
+
+    final upserts = <QuranComReciterDaoUpsert>[];
+    for (final entry in merged.entries) {
+      final qcId = entry.key;
+      final d = entry.value;
+      // Лучший ID для cross-reference с Reciters: mp3quranId
+      // (если есть), иначе quran_com:N.
+      final mp3quranId = quranComToMp3quran[qcId];
+      final reciterId = mp3quranId != null
+          ? 'mp3quran:$mp3quranId'
+          : 'quran_com:$qcId';
+      final ruName = d.nameByLocale['ru'] ?? d.translatedName;
+      upserts.add(
+        QuranComReciterDaoUpsert(
+          reciterId: reciterId,
+          quranComId: qcId,
+          path: d.path ?? '',
+          style: d.style,
+          nameLocalized: ruName,
+        ),
+      );
+      inserted += 1;
+    }
+    await _quranComDao!.upsertAll(upserts);
+    developer.log(
+      'quran_com sync: $inserted reciters',
+      name: 'reciters_repo',
+    );
+    return inserted;
+  }
+
+  /// Hybrid resolve: предпочитает Quran.com если запись есть, иначе
+  /// fallback на mp3quran CDN.
+  String? resolveSurahUrlHybrid(Reciter reciter, int surahNumber) {
+    // Не делаем асинхронный lookup здесь — UI поток не должен ждать.
+    // Static mapping — primary, table — secondary (через кэш).
+    // TODO(Sprint 2): переписать через AsyncValue/FutureProvider.
+    return resolveQuranComSurahUrl(reciter.mp3quranId, surahNumber) ??
+        resolveSurahUrl(reciter, surahNumber);
+  }
 
   /// Стрим избранных.
   Stream<List<Reciter>> watchFavorites() => _dao.watchFavorites();

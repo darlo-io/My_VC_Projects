@@ -7390,6 +7390,445 @@ class PlaybackSessionsCompanion extends UpdateCompanion<PlaybackSession> {
   }
 }
 
+class $QuranComRecitersTable extends QuranComReciters
+    with TableInfo<$QuranComRecitersTable, QuranComReciter> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $QuranComRecitersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _reciterIdMeta = const VerificationMeta(
+    'reciterId',
+  );
+  @override
+  late final GeneratedColumn<String> reciterId = GeneratedColumn<String>(
+    'reciter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _quranComIdMeta = const VerificationMeta(
+    'quranComId',
+  );
+  @override
+  late final GeneratedColumn<int> quranComId = GeneratedColumn<int>(
+    'quran_com_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _styleMeta = const VerificationMeta('style');
+  @override
+  late final GeneratedColumn<String> style = GeneratedColumn<String>(
+    'style',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameLocalizedMeta = const VerificationMeta(
+    'nameLocalized',
+  );
+  @override
+  late final GeneratedColumn<String> nameLocalized = GeneratedColumn<String>(
+    'name_localized',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _syncedAtMeta = const VerificationMeta(
+    'syncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> syncedAt = GeneratedColumn<DateTime>(
+    'synced_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    reciterId,
+    quranComId,
+    path,
+    style,
+    nameLocalized,
+    syncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'quran_com_reciters';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<QuranComReciter> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('reciter_id')) {
+      context.handle(
+        _reciterIdMeta,
+        reciterId.isAcceptableOrUnknown(data['reciter_id']!, _reciterIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reciterIdMeta);
+    }
+    if (data.containsKey('quran_com_id')) {
+      context.handle(
+        _quranComIdMeta,
+        quranComId.isAcceptableOrUnknown(
+          data['quran_com_id']!,
+          _quranComIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_quranComIdMeta);
+    }
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pathMeta);
+    }
+    if (data.containsKey('style')) {
+      context.handle(
+        _styleMeta,
+        style.isAcceptableOrUnknown(data['style']!, _styleMeta),
+      );
+    }
+    if (data.containsKey('name_localized')) {
+      context.handle(
+        _nameLocalizedMeta,
+        nameLocalized.isAcceptableOrUnknown(
+          data['name_localized']!,
+          _nameLocalizedMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_nameLocalizedMeta);
+    }
+    if (data.containsKey('synced_at')) {
+      context.handle(
+        _syncedAtMeta,
+        syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_syncedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {reciterId};
+  @override
+  QuranComReciter map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return QuranComReciter(
+      reciterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reciter_id'],
+      )!,
+      quranComId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quran_com_id'],
+      )!,
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      )!,
+      style: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}style'],
+      ),
+      nameLocalized: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name_localized'],
+      )!,
+      syncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}synced_at'],
+      )!,
+    );
+  }
+
+  @override
+  $QuranComRecitersTable createAlias(String alias) {
+    return $QuranComRecitersTable(attachedDatabase, alias);
+  }
+}
+
+class QuranComReciter extends DataClass implements Insertable<QuranComReciter> {
+  /// `reciterId` из [Reciters.id] (формат `mp3quran:NNN` или
+  /// `quran_com:NNN` — мы поддерживаем оба, чтобы UI мог использовать
+  /// любой source).
+  final String reciterId;
+
+  /// Quran.com recitation id (используется в /recitations/{id}/by_chapter/N).
+  final int quranComId;
+
+  /// Sub-folder на CDN вида "Alafasy", "Husary", и т.д.
+  /// (см. [QuranComRecitationDto.path]).
+  final String path;
+
+  /// Стиль чтения (Murattal, Mujawwad, Muallim, …). Nullable —
+  /// для рива'ат без явного стиля.
+  final String? style;
+
+  /// Reciter name на языке UI (запрошенном при sync).
+  final String nameLocalized;
+
+  /// Когда запись была последний раз синхронизирована с API.
+  /// Используется для TTL-cache: `syncedAt < now - 7d` → нужно
+  /// пересинхронизировать.
+  final DateTime syncedAt;
+  const QuranComReciter({
+    required this.reciterId,
+    required this.quranComId,
+    required this.path,
+    this.style,
+    required this.nameLocalized,
+    required this.syncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['reciter_id'] = Variable<String>(reciterId);
+    map['quran_com_id'] = Variable<int>(quranComId);
+    map['path'] = Variable<String>(path);
+    if (!nullToAbsent || style != null) {
+      map['style'] = Variable<String>(style);
+    }
+    map['name_localized'] = Variable<String>(nameLocalized);
+    map['synced_at'] = Variable<DateTime>(syncedAt);
+    return map;
+  }
+
+  QuranComRecitersCompanion toCompanion(bool nullToAbsent) {
+    return QuranComRecitersCompanion(
+      reciterId: Value(reciterId),
+      quranComId: Value(quranComId),
+      path: Value(path),
+      style: style == null && nullToAbsent
+          ? const Value.absent()
+          : Value(style),
+      nameLocalized: Value(nameLocalized),
+      syncedAt: Value(syncedAt),
+    );
+  }
+
+  factory QuranComReciter.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return QuranComReciter(
+      reciterId: serializer.fromJson<String>(json['reciterId']),
+      quranComId: serializer.fromJson<int>(json['quranComId']),
+      path: serializer.fromJson<String>(json['path']),
+      style: serializer.fromJson<String?>(json['style']),
+      nameLocalized: serializer.fromJson<String>(json['nameLocalized']),
+      syncedAt: serializer.fromJson<DateTime>(json['syncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'reciterId': serializer.toJson<String>(reciterId),
+      'quranComId': serializer.toJson<int>(quranComId),
+      'path': serializer.toJson<String>(path),
+      'style': serializer.toJson<String?>(style),
+      'nameLocalized': serializer.toJson<String>(nameLocalized),
+      'syncedAt': serializer.toJson<DateTime>(syncedAt),
+    };
+  }
+
+  QuranComReciter copyWith({
+    String? reciterId,
+    int? quranComId,
+    String? path,
+    Value<String?> style = const Value.absent(),
+    String? nameLocalized,
+    DateTime? syncedAt,
+  }) => QuranComReciter(
+    reciterId: reciterId ?? this.reciterId,
+    quranComId: quranComId ?? this.quranComId,
+    path: path ?? this.path,
+    style: style.present ? style.value : this.style,
+    nameLocalized: nameLocalized ?? this.nameLocalized,
+    syncedAt: syncedAt ?? this.syncedAt,
+  );
+  QuranComReciter copyWithCompanion(QuranComRecitersCompanion data) {
+    return QuranComReciter(
+      reciterId: data.reciterId.present ? data.reciterId.value : this.reciterId,
+      quranComId: data.quranComId.present
+          ? data.quranComId.value
+          : this.quranComId,
+      path: data.path.present ? data.path.value : this.path,
+      style: data.style.present ? data.style.value : this.style,
+      nameLocalized: data.nameLocalized.present
+          ? data.nameLocalized.value
+          : this.nameLocalized,
+      syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuranComReciter(')
+          ..write('reciterId: $reciterId, ')
+          ..write('quranComId: $quranComId, ')
+          ..write('path: $path, ')
+          ..write('style: $style, ')
+          ..write('nameLocalized: $nameLocalized, ')
+          ..write('syncedAt: $syncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(reciterId, quranComId, path, style, nameLocalized, syncedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is QuranComReciter &&
+          other.reciterId == this.reciterId &&
+          other.quranComId == this.quranComId &&
+          other.path == this.path &&
+          other.style == this.style &&
+          other.nameLocalized == this.nameLocalized &&
+          other.syncedAt == this.syncedAt);
+}
+
+class QuranComRecitersCompanion extends UpdateCompanion<QuranComReciter> {
+  final Value<String> reciterId;
+  final Value<int> quranComId;
+  final Value<String> path;
+  final Value<String?> style;
+  final Value<String> nameLocalized;
+  final Value<DateTime> syncedAt;
+  final Value<int> rowid;
+  const QuranComRecitersCompanion({
+    this.reciterId = const Value.absent(),
+    this.quranComId = const Value.absent(),
+    this.path = const Value.absent(),
+    this.style = const Value.absent(),
+    this.nameLocalized = const Value.absent(),
+    this.syncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  QuranComRecitersCompanion.insert({
+    required String reciterId,
+    required int quranComId,
+    required String path,
+    this.style = const Value.absent(),
+    required String nameLocalized,
+    required DateTime syncedAt,
+    this.rowid = const Value.absent(),
+  }) : reciterId = Value(reciterId),
+       quranComId = Value(quranComId),
+       path = Value(path),
+       nameLocalized = Value(nameLocalized),
+       syncedAt = Value(syncedAt);
+  static Insertable<QuranComReciter> custom({
+    Expression<String>? reciterId,
+    Expression<int>? quranComId,
+    Expression<String>? path,
+    Expression<String>? style,
+    Expression<String>? nameLocalized,
+    Expression<DateTime>? syncedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (reciterId != null) 'reciter_id': reciterId,
+      if (quranComId != null) 'quran_com_id': quranComId,
+      if (path != null) 'path': path,
+      if (style != null) 'style': style,
+      if (nameLocalized != null) 'name_localized': nameLocalized,
+      if (syncedAt != null) 'synced_at': syncedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  QuranComRecitersCompanion copyWith({
+    Value<String>? reciterId,
+    Value<int>? quranComId,
+    Value<String>? path,
+    Value<String?>? style,
+    Value<String>? nameLocalized,
+    Value<DateTime>? syncedAt,
+    Value<int>? rowid,
+  }) {
+    return QuranComRecitersCompanion(
+      reciterId: reciterId ?? this.reciterId,
+      quranComId: quranComId ?? this.quranComId,
+      path: path ?? this.path,
+      style: style ?? this.style,
+      nameLocalized: nameLocalized ?? this.nameLocalized,
+      syncedAt: syncedAt ?? this.syncedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (reciterId.present) {
+      map['reciter_id'] = Variable<String>(reciterId.value);
+    }
+    if (quranComId.present) {
+      map['quran_com_id'] = Variable<int>(quranComId.value);
+    }
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (style.present) {
+      map['style'] = Variable<String>(style.value);
+    }
+    if (nameLocalized.present) {
+      map['name_localized'] = Variable<String>(nameLocalized.value);
+    }
+    if (syncedAt.present) {
+      map['synced_at'] = Variable<DateTime>(syncedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuranComRecitersCompanion(')
+          ..write('reciterId: $reciterId, ')
+          ..write('quranComId: $quranComId, ')
+          ..write('path: $path, ')
+          ..write('style: $style, ')
+          ..write('nameLocalized: $nameLocalized, ')
+          ..write('syncedAt: $syncedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7415,6 +7854,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PlaybackSessionsTable playbackSessions = $PlaybackSessionsTable(
     this,
   );
+  late final $QuranComRecitersTable quranComReciters = $QuranComRecitersTable(
+    this,
+  );
   late final SurahDao surahDao = SurahDao(this as AppDatabase);
   late final AyahDao ayahDao = AyahDao(this as AppDatabase);
   late final BookmarkDao bookmarkDao = BookmarkDao(this as AppDatabase);
@@ -7423,6 +7865,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final PositionDao positionDao = PositionDao(this as AppDatabase);
   late final ReciterDao reciterDao = ReciterDao(this as AppDatabase);
+  late final QuranComReciterDao quranComReciterDao = QuranComReciterDao(
+    this as AppDatabase,
+  );
   late final AudioCacheDao audioCacheDao = AudioCacheDao(this as AppDatabase);
   late final WordsDao wordsDao = WordsDao(this as AppDatabase);
   late final WordTimingsDao wordTimingsDao = WordTimingsDao(
@@ -7455,6 +7900,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     audioCacheMetadata,
     settingsEntries,
     playbackSessions,
+    quranComReciters,
   ];
 }
 
@@ -13801,6 +14247,235 @@ typedef $$PlaybackSessionsTableProcessedTableManager =
       PlaybackSession,
       PrefetchHooks Function({bool surahId})
     >;
+typedef $$QuranComRecitersTableCreateCompanionBuilder =
+    QuranComRecitersCompanion Function({
+      required String reciterId,
+      required int quranComId,
+      required String path,
+      Value<String?> style,
+      required String nameLocalized,
+      required DateTime syncedAt,
+      Value<int> rowid,
+    });
+typedef $$QuranComRecitersTableUpdateCompanionBuilder =
+    QuranComRecitersCompanion Function({
+      Value<String> reciterId,
+      Value<int> quranComId,
+      Value<String> path,
+      Value<String?> style,
+      Value<String> nameLocalized,
+      Value<DateTime> syncedAt,
+      Value<int> rowid,
+    });
+
+class $$QuranComRecitersTableFilterComposer
+    extends Composer<_$AppDatabase, $QuranComRecitersTable> {
+  $$QuranComRecitersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get reciterId => $composableBuilder(
+    column: $table.reciterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quranComId => $composableBuilder(
+    column: $table.quranComId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get style => $composableBuilder(
+    column: $table.style,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nameLocalized => $composableBuilder(
+    column: $table.nameLocalized,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$QuranComRecitersTableOrderingComposer
+    extends Composer<_$AppDatabase, $QuranComRecitersTable> {
+  $$QuranComRecitersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get reciterId => $composableBuilder(
+    column: $table.reciterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quranComId => $composableBuilder(
+    column: $table.quranComId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get style => $composableBuilder(
+    column: $table.style,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nameLocalized => $composableBuilder(
+    column: $table.nameLocalized,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get syncedAt => $composableBuilder(
+    column: $table.syncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$QuranComRecitersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $QuranComRecitersTable> {
+  $$QuranComRecitersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get reciterId =>
+      $composableBuilder(column: $table.reciterId, builder: (column) => column);
+
+  GeneratedColumn<int> get quranComId => $composableBuilder(
+    column: $table.quranComId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<String> get style =>
+      $composableBuilder(column: $table.style, builder: (column) => column);
+
+  GeneratedColumn<String> get nameLocalized => $composableBuilder(
+    column: $table.nameLocalized,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get syncedAt =>
+      $composableBuilder(column: $table.syncedAt, builder: (column) => column);
+}
+
+class $$QuranComRecitersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $QuranComRecitersTable,
+          QuranComReciter,
+          $$QuranComRecitersTableFilterComposer,
+          $$QuranComRecitersTableOrderingComposer,
+          $$QuranComRecitersTableAnnotationComposer,
+          $$QuranComRecitersTableCreateCompanionBuilder,
+          $$QuranComRecitersTableUpdateCompanionBuilder,
+          (
+            QuranComReciter,
+            BaseReferences<
+              _$AppDatabase,
+              $QuranComRecitersTable,
+              QuranComReciter
+            >,
+          ),
+          QuranComReciter,
+          PrefetchHooks Function()
+        > {
+  $$QuranComRecitersTableTableManager(
+    _$AppDatabase db,
+    $QuranComRecitersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$QuranComRecitersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$QuranComRecitersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$QuranComRecitersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> reciterId = const Value.absent(),
+                Value<int> quranComId = const Value.absent(),
+                Value<String> path = const Value.absent(),
+                Value<String?> style = const Value.absent(),
+                Value<String> nameLocalized = const Value.absent(),
+                Value<DateTime> syncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => QuranComRecitersCompanion(
+                reciterId: reciterId,
+                quranComId: quranComId,
+                path: path,
+                style: style,
+                nameLocalized: nameLocalized,
+                syncedAt: syncedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String reciterId,
+                required int quranComId,
+                required String path,
+                Value<String?> style = const Value.absent(),
+                required String nameLocalized,
+                required DateTime syncedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => QuranComRecitersCompanion.insert(
+                reciterId: reciterId,
+                quranComId: quranComId,
+                path: path,
+                style: style,
+                nameLocalized: nameLocalized,
+                syncedAt: syncedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$QuranComRecitersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $QuranComRecitersTable,
+      QuranComReciter,
+      $$QuranComRecitersTableFilterComposer,
+      $$QuranComRecitersTableOrderingComposer,
+      $$QuranComRecitersTableAnnotationComposer,
+      $$QuranComRecitersTableCreateCompanionBuilder,
+      $$QuranComRecitersTableUpdateCompanionBuilder,
+      (
+        QuranComReciter,
+        BaseReferences<_$AppDatabase, $QuranComRecitersTable, QuranComReciter>,
+      ),
+      QuranComReciter,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -13839,4 +14514,6 @@ class $AppDatabaseManager {
       $$SettingsEntriesTableTableManager(_db, _db.settingsEntries);
   $$PlaybackSessionsTableTableManager get playbackSessions =>
       $$PlaybackSessionsTableTableManager(_db, _db.playbackSessions);
+  $$QuranComRecitersTableTableManager get quranComReciters =>
+      $$QuranComRecitersTableTableManager(_db, _db.quranComReciters);
 }

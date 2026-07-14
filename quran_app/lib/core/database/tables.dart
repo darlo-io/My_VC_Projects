@@ -298,3 +298,42 @@ class PlaybackSessions extends Table {
   /// в Phase 2 / Statistics.
   TextColumn get closeReason => text().withDefault(const Constant('pending'))();
 }
+
+/// Quran.com audio metadata — Sprint 1.5.
+///
+/// Отдельная таблица (а не колонки в [Reciters]) потому что:
+//   1. Не нужно migration существующих строк (Sprint 1 стартует
+//      с v12, эта таблица будет v13+ — drift создаст её автоматически).
+//   2. Один ректор может иметь несколько Quran.com-вариантов
+//      (per-verse vs per-surah, разные стили).
+///   3. URL может быть вычислен без чтения БД — `kMp3quranToQuranCom`
+///      уже предоставляет static mapping. Эта таблица для per-reciter
+///      overrides (reciters без static mapping — напр. custom импорты).
+class QuranComReciters extends Table {
+  /// `reciterId` из [Reciters.id] (формат `mp3quran:NNN` или
+  /// `quran_com:NNN` — мы поддерживаем оба, чтобы UI мог использовать
+  /// любой source).
+  TextColumn get reciterId => text()();
+
+  /// Quran.com recitation id (используется в /recitations/{id}/by_chapter/N).
+  IntColumn get quranComId => integer()();
+
+  /// Sub-folder на CDN вида "Alafasy", "Husary", и т.д.
+  /// (см. [QuranComRecitationDto.path]).
+  TextColumn get path => text()();
+
+  /// Стиль чтения (Murattal, Mujawwad, Muallim, …). Nullable —
+  /// для рива'ат без явного стиля.
+  TextColumn get style => text().nullable()();
+
+  /// Reciter name на языке UI (запрошенном при sync).
+  TextColumn get nameLocalized => text()();
+
+  /// Когда запись была последний раз синхронизирована с API.
+  /// Используется для TTL-cache: `syncedAt < now - 7d` → нужно
+  /// пересинхронизировать.
+  DateTimeColumn get syncedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {reciterId};
+}

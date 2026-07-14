@@ -13,6 +13,7 @@ import 'daos/notes_dao.dart';
 import 'surah_ru_names.dart';
 import 'daos/playback_sessions_dao.dart';
 import 'daos/position_dao.dart';
+import 'daos/quran_com_reciter_dao.dart';
 import 'daos/reciter_dao.dart';
 import 'daos/surah_dao.dart';
 import 'daos/translation_dao.dart';
@@ -41,6 +42,7 @@ part 'app_database.g.dart';
     AudioCacheMetadata,
     SettingsEntries,
     PlaybackSessions,
+    QuranComReciters,
   ],
   daos: [
     SurahDao,
@@ -49,6 +51,7 @@ part 'app_database.g.dart';
     TranslationDao,
     PositionDao,
     ReciterDao,
+    QuranComReciterDao,
     AudioCacheDao,
     WordsDao,
     WordTimingsDao,
@@ -63,7 +66,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
