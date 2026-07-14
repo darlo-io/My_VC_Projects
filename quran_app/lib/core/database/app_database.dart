@@ -66,7 +66,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -246,9 +246,28 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(surahs, surahs.subtitleRu);
         await _backfillRussianSurahNames(m.database);
       }
-    },
-    beforeOpen: (details) async {
-      await customStatement('PRAGMA foreign_keys = ON');
+
+      if (from < 14) {
+        // v13 -> v14: Quran.com Tafsir integration (Sprint 2).
+        // Additive — добавляет nullable `quran_com_id` к
+        // `tafsir_sources` для маппинга local auto-increment id →
+        // Quran.com tafsir id (например, 14 = Tafsir Ibn Kathir
+        // Arabic, 170 = Al-Sa'di Russian).
+        // Nullable: legacy/source-local тафсиры (если такие
+        // будут) могут остаться без Quran.com id — fallback в UI.
+        // Без `IF NOT EXISTS` (Postgres-фича) — проверяем через
+        // `PRAGMA table_info` (см. _backfillRussianSurahNames для
+        // аналогичного паттерна с v11→v12).
+        final tafsirSourceCols = await customSelect(
+          "SELECT name FROM pragma_table_info('tafsir_sources')",
+          readsFrom: {tafsirSources},
+        ).get();
+        final hasQuranComId = tafsirSourceCols
+            .any((r) => r.read<String>('name') == 'quran_com_id');
+        if (!hasQuranComId) {
+          await m.addColumn(tafsirSources, tafsirSources.quranComId);
+        }
+      }
     },
   );
 

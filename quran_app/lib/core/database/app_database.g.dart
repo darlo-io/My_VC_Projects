@@ -3568,6 +3568,17 @@ class $TafsirSourcesTable extends TafsirSources
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _quranComIdMeta = const VerificationMeta(
+    'quranComId',
+  );
+  @override
+  late final GeneratedColumn<int> quranComId = GeneratedColumn<int>(
+    'quran_com_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3575,6 +3586,7 @@ class $TafsirSourcesTable extends TafsirSources
     nameAr,
     nameEn,
     languageCode,
+    quranComId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3626,6 +3638,15 @@ class $TafsirSourcesTable extends TafsirSources
     } else if (isInserting) {
       context.missing(_languageCodeMeta);
     }
+    if (data.containsKey('quran_com_id')) {
+      context.handle(
+        _quranComIdMeta,
+        quranComId.isAcceptableOrUnknown(
+          data['quran_com_id']!,
+          _quranComIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3655,6 +3676,10 @@ class $TafsirSourcesTable extends TafsirSources
         DriftSqlType.string,
         data['${effectivePrefix}language_code'],
       )!,
+      quranComId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quran_com_id'],
+      ),
     );
   }
 
@@ -3670,12 +3695,19 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
   final String nameAr;
   final String nameEn;
   final String languageCode;
+
+  /// Sprint 2.3: id тафсира в Quran.com API (для
+  /// `/tafsirs/{quranComId}/by_ayah/{verseKey}`). Nullable — для
+  /// legacy/source-local тафсиров (если такие будут). По этому полю
+  /// UI-слой ищет tafsir source для fetchTafsirByAyah().
+  final int? quranComId;
   const TafsirSource({
     required this.id,
     required this.slug,
     required this.nameAr,
     required this.nameEn,
     required this.languageCode,
+    this.quranComId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3685,6 +3717,9 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
     map['name_ar'] = Variable<String>(nameAr);
     map['name_en'] = Variable<String>(nameEn);
     map['language_code'] = Variable<String>(languageCode);
+    if (!nullToAbsent || quranComId != null) {
+      map['quran_com_id'] = Variable<int>(quranComId);
+    }
     return map;
   }
 
@@ -3695,6 +3730,9 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
       nameAr: Value(nameAr),
       nameEn: Value(nameEn),
       languageCode: Value(languageCode),
+      quranComId: quranComId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(quranComId),
     );
   }
 
@@ -3709,6 +3747,7 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
       nameAr: serializer.fromJson<String>(json['nameAr']),
       nameEn: serializer.fromJson<String>(json['nameEn']),
       languageCode: serializer.fromJson<String>(json['languageCode']),
+      quranComId: serializer.fromJson<int?>(json['quranComId']),
     );
   }
   @override
@@ -3720,6 +3759,7 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
       'nameAr': serializer.toJson<String>(nameAr),
       'nameEn': serializer.toJson<String>(nameEn),
       'languageCode': serializer.toJson<String>(languageCode),
+      'quranComId': serializer.toJson<int?>(quranComId),
     };
   }
 
@@ -3729,12 +3769,14 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
     String? nameAr,
     String? nameEn,
     String? languageCode,
+    Value<int?> quranComId = const Value.absent(),
   }) => TafsirSource(
     id: id ?? this.id,
     slug: slug ?? this.slug,
     nameAr: nameAr ?? this.nameAr,
     nameEn: nameEn ?? this.nameEn,
     languageCode: languageCode ?? this.languageCode,
+    quranComId: quranComId.present ? quranComId.value : this.quranComId,
   );
   TafsirSource copyWithCompanion(TafsirSourcesCompanion data) {
     return TafsirSource(
@@ -3745,6 +3787,9 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
       languageCode: data.languageCode.present
           ? data.languageCode.value
           : this.languageCode,
+      quranComId: data.quranComId.present
+          ? data.quranComId.value
+          : this.quranComId,
     );
   }
 
@@ -3755,13 +3800,15 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
           ..write('slug: $slug, ')
           ..write('nameAr: $nameAr, ')
           ..write('nameEn: $nameEn, ')
-          ..write('languageCode: $languageCode')
+          ..write('languageCode: $languageCode, ')
+          ..write('quranComId: $quranComId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, slug, nameAr, nameEn, languageCode);
+  int get hashCode =>
+      Object.hash(id, slug, nameAr, nameEn, languageCode, quranComId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3770,7 +3817,8 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
           other.slug == this.slug &&
           other.nameAr == this.nameAr &&
           other.nameEn == this.nameEn &&
-          other.languageCode == this.languageCode);
+          other.languageCode == this.languageCode &&
+          other.quranComId == this.quranComId);
 }
 
 class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
@@ -3779,12 +3827,14 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
   final Value<String> nameAr;
   final Value<String> nameEn;
   final Value<String> languageCode;
+  final Value<int?> quranComId;
   const TafsirSourcesCompanion({
     this.id = const Value.absent(),
     this.slug = const Value.absent(),
     this.nameAr = const Value.absent(),
     this.nameEn = const Value.absent(),
     this.languageCode = const Value.absent(),
+    this.quranComId = const Value.absent(),
   });
   TafsirSourcesCompanion.insert({
     this.id = const Value.absent(),
@@ -3792,6 +3842,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
     required String nameAr,
     required String nameEn,
     required String languageCode,
+    this.quranComId = const Value.absent(),
   }) : slug = Value(slug),
        nameAr = Value(nameAr),
        nameEn = Value(nameEn),
@@ -3802,6 +3853,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
     Expression<String>? nameAr,
     Expression<String>? nameEn,
     Expression<String>? languageCode,
+    Expression<int>? quranComId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3809,6 +3861,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
       if (nameAr != null) 'name_ar': nameAr,
       if (nameEn != null) 'name_en': nameEn,
       if (languageCode != null) 'language_code': languageCode,
+      if (quranComId != null) 'quran_com_id': quranComId,
     });
   }
 
@@ -3818,6 +3871,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
     Value<String>? nameAr,
     Value<String>? nameEn,
     Value<String>? languageCode,
+    Value<int?>? quranComId,
   }) {
     return TafsirSourcesCompanion(
       id: id ?? this.id,
@@ -3825,6 +3879,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
       nameAr: nameAr ?? this.nameAr,
       nameEn: nameEn ?? this.nameEn,
       languageCode: languageCode ?? this.languageCode,
+      quranComId: quranComId ?? this.quranComId,
     );
   }
 
@@ -3846,6 +3901,9 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
     if (languageCode.present) {
       map['language_code'] = Variable<String>(languageCode.value);
     }
+    if (quranComId.present) {
+      map['quran_com_id'] = Variable<int>(quranComId.value);
+    }
     return map;
   }
 
@@ -3856,7 +3914,8 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
           ..write('slug: $slug, ')
           ..write('nameAr: $nameAr, ')
           ..write('nameEn: $nameEn, ')
-          ..write('languageCode: $languageCode')
+          ..write('languageCode: $languageCode, ')
+          ..write('quranComId: $quranComId')
           ..write(')'))
         .toString();
   }
@@ -11264,6 +11323,7 @@ typedef $$TafsirSourcesTableCreateCompanionBuilder =
       required String nameAr,
       required String nameEn,
       required String languageCode,
+      Value<int?> quranComId,
     });
 typedef $$TafsirSourcesTableUpdateCompanionBuilder =
     TafsirSourcesCompanion Function({
@@ -11272,6 +11332,7 @@ typedef $$TafsirSourcesTableUpdateCompanionBuilder =
       Value<String> nameAr,
       Value<String> nameEn,
       Value<String> languageCode,
+      Value<int?> quranComId,
     });
 
 final class $$TafsirSourcesTableReferences
@@ -11339,6 +11400,11 @@ class $$TafsirSourcesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get quranComId => $composableBuilder(
+    column: $table.quranComId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> tafsirsRefs(
     Expression<bool> Function($$TafsirsTableFilterComposer f) f,
   ) {
@@ -11398,6 +11464,11 @@ class $$TafsirSourcesTableOrderingComposer
     column: $table.languageCode,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get quranComId => $composableBuilder(
+    column: $table.quranComId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TafsirSourcesTableAnnotationComposer
@@ -11423,6 +11494,11 @@ class $$TafsirSourcesTableAnnotationComposer
 
   GeneratedColumn<String> get languageCode => $composableBuilder(
     column: $table.languageCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get quranComId => $composableBuilder(
+    column: $table.quranComId,
     builder: (column) => column,
   );
 
@@ -11485,12 +11561,14 @@ class $$TafsirSourcesTableTableManager
                 Value<String> nameAr = const Value.absent(),
                 Value<String> nameEn = const Value.absent(),
                 Value<String> languageCode = const Value.absent(),
+                Value<int?> quranComId = const Value.absent(),
               }) => TafsirSourcesCompanion(
                 id: id,
                 slug: slug,
                 nameAr: nameAr,
                 nameEn: nameEn,
                 languageCode: languageCode,
+                quranComId: quranComId,
               ),
           createCompanionCallback:
               ({
@@ -11499,12 +11577,14 @@ class $$TafsirSourcesTableTableManager
                 required String nameAr,
                 required String nameEn,
                 required String languageCode,
+                Value<int?> quranComId = const Value.absent(),
               }) => TafsirSourcesCompanion.insert(
                 id: id,
                 slug: slug,
                 nameAr: nameAr,
                 nameEn: nameEn,
                 languageCode: languageCode,
+                quranComId: quranComId,
               ),
           withReferenceMapper: (p0) => p0
               .map(

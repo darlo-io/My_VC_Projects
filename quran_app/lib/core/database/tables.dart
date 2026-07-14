@@ -156,6 +156,12 @@ class TafsirSources extends Table {
   TextColumn get nameEn => text()();
   TextColumn get languageCode => text()();
 
+  /// Sprint 2.3: id тафсира в Quran.com API (для
+  /// `/tafsirs/{quranComId}/by_ayah/{verseKey}`). Nullable — для
+  /// legacy/source-local тафсиров (если такие будут). По этому полю
+  /// UI-слой ищет tafsir source для fetchTafsirByAyah().
+  IntColumn get quranComId => integer().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
