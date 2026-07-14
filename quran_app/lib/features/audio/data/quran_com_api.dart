@@ -163,6 +163,69 @@ class QuranComApi {
         .map(QuranComVerseDto.fromJson)
         .toList(growable: false);
   }
+
+  // ─── Tafsir (Sprint 2.2) ─────────────────────────────────────────
+
+  /// Список доступных тафсиров с переводами имён.
+  /// `language` — UI-язык для translated_name (если API поддерживает).
+  /// Endpoint: `/resources/tafsirs?language=ru`.
+  Future<List<QuranComTafsirSourceDto>> fetchTafsirs({
+    String language = 'ru',
+  }) async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '$_basePrimary/resources/tafsirs',
+      queryParameters: {'language': language},
+    );
+    final list = (r.data?['tafsirs'] as List?) ?? const [];
+    return list
+        .cast<Map<String, dynamic>>()
+        .map(QuranComTafsirSourceDto.fromJson)
+        .toList(growable: false);
+  }
+
+  /// Тафсир для одного аята (Sprint 2 — primary use case в UI).
+  /// Endpoint: `/tafsirs/{tafsirId}/by_ayah/{verseKey}`.
+  /// Возвращает [QuranComTafsirVerseDto] с HTML-разметкой в `text`.
+  /// null если 404 (например, аят не покрыт этим тафсиром).
+  Future<QuranComTafsirVerseDto?> fetchTafsirByAyah({
+    required int tafsirId,
+    required String verseKey,
+  }) async {
+    try {
+      final r = await _dio.get<Map<String, dynamic>>(
+        '$_basePrimary/tafsirs/$tafsirId/by_ayah/$verseKey',
+      );
+      final list = (r.data?['tafsirs'] as List?) ?? const [];
+      if (list.isEmpty) return null;
+      return QuranComTafsirVerseDto.fromJson(
+        list.first as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// Тафсир для целой суры (paginated).
+  /// Endpoint: `/tafsirs/{tafsirId}/by_chapter/{chapterId}`.
+  /// Возвращает список аятов. `pagination` показывает next_page.
+  /// В Sprint 2 UI не используется (per-ayah fetch быстрее);
+  /// оставлено для batch-префетча (Phase 2 — кэш на месяц).
+  Future<List<QuranComTafsirVerseDto>> fetchTafsirByChapter({
+    required int tafsirId,
+    required int chapterId,
+    int page = 1,
+  }) async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '$_basePrimary/tafsirs/$tafsirId/by_chapter/$chapterId',
+      queryParameters: {'page': page},
+    );
+    final list = (r.data?['tafsirs'] as List?) ?? const [];
+    return list
+        .cast<Map<String, dynamic>>()
+        .map(QuranComTafsirVerseDto.fromJson)
+        .toList(growable: false);
+  }
 }
 
 /// Один ректор c Quran.com (формат API v4).
@@ -276,4 +339,83 @@ class QuranComVerseDto {
   final int id;
   final String verseKey;
   final String textUthmani;
+}
+
+/// === Tafsir (Sprint 2.2) ============================================
+//
+// Структура ответов `/tafsirs/{id}/by_ayah/{verseKey}` и
+// `/tafsirs/{id}/by_chapter/{chapter}` идентична. Внутри — массив
+// аятов с полем `text` (HTML с inline-тегами, например <span class="blue">).
+// `verse_key` — обязательно. `resource_id` — id тафсира (= id из
+// `/resources/tafsirs`). `language_id` — внутренний id языка Quran.com.
+
+/// Один тафсир (элемент списка `/resources/tafsirs`).
+class QuranComTafsirSourceDto {
+  QuranComTafsirSourceDto({
+    required this.id,
+    required this.name,
+    required this.authorName,
+    required this.slug,
+    required this.languageName,
+    required this.translatedName,
+  });
+
+  factory QuranComTafsirSourceDto.fromJson(Map<String, dynamic> j) {
+    final tn = j['translated_name'] as Map<String, dynamic>?;
+    return QuranComTafsirSourceDto(
+      id: (j['id'] as num).toInt(),
+      name: (j['name'] as String?) ?? '',
+      authorName: (j['author_name'] as String?) ?? '',
+      slug: (j['slug'] as String?) ?? '',
+      languageName: (j['language_name'] as String?) ?? '',
+      translatedName: tn?['name'] as String? ?? '',
+    );
+  }
+
+  /// Quran.com tafsir id. Используется в `/tafsirs/{id}/by_ayah/...`.
+  final int id;
+  final String name;
+  final String authorName;
+
+  /// Например: "ar-tafsir-ibn-kathir", "ru-tafseer-al-saddi".
+  final String slug;
+
+  /// Язык оригинала тафсира ("arabic", "english", "russian", "urdu"...).
+  final String languageName;
+
+  /// Переведённое название (если API поддерживает `translated_name`).
+  final String translatedName;
+}
+
+/// Один аят с тафсиром (из `/by_ayah` и `/by_chapter`).
+class QuranComTafsirVerseDto {
+  QuranComTafsirVerseDto({
+    required this.id,
+    required this.resourceId,
+    required this.verseKey,
+    required this.languageId,
+    required this.text,
+  });
+
+  factory QuranComTafsirVerseDto.fromJson(Map<String, dynamic> j) {
+    return QuranComTafsirVerseDto(
+      id: (j['id'] as num).toInt(),
+      resourceId: (j['resource_id'] as num).toInt(),
+      verseKey: j['verse_key'] as String,
+      languageId: (j['language_id'] as num?)?.toInt() ?? 0,
+      text: (j['text'] as String?) ?? '',
+    );
+  }
+
+  /// `quran_com_reciters.id`-like: локальный id записи (auto-increment
+  /// в БД), не путать с `resource_id` (= id тафсира из API).
+  final int id;
+  final int resourceId;
+  final String verseKey;
+  final int languageId;
+
+  /// HTML-разметка с inline-тегами (<p>, <span class="...">). Для
+  /// рендеринга в Flutter: парсить через `flutter_html` или strip
+  /// tags простым regex `r'<[^>]+>'` (Sprint 2.5 — minimal rendering).
+  final String text;
 }
