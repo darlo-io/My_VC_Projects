@@ -2446,6 +2446,36 @@ abstract class AppLocalizations {
   /// **'Reading mode'**
   String get readingModeTooltip;
 
+  /// No description provided for @readingPrevSurah.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous surah'**
+  String get readingPrevSurah;
+
+  /// No description provided for @readingNextSurah.
+  ///
+  /// In en, this message translates to:
+  /// **'Next surah'**
+  String get readingNextSurah;
+
+  /// No description provided for @readingScrollToTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll to top'**
+  String get readingScrollToTop;
+
+  /// No description provided for @readingScrollToBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll to bottom'**
+  String get readingScrollToBottom;
+
+  /// No description provided for @readingOpenSurahList.
+  ///
+  /// In en, this message translates to:
+  /// **'Open surah list'**
+  String get readingOpenSurahList;
+
   /// No description provided for @exitConfirmTitle.
   ///
   /// In en, this message translates to:
@@ -2649,6 +2679,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'In the name of Allah, the Most Gracious, the Most Merciful.'**
   String get displaySettingsPreviewTranslation;
+
+  /// No description provided for @tafsirButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Tafsir'**
+  String get tafsirButton;
+
+  /// No description provided for @tafsirLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get tafsirLoading;
+
+  /// No description provided for @tafsirEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No tafsir available for this ayah'**
+  String get tafsirEmpty;
+
+  /// No description provided for @tafsirRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get tafsirRetry;
 }
 
 class _AppLocalizationsDelegate

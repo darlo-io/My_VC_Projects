@@ -392,6 +392,11 @@
   "readingModeLineByLine": "Построчно",
   "readingModeBook": "Книга",
   "readingModeTooltip": "Режим чтения",
+  "readingPrevSurah": "Предыдущая сура",
+  "readingNextSurah": "Следующая сура",
+  "readingScrollToTop": "К началу суры",
+  "readingScrollToBottom": "К концу суры",
+  "readingOpenSurahList": "Открыть список сур",
   "exitConfirmTitle": "Выйти из приложения?",
   "exitConfirmBody": "Вы уверены, что хотите закрыть приложение?",
   "exitConfirmYes": "Выйти",
@@ -425,5 +430,9 @@
   "displaySettingsThemeSepia": "Сепия",
   "displaySettingsThemeLight": "Светлая",
   "displaySettingsThemeParchment": "Пергамент",
-  "displaySettingsPreviewTranslation": "Во имя Аллаха, Милостивого, Милосердного."
+  "displaySettingsPreviewTranslation": "Во имя Аллаха, Милостивого, Милосердного.",
+  "tafsirButton": "Тафсир",
+  "tafsirLoading": "Загрузка...",
+  "tafsirEmpty": "Нет тафсира для этого аята",
+  "tafsirRetry": "Повторить"
 }

@@ -13,6 +13,7 @@ import '../../../learning/presentation/word_card.dart';
 import '../../../reader_settings/domain/reader_display_settings.dart';
 import '../../../reader_settings/presentation/reader_palette.dart';
 import 'notes_panel.dart';
+import 'tafsir_panel.dart';
 
 class AyahTile extends ConsumerStatefulWidget {
   const AyahTile({
@@ -242,6 +243,8 @@ class _AyahHeader extends StatelessWidget {
         ),
         const Spacer(),
         _NoteButton(ayahId: ayah.id),
+        const SizedBox(width: 4),
+        _TafsirButton(ayahId: ayah.id),
         const SizedBox(width: 4),
         IconButton(
           onPressed: onToggleBookmark,
@@ -566,6 +569,35 @@ class _NoteButton extends ConsumerWidget {
         .getAyah(ayahId);
     if (ayah == null || !context.mounted) return;
     unawaited(showNotesPanel(context: context, ref: ref, ayah: ayah));
+  }
+}
+
+/// Кнопка тафсира (Sprint 2). Иконка `menu_book_outlined` — единый
+/// стиль с «книжными» affordance'ами в Quran-приложениях. По тапу
+/// открывает [showTafsirPanel] для текущего аята.
+class _TafsirButton extends ConsumerWidget {
+  const _TafsirButton({required this.ayahId});
+  final int ayahId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return IconButton(
+      visualDensity: VisualDensity.compact,
+      onPressed: () => _openTafsirFor(context, ref, ayahId),
+      icon: const Icon(
+        Icons.menu_book_outlined,
+        color: AppColors.gold,
+        size: 22,
+      ),
+    );
+  }
+
+  void _openTafsirFor(BuildContext context, WidgetRef ref, int ayahId) async {
+    final ayah = await ref
+        .read(quranRepositoryProvider)
+        .getAyah(ayahId);
+    if (ayah == null || !context.mounted) return;
+    unawaited(showTafsirPanel(context: context, ref: ref, ayah: ayah));
   }
 }
 

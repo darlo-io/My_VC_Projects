@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:quran_app/core/content/seed_parser.dart';
 import 'package:quran_app/core/content/seed_types.dart';
 

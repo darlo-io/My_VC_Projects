@@ -392,6 +392,11 @@
   "readingModeLineByLine": "سطر بسطر",
   "readingModeBook": "كتاب",
   "readingModeTooltip": "وضع القراءة",
+  "readingPrevSurah": "السورة السابقة",
+  "readingNextSurah": "السورة التالية",
+  "readingScrollToTop": "إلى بداية السورة",
+  "readingScrollToBottom": "إلى نهاية السورة",
+  "readingOpenSurahList": "فتح قائمة السور",
   "exitConfirmTitle": "الخروج من التطبيق؟",
   "exitConfirmBody": "هل أنت متأكد من رغبتك في إغلاق التطبيق؟",
   "exitConfirmYes": "خروج",
@@ -425,5 +430,9 @@
   "displaySettingsThemeSepia": "سيبيا",
   "displaySettingsThemeLight": "فاتحة",
   "displaySettingsThemeParchment": "رق",
-  "displaySettingsPreviewTranslation": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ"
+  "displaySettingsPreviewTranslation": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+  "tafsirButton": "التفسير",
+  "tafsirLoading": "جاري التحميل...",
+  "tafsirEmpty": "لا تفسير لهذه الآية",
+  "tafsirRetry": "إعادة"
 }

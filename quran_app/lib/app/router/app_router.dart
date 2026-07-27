@@ -23,10 +23,11 @@ import '../../l10n/generated/app_localizations.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../../core/content/content_update_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../orientation_guard.dart';
 import '../providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/',
     // DEBUG-ONLY: перехватываем ошибки навигации (в т.ч.
     // `Null check operator` на `_findCurrentNavigator:114`),
@@ -146,6 +147,31 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  // **Round 5 bugfix (2026-07-22)**: подписываемся на изменение
+  // top-route и применяем SystemChrome.setPreferredOrientations
+  // синхронно через [OrientationGuard]. До этого per-widget
+  // initState/dispose в ReaderScreen работал ненадёжно — после
+  // выхода с Reader ориентация не восстанавливалась на
+  // portrait-only. Глобальный listener по top-route решает
+  // проблему: route change → orientation change, без
+  // зависимости от widget lifecycle.
+  //
+  // `routerDelegate` (RouterDelegate) IS a Listenable — fires on
+  // every route push/pop/replace.
+  router.routerDelegate.addListener(() {
+    final cfg = router.routerDelegate.currentConfiguration;
+    // Top route is the LAST in the match list — for nested routes
+    // (ShellRoute etc.) we want the deepest match. Use the last
+    // match's matchedLocation if available, fall back to top-level.
+    final lastMatch = cfg.matches.isNotEmpty ? cfg.matches.last : null;
+    final path = lastMatch?.matchedLocation ?? cfg.uri.path;
+    final isReader = path.startsWith('/reader/');
+    debugPrint('[ORIENT] route=$path isReader=$isReader');
+    globalOrientationGuard.setIsReader(isReader);
+  });
+
+  return router;
 });
 
 class _RouterRefresh extends ChangeNotifier {

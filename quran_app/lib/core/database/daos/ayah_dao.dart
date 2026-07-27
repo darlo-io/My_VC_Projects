@@ -26,6 +26,18 @@ class AyahDao extends DatabaseAccessor<AppDatabase> with _$AyahDaoMixin {
   /// [ayahNumber] (1-based ordinal within the surah). Returns
   /// `null` if the combination doesn't exist (e.g. ayah number out
   /// of range, or surahId doesn't exist in the seed).
+  /// Round 9.2: возвращает количество аятов в указанной суре.
+  /// Используется `AyahsService.ensureLoaded(surahId)` для проверки
+  /// нужно ли lazy fetch (если 0 — fetch, иначе no-op).
+  Future<int> countAyahs(int surahId) async {
+    final countExpr = ayahs.id.count();
+    final row = await (selectOnly(ayahs)
+          ..addColumns([countExpr])
+          ..where(ayahs.surahId.equals(surahId)))
+        .getSingle();
+    return row.read<int>(countExpr) ?? 0;
+  }
+
   Future<Ayah?> getBySurahAndNumber(int surahId, int ayahNumber) =>
       (select(ayahs)
             ..where(

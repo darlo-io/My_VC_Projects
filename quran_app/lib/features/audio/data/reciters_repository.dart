@@ -358,10 +358,20 @@ class RecitersRepository {
 
   /// Hybrid resolve: предпочитает Quran.com если запись есть, иначе
   /// fallback на mp3quran CDN.
+  ///
+  /// Synchronous: lookup через static-маппинг `kMp3quranToQuranCom`
+  /// (см. [quran_com_reciter_mapping.dart]). Не async — UI поток
+  /// не должен ждать lookup'а в DB при начале playback'а. На
+  /// практике все 8 дефолтных ректоров покрыты маппингом; если
+  /// потребуется hot-add нового ректора без перекомпиляции —
+  /// `kMp3quranToQuranCom` можно расширить.
+  ///
+  /// Ранее здесь был TODO про AsyncValue/FutureProvider; после
+  /// cutover (2026-07-17, см. `audio_player_controller.dart:229`)
+  /// static map достаточно. Async-вариант можно сделать если
+  /// потребуется динамическая синхронизация маппинга с
+  /// `QuranComReciterDao` (см. `reciters_sync_service.dart:314`).
   String? resolveSurahUrlHybrid(Reciter reciter, int surahNumber) {
-    // Не делаем асинхронный lookup здесь — UI поток не должен ждать.
-    // Static mapping — primary, table — secondary (через кэш).
-    // TODO(Sprint 2): переписать через AsyncValue/FutureProvider.
     return resolveQuranComSurahUrl(reciter.mp3quranId, surahNumber) ??
         resolveSurahUrl(reciter, surahNumber);
   }

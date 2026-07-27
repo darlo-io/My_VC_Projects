@@ -62,6 +62,22 @@ class QuranRepository {
     return {for (final r in rows) r.ayahId: r.text};
   }
 
+  /// Round 8: возвращает переводы аятов конкретной суры для
+  /// конкретного translator'a (не languageCode). Используется
+  /// reader_screen после переключения на нового translator'а через
+  /// Settings → Перевод. Возвращает Map<ayahId, text>; пустая map
+  /// если translations ещё не загружены (lazy fetch в процессе).
+  Future<Map<int, String>> translationsForSurahByTranslator({
+    required int surahId,
+    required int translatorId,
+  }) async {
+    final rows = await translationDao.getForSurahByTranslator(
+      surahId: surahId,
+      translatorId: translatorId,
+    );
+    return {for (final r in rows) r.ayahId: r.text};
+  }
+
   // ----- Position (last-read) -----
 
   /// Подгрузить `surah + translations` для конкретной surah+lang.
@@ -76,6 +92,22 @@ class QuranRepository {
     final translations = await translationsForSurah(
       surahId: surahId,
       languageCode: translationLang,
+    );
+    return ReaderData(surah: surah, translations: translations);
+  }
+
+  /// Round 8: версия с фильтром по translator_id (точная —
+  /// для конкретного translator'a, не по language_code). Используется
+  /// когда пользователь выбирает перевод в Settings.
+  Future<ReaderData> loadReaderDataByTranslator({
+    required int surahId,
+    required int translatorId,
+  }) async {
+    final surah = await surahDao.getById(surahId);
+    if (surah == null) return const ReaderData.empty();
+    final translations = await translationsForSurahByTranslator(
+      surahId: surahId,
+      translatorId: translatorId,
     );
     return ReaderData(surah: surah, translations: translations);
   }

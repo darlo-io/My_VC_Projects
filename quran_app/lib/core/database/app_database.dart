@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'daos/audio_cache_dao.dart';
+import 'daos/search_dao.dart';
 import 'daos/ayah_dao.dart';
 import 'daos/bookmark_dao.dart';
 import 'daos/learning_dao.dart';
@@ -16,6 +17,7 @@ import 'daos/position_dao.dart';
 import 'daos/quran_com_reciter_dao.dart';
 import 'daos/reciter_dao.dart';
 import 'daos/surah_dao.dart';
+import 'daos/tafsir_dao.dart';
 import 'daos/translation_dao.dart';
 import 'daos/word_timings_dao.dart';
 import 'daos/words_dao.dart';
@@ -53,11 +55,13 @@ part 'app_database.g.dart';
     ReciterDao,
     QuranComReciterDao,
     AudioCacheDao,
+    SearchDao,
     WordsDao,
     WordTimingsDao,
     LearningDao,
     NotesDao,
     PlaybackSessionsDao,
+    TafsirDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -66,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -268,6 +272,86 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(tafsirSources, tafsirSources.quranComId);
         }
       }
+
+      if (from < 16) {
+        // v15 -> v16: localized tafsir source name (Sprint 2.5.1).
+        // Добавляет nullable `name_ru` к `tafsir_sources`.
+        //
+        // Зачем: до этого миграции UI выводил `s.nameEn` напрямую
+        // (см. `tafsir_panel.dart:_buildSourceList`), даже когда
+        // текущая локаль приложения — русская, и в `nameEn` лежал
+        // русский перевод из-за бага в `TafsirsSyncService` (он
+        // пишет `translated_name` от Quran.com в `name_en` независимо
+        // от языка запроса). Имена авторов отображались либо на
+        // английском (если кеш был старый), либо на странной смеси.
+        //
+        // Sprint 2.5.1 fix:
+        //   - `name_ru` колонка для русского перевода;
+        //   - `TafsirsSyncService.forceSync(languageCode: 'ru')` теперь
+        //     пишет `translatedName` в `nameRu` (а не `nameEn`);
+        //   - `tafsir_panel._buildSourceList` показывает `nameRu` для
+        //     локали ru, иначе `nameEn`;
+        //   - backfill существующих рядов: текущий `nameEn` мог
+        //     быть русским переводом (старый sync на русской локали).
+        //     Консервативно **копируем** `nameEn` → `nameRu` для
+        //     рядов с `language_code='ru'`, чтобы UI не показывал
+        //     английский fallback там, где раньше был русский. Для
+        //     других локалей (ar, en) name_ru остаётся NULL — там
+        //     `name_en` действительно английский, что корректно.
+        //
+        // Идемпотентно (см. v11→v12 паттерн с PRAGMA table_info).
+        final tafsirSourceCols2 = await customSelect(
+          "SELECT name FROM pragma_table_info('tafsir_sources')",
+          readsFrom: {tafsirSources},
+        ).get();
+        final hasNameRu = tafsirSourceCols2
+            .any((r) => r.read<String>('name') == 'name_ru');
+        if (!hasNameRu) {
+          await m.addColumn(tafsirSources, tafsirSources.nameRu);
+          // Backfill: для рядов с language_code='ru' копируем
+          // nameEn в nameRu. Если новый sync перезапишет — это
+          // ожидаемо (correct translation for current locale).
+          await customStatement(
+            "UPDATE tafsir_sources SET name_ru = name_en "
+            "WHERE language_code = 'ru' AND name_ru IS NULL",
+          );
+        }
+      }
+
+      if (from < 18) {
+        // v17 -> v18 (Round 8): добавляем `quran_com_id` и `name_ru`
+        // к `translators`. Round 8 — переход с alquran.cloud на
+        // Quran.com API: даём пользователю выбор перевода (Кулиев,
+        // Ministry of Awqaf Egypt, Abu Adel).
+        //
+        // Идемпотентно — проверяем `pragma_table_info` перед
+        // добавлением колонки (паттерн v11→v12, v15→v16).
+        // (Раньше этот блок был под `if (from < 17)`, но v17 уже
+        // занят tafsir_sources миграцией, поэтому я перенёс на v18.)
+        final translatorCols = await customSelect(
+          "SELECT name FROM pragma_table_info('translators')",
+          readsFrom: {translators},
+        ).get();
+        final hasQuranComId = translatorCols
+            .any((r) => r.read<String>('name') == 'quran_com_id');
+        if (!hasQuranComId) {
+          await m.addColumn(
+            translators,
+            translators.quranComId as GeneratedColumn<Object>,
+          );
+        }
+        final hasNameRu = translatorCols
+            .any((r) => r.read<String>('name') == 'name_ru');
+        if (!hasNameRu) {
+          await m.addColumn(
+            translators,
+            translators.nameRu as GeneratedColumn<Object>,
+          );
+        }
+      }
+
+      // (dead-code удалён — Round 8 перезаписывает старый v17-блок
+      // который ошибочно остался от моей правки в Round 7.)
     },
   );
 
@@ -305,6 +389,10 @@ class AppDatabase extends _$AppDatabase {
       }
     }
   }
+
+  // (удалено в Round 8 — `_backfillTafsirRuNames` не использовался.
+  // Аналогичный backfill теперь делается из `LocalSeedService.ensureSeeded`
+  // если потребуется в следующих раундах.)
 
   /// Destructive schema reset. Used ONLY for pre-v5 installs.
   /// Must not be reachable from a v5+ upgrade path.

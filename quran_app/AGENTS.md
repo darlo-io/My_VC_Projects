@@ -4,9 +4,9 @@ Project-specific notes that are non-obvious. General Flutter/Dart rules live in 
 
 ## MCP `flutter-mcp-toolkit` (Arenukvern/mcp_flutter) — server-only integration
 
-**Замена `flutter-skill` (патченного 0.9.36) на современный, поддерживаемый MCP-сервер.** Upstream mcp_flutter активный (347★, 1014 коммитов, релизы 4.x), MseeP.ai security assessment. Мотивация, история миграции и список багов flutter-skill, которых больше нет — в `docs/mcp-migration.mdx` (TODO).
+**Active MCP** — `flutter-mcp-toolkit` (Arenukvern/mcp_flutter v4.x). Используется для hot reload, screenshot, UI inspection, оценки Dart-выражений и т.д.
 
-**Текущий режим: server-only (Option A)**, без in-app пакета `mcp_toolkit`:
+**Режим: server-only (Option A)**, без in-app пакета `mcp_toolkit`:
 - *Почему не in-app*: `mcp_toolkit` транзитивно тянет `intentcall_platform`, чей `build.gradle` ломает Android-сборку (NullPointerException в `FlutterPluginUtils.getLegacyAndroidExtension$gradle`). Это upstream-баг mcp_flutter v4.x — `intentcall_platform` не готов для standalone Android-использования.
 - *Что теряем*: semantic snapshot (`fmt_capture_ui_snapshot` возвращает ограниченный layout), dynamic tools (`quran.play_ayah`, `quran.reciter_status`).
 - *Что работает*: 30 `fmt_*` tools через прямой VM service connection (`fmt_connect_debug_app`). Один раз подключаем — все инструменты доступны.
@@ -23,12 +23,11 @@ Project-specific notes that are non-obvious. General Flutter/Dart rules live in 
   }
   ```
 - **Workflow**: запускаем `flutter run --debug` вручную (или через `tools/dev/supervisor.ps1`), получаем VM URI из stdout, передаём в `fmt_connect_debug_app` через MCP. После подключения все `fmt_*` tools доступны.
-- **Permission** (global `C:\Users\007\.config\kilo\kilo.jsonc`): `permission.flutter_skill_*` оставлены от старого MCP — можно удалить.
 
 ### Tool surface (30 tools, prefix `fmt_*`)
 
 - **Lifecycle**: `fmt_connect_debug_app`, `fmt_discover_debug_apps`, `fmt_hot_reload_flutter`, `fmt_get_vm`, `fmt_get_extension_rpcs`
-- **Inspection**: `fmt_inspect_widget_at_point`, `fmt_capture_ui_snapshot` (screenshot + layout + errors in one bundle — заменяет пару `flutter-skill.screenshot` + `flutter-skill.inspect`)
+- **Inspection**: `fmt_inspect_widget_at_point`, `fmt_capture_ui_snapshot` (screenshot + layout + errors in one bundle)
 - **Dynamic**: `fmt_list_client_tools_and_resources`, `fmt_client_tool`, `fmt_client_resource` — для app-registered tools (`quran.play_ayah` появится здесь после `addMcpTool`)
 - **Debug**: `fmt_recent_logs`, `fmt_evaluate_dart` (Dart eval в VM)
 - **Interaction** (через semantic-snapshot refs): `fmt_tap_widget`, `fmt_enter_text`, `fmt_scroll`, `fmt_swipe`
@@ -57,7 +56,6 @@ Project-specific notes that are non-obvious. General Flutter/Dart rules live in 
   cd F:\My_VC_Projects\mcp_flutter && git pull
   pwsh tools/dev/install-mcp-flutter.ps1
   ```
-  В отличие от старого `flutter-skill`, ручной re-patch не нужен — upstream чистый.
 
 - **Smoke test** (без подключения к Flutter app — сервер ждёт):
   ```powershell
@@ -88,14 +86,14 @@ Once the MCP is loaded, these tools are available directly (prefix `fmt_*`):
 | `fmt_discover_debug_apps` | List running Flutter debug targets with canonical ws URIs |
 | `fmt_connect_debug_app` | Connect to a target (auto-discovered or by URI) |
 | `fmt_hot_reload_flutter` | Hot reload the app for instant UI updates |
-| `fmt_capture_ui_snapshot` | Screenshot + layout + errors in one bundle (заменяет `flutter_skill.screenshot` + `flutter_skill.inspect`) |
+| `fmt_capture_ui_snapshot` | Screenshot + layout + errors in one bundle |
 | `fmt_inspect_widget_at_point` | Map screenshot coordinates to widget/render node |
 | `fmt_recent_logs` | Ring buffer of `print` / `debugPrint` output |
 | `fmt_evaluate_dart` | Evaluate Dart expressions в VM (мощно для проверки state) |
 | `fmt_list_client_tools_and_resources` | List dynamic tools/resources registered by app code (`quran.play_ayah`, `quran.reciter_status`) |
 | `fmt_client_tool` / `fmt_client_resource` | Execute dynamic entries |
 
-**Semantic-snapshot** — главное отличие от flutter-skill: один JSON-snapshot даёт `Element` tree с stable refs. После можно тапать по ref (а не по координатам), и сервер сам маппит ref → widget → action. Tap/enter_text/scroll/swipe принимают ref, а не pixel coords.
+**Semantic-snapshot** — один JSON-snapshot даёт `Element` tree с stable refs. После можно тапать по ref (а не по координатам), и сервер сам маппит ref → widget → action. Tap/enter_text/scroll/swipe принимают ref, а не pixel coords.
 
 Prefer these over `adb exec-out screencap` / `adb shell input tap` — they are widget-aware, not pixel-aware.
 
@@ -124,7 +122,7 @@ Scripts в `tools/dev/` решают 4 хронические боли отла�
 Get-FlutterState | Format-List       # → vmUri, fwdPort, appPid
 ```
 
-Затем `flutter-skill_connect_app` с этим `vmUri`.
+Затем `fmt_connect_debug_app` с этим `vmUri`.
 
 ### Hard rules
 

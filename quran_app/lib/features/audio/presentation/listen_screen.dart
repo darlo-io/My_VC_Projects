@@ -240,6 +240,9 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
                           onSleepTimer: (m) => ref
                               .read(audioPlayerControllerProvider.notifier)
                               .setSleepTimer(m),
+                          onNightModeToggle: () => ref
+                              .read(audioPlayerControllerProvider.notifier)
+                              .setNightMode(!playerState.nightMode),
                           surahDao: surahDao,
                         );
                       },
@@ -378,6 +381,7 @@ class _ListenBody extends StatelessWidget {
     required this.surahDao,
     required this.onSpeed,
     required this.onSleepTimer,
+    required this.onNightModeToggle,
   });
 
   final List<Reciter> reciters;
@@ -394,6 +398,7 @@ class _ListenBody extends StatelessWidget {
   final SurahDao surahDao;
   final ValueChanged<double> onSpeed;
   final ValueChanged<int?> onSleepTimer;
+  final VoidCallback onNightModeToggle;
 
   Reciter get _currentReciter {
     final id = selectedReciterId;
@@ -446,6 +451,7 @@ class _ListenBody extends StatelessWidget {
             state: playerState,
             onSpeed: onSpeed,
             onSleepTimer: onSleepTimer,
+            onNightModeToggle: onNightModeToggle,
           ),
         ],
       ),
@@ -1838,11 +1844,13 @@ class _PlaybackControls extends StatelessWidget {
     required this.state,
     required this.onSpeed,
     required this.onSleepTimer,
+    required this.onNightModeToggle,
   });
 
   final AudioPlayerState state;
   final ValueChanged<double> onSpeed;
   final ValueChanged<int?> onSleepTimer;
+  final VoidCallback onNightModeToggle;
 
   static const _kSpeedOptions = <double>[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
   static const _kSleepOptions = <int?>[null, 5, 10, 15, 30, 60];
@@ -1873,11 +1881,15 @@ class _PlaybackControls extends StatelessWidget {
           _ControlTile(
             icon: Icons.nightlight_round,
             label: 'Ночной режим',
-            value: 'Выкл',
+            value: state.nightMode ? 'Вкл' : 'Выкл',
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Ночной режим (TODO)')),
-              );
+              // Volume dim — см. [AudioPlayerController.setNightMode].
+              // Прагматичный минимум для ночного прослушивания:
+              // 0.4 громкости вместо 1.0. just_audio не умеет
+              // переключать битрейт/каналы на лету (требует
+              // re-encoding источника), поэтому dim — единственный
+              // реальный эффект.
+              onNightModeToggle();
             },
           ),
         ],

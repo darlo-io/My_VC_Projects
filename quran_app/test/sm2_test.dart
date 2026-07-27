@@ -1,4 +1,4 @@
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:quran_app/features/learning/data/sm2.dart';
 
 /// Unit tests for the SM-2 (SuperMemo 2) spaced-repetition algorithm.

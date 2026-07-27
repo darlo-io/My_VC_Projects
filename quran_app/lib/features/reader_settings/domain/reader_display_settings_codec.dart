@@ -26,7 +26,6 @@ class ReaderDisplaySettingsCodec {
       'brightness': s.brightness,
       'translationFontSize': s.translationFontSize,
       'showTranslation': s.showTranslation,
-      'showWordByWord': s.showWordByWord,
       'keepScreenOn': s.keepScreenOn,
       'readingMode': s.readingMode,
     });
@@ -72,8 +71,6 @@ class ReaderDisplaySettingsCodec {
             ReaderDisplaySettings.defaults.translationFontSize,
         showTranslation: _asBool(m['showTranslation']) ??
             ReaderDisplaySettings.defaults.showTranslation,
-        showWordByWord: _asBool(m['showWordByWord']) ??
-            ReaderDisplaySettings.defaults.showWordByWord,
         keepScreenOn:
             _asBool(m['keepScreenOn']) ?? ReaderDisplaySettings.defaults.keepScreenOn,
         readingMode: _asString(m['readingMode']) ??

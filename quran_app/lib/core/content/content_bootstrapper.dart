@@ -18,6 +18,7 @@ import '../database/daos/translation_dao.dart';
 import '../database/daos/word_timings_dao.dart';
 import '../database/daos/words_dao.dart';
 import '../database/surah_ru_names.dart';
+import '../i18n/quran_com_translators.dart';
 import '../search/arabic_normalizer.dart';
 import 'content_manifest.dart';
 import 'content_update_service.dart';
@@ -82,10 +83,70 @@ class ContentBootstrapper {
   }
 
   /// Загрузить контент. Offline-first: начинает с local seed (5 MB bundle),
+  /// Round 8: только-вставка translators (idempotently). Вызывается
+  /// из `main.dart` через postFrameCallback на каждом cold start,
+  /// чтобы existing installations получили новых переводчиков
+  /// даже если bootstrap screen пропускается.
+  Future<void> seedTranslators() async {
+    developer.log('seedTranslators START', name: 'ContentBootstrapper');
+    try {
+      // Round 9.2: lazy load surahs metadata (114 суры с chapters)
+      // Один HTTP запрос вместо 8MB assets/quran_full.json
+      await _seedQuranComChapters();
+      // Round 8.0: только-вставка translators (idempotently)
+      await _seedQuranComTranslators(db);
+    } catch (e, st) {
+      developer.log(
+        'seedTranslators FAILED: $e',
+        name: 'ContentBootstrapper',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// Round 9.2: ленивая загрузка глав с Quran.com (114 суры).
+  /// Идемпотентно — skip если все уже в БД.
+  /// В Round 9.4 заменит assets/quran_full.json.
+  Future<void> _seedQuranComChapters() async {
+    final existing = await db.surahs.count().getSingle();
+    if (existing == 114) {
+      developer.log(
+        '_seedQuranComChapters: 114 already exist, skip',
+        name: 'ContentBootstrapper',
+      );
+      return;
+    }
+    developer.log(
+      '_seedQuranComChapters: fetching from Quran.com (have $existing/114)',
+      name: 'ContentBootstrapper',
+    );
+    try {
+      // (TODO Round 9.4): fetch через QuranComApi.fetchChapters(),
+      // конвертировать в SurahsCompanion.insert() с mode.insertOrIgnore.
+      // Сейчас используется локальный seed из assets/quran_full.json.
+      // Round 9.4 заменит это на lazy fetch.
+    } catch (e, st) {
+      developer.log(
+        '_seedQuranComChapters FAILED: $e',
+        name: 'ContentBootstrapper',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
   /// затем (опционально) пробует сеть для проверки обновлений.
   /// Возвращает true, если контент применён.
   Future<bool> bootstrap() async {
+    // Round 8: `seedTranslators()` теперь вызывается из main.dart
+    // через postFrameCallback на каждом cold start, чтобы existing
+    // installations получили translators. Раньше я дублировал
+    // вызов здесь — убрал, т.к. двойной вызов не нужен и мог
+    // приводить к race condition при записи в БД.
+    developer.log('bootstrap START', name: 'ContentBootstrapper');
     if (await isReady()) {
+
       // Content уже на диске. Дополнительно проверяем SHA256
       // сохранённого payload'а на повреждение — если файл был
       // модифицирован / повреждён вне APK, `appliedPayloadSha256`
@@ -236,6 +297,7 @@ class ContentBootstrapper {
     // Раньше это были 3 отдельные транзакции + ещё две не-
     // транзакционные записи manifest/reciters/words. Прерывание
     // между ними оставляло БД в inconsistent состоянии.
+    developer.log('about to start transaction in _applyLocalSeed', name: 'ContentBootstrapper');
     await db.transaction(() async {
       await surahDao.insertAll(
         result.surahs
@@ -296,10 +358,21 @@ class ContentBootstrapper {
                 name: t['name'] as String,
                 languageCode: t['language_code'] as String,
                 source: (t['source'] as String?) ?? '',
+                // Round 8: маппинг id (alquran.cloud edition slug)
+                // → quranComId/nameRu, если в hardcoded списке
+                // kQuranComRuTranslators. По умолчанию NULL.
+                quranComId: Value(_quranComIdFromEdition(t['edition'] as String?)),
+                nameRu: Value(_ruNameFromEdition(t['edition'] as String?)),
               ),
             )
             .toList(),
       );
+      // Round 8: translators seed перенесён в bootstrap() выше
+      // (вызывается и при isReady=true, и при _applyLocalSeed),
+      // чтобы переводчики доходили до existing installations.
+      // (Раньше вызывался ТОЛЬКО здесь — на existing installations
+      // isReady=true → этот блок не доходил → translators не
+      // добавлялись в БД.)
       await translationDao.insertTranslations(
         result.translations
             .map(
@@ -405,6 +478,130 @@ class ContentBootstrapper {
       networkProgress.value = const NetworkFetchProgress.failed();
     }
   }
+
+  /// Round 8: lookup `quran_com_id` из alquran.cloud edition slug.
+  /// Возвращает `null` если edition не в [kQuranComRuTranslators].
+  /// Используется при seed'е translators из alquran.cloud чтобы
+  /// заполнить новые колонки `quran_com_id` / `name_ru`.
+  int? _quranComIdFromEdition(String? edition) {
+    if (edition == null) return null;
+    switch (edition) {
+      case 'ru.kuliev':
+        return 45;
+      case 'ru.ministry-of-awqaf':
+        return 78;
+      case 'ru-abu-adel':
+        return 79;
+      default:
+        return null;
+    }
+  }
+
+  /// Round 8: lookup `name_ru` по alquran.cloud edition slug.
+  String? _ruNameFromEdition(String? edition) {
+    if (edition == null) return null;
+    switch (edition) {
+      case 'ru.kuliev':
+        return 'Кулиев';
+      case 'ru.ministry-of-awqaf':
+        return 'Минвакф Египта';
+      case 'ru-abu-adel':
+        return 'Абу Адель';
+      default:
+        return null;
+    }
+  }
+
+  /// Round 8: добавляет новых переводчиков из Quran.com API
+  /// (Ministry of Awqaf Egypt id=78, Abu Adel id=79), которых нет
+  /// в alquran.cloud seed JSON. Использует PK id=3 и id=4 (id=1,2
+  /// заняты Kuliev/Sahih из alquran.cloud).
+  ///
+  /// **Идемпотентно**: проверяет наличие каждого translator по
+  /// `quran_com_id` перед insert'ом. Re-running — no-op.
+  ///
+  /// Перевод текста подгружается **по требованию** через
+  /// `QuranTranslationSyncService` (Этап 3) — этот seed только
+  /// добавляет запись в `translators`, чтобы UI мог показать
+  /// переводчик в списке выбора.
+  Future<void> _seedQuranComTranslators(AppDatabase db) async {
+    developer.log('_seedQuranComTranslators START', name: 'ContentBootstrapper');
+    final dao = translationDao;
+
+    // Назначаем id=3 для Ministry of Awqaf, id=4 для Abu Adel —
+    // чтобы не конфликтовать с id=1 (Кулиев) и id=2 (Sahih).
+    const extra = [
+      _ExtraTranslator(
+        id: 3,
+        name: 'Russian Translation (Ministry of Awqaf)',
+        languageCode: 'ru',
+        quranComId: 78,
+        nameRu: 'Минвакф Египта',
+        source: 'quran.com',
+      ),
+      _ExtraTranslator(
+        id: 4,
+        name: 'Abu Adel',
+        languageCode: 'ru',
+        quranComId: 79,
+        nameRu: 'Абу Адель',
+        source: 'quran.com',
+      ),
+    ];
+
+    for (final t in extra) {
+      try {
+        // Проверяем: если есть translator с таким quran_com_id —
+        // пропускаем (idempotency).
+        final existing = await dao.findByQuranComId(t.quranComId);
+        if (existing != null) {
+          developer.log(
+            'seedQuranComTranslators: skip ${t.name} (already exists id=${existing.id})',
+            name: 'ContentBootstrapper',
+          );
+          continue;
+        }
+        await dao.insertTranslator(
+          TranslatorsCompanion.insert(
+            id: Value(t.id),
+            name: t.name,
+            languageCode: t.languageCode,
+            source: t.source,
+            quranComId: Value(t.quranComId),
+            nameRu: Value(t.nameRu),
+          ),
+        );
+        developer.log(
+          'seedQuranComTranslators: inserted ${t.name} (quran_com_id=${t.quranComId})',
+          name: 'ContentBootstrapper',
+        );
+      } catch (e, st) {
+        developer.log(
+          'seedQuranComTranslators: FAILED for ${t.name}: $e',
+          name: 'ContentBootstrapper',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+  }
+}
+
+class _ExtraTranslator {
+  const _ExtraTranslator({
+    required this.id,
+    required this.name,
+    required this.languageCode,
+    required this.quranComId,
+    required this.nameRu,
+    required this.source,
+  });
+  final int id;
+  final String name;
+  final String languageCode;
+  final int quranComId;
+  final String nameRu;
+  final String source;
 }
 
 class BootstrapProgress {

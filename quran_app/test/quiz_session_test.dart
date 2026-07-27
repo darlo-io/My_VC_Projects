@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:quran_app/features/test/data/quiz_session.dart';
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// Pure-Dart tests for the quiz-session state machine. The session
 /// is fully deterministic given a seeded [Random] so we don't

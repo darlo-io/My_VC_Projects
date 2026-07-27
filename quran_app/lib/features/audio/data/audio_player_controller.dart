@@ -30,6 +30,7 @@ class AudioPlayerState {
     this.error,
     this.speed = 1.0,
     this.sleepTimerAtMs,
+    this.nightMode = false,
   });
 
   final Reciter? reciter;
@@ -74,6 +75,12 @@ class AudioPlayerState {
     return at.difference(now);
   }
 
+  /// Night mode: `true` → приглушённая громкость
+  /// (`AudioPlayerController.kNightModeVolume`, default 0.4) для
+  /// ночного прослушивания / в наушниках. `false` → полная
+  /// громкость 1.0. См. [AudioPlayerController.setNightMode].
+  final bool nightMode;
+
   static const empty = AudioPlayerState(
     reciter: null,
     surah: null,
@@ -99,6 +106,7 @@ class AudioPlayerState {
     double? speed,
     DateTime? sleepTimerAtMs,
     bool clearSleepTimer = false,
+    bool? nightMode,
   }) {
     return AudioPlayerState(
       reciter: reciter ?? this.reciter,
@@ -114,6 +122,7 @@ class AudioPlayerState {
       speed: speed ?? this.speed,
       sleepTimerAtMs:
           clearSleepTimer ? null : (sleepTimerAtMs ?? this.sleepTimerAtMs),
+      nightMode: nightMode ?? this.nightMode,
     );
   }
 }
@@ -215,9 +224,18 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
   /// per-ayah режима, где CDN ждёт глобальный id аята 1..6236, а не
   /// локальный 1..ayahCount.
   ///
-  /// Проиграть суру: качаем ОДИН per-surah файл с mp3quran.net и
-  /// отдаём в just_audio через `setFilePath`. Per-ayah сборка больше
-  /// не нужна — mp3quran.net выдаёт целые суры единым файлом.
+  /// Проиграть суру: качаем per-surah файл и отдаём в just_audio через
+  /// `setFilePath`.
+  ///
+  /// Источник URL выбирается через [resolveSurahUrlHybrid] (Sprint 1.5
+  /// cutover, июль 2026): предпочитает Quran.com CDN
+  /// (`verses.quran.com/{path}/mp3/{NNN}.mp3`) если для mp3quran-id есть
+  /// маппинг в `kMp3quranToQuranCom`, иначе fallback на mp3quran.net
+  /// (`server{N}.mp3quran.net/{dir}/{NNN}.mp3`). Hybrid нужен потому что
+  /// mp3quran.net CDN нестабилен с mid-2026 (DNS hijacks, 70/7s rate
+  /// limit), а Quran.com — official partnership с KFGQPC, structured
+  /// metadata и лучшая доставляемость. Старый `resolveSurahUrl` остаётся
+  /// для тестов и прямого использования.
   ///
   /// Используется рекомендованная структура кеша `audio_cache/{id}/
   /// {NNN}.mp3` (см. AGENTS.md «Audio playback — CDN and cache»).
@@ -226,10 +244,10 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
     required Surah surah,
     required CancelToken cancelToken,
   }) async {
-    final url = resolveSurahUrl(reciter, surah.id);
+    final url = _reciters.resolveSurahUrlHybrid(reciter, surah.id);
     if (url == null) {
       throw StateError(
-        'Reciter ${reciter.id} has no mp3quran metadata — '
+        'Reciter ${reciter.id} has no mp3quran/quran_com metadata — '
         'run syncFromApi() to populate',
       );
     }
@@ -516,21 +534,29 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
     });
   }
 
-  /// Night mode: установить audio-конфиг (низкий битрейт, без
-  /// стерео) для прослушивания ночью / в наушниках с фоновым шумом.
-  /// `enabled = true` → mono, 32kbps; `false` → стерео, 128kbps
-  /// (default).
+  /// Громкость в night mode (0.0 — тишина, 1.0 — полная).
+  /// 0.4 выбрано как «слышно на тихой комнате, не разбудит ребёнка».
+  static const double kNightModeVolume = 0.4;
+
+  /// Включить/выключить ночной режим.
   ///
-  /// Реализовано через `AudioServiceConfig.androidNotificationOngoing`
-  /// (уже есть) + `setSkipSilence`/`setShuffle` (если поддерживается
-  /// CDN'ом). Здесь — placeholder для будущей работы: на MVP v0.2
-  /// сохраняем флаг в state, и UI показывает индикатор.
-  void setNightMode(bool enabled) {
-    // no-op: just_audio не предоставляет runtime-переключение
-    // битрейта / каналов без re-encoding источника. На v0.2
-    // night mode — UI-only индикатор + опционально `setVolume(0.5)`
-    // для ночного режима. Помечаем в state для UI.
-    state = state.copyWith(speed: state.speed); // no-op, marker
+  /// **Реализация (2026-07-17)**: dim громкости через `AudioPlayer.setVolume`.
+  /// На MVP v0.2 это единственная доступная runtime-настройка —
+  /// переключение битрейта/каналов требует re-encoding источника, что
+  /// just_audio не делает на лету. Volume dim — прагматичный минимум,
+  /// который реально помогает при ночном прослушивании в наушниках.
+  ///
+  /// Флаг сохраняется в [AudioPlayerState.nightMode], чтобы UI мог
+  /// показать индикатор (иконка луны в `_PlaybackControls`). На
+  /// следующем `playSurah` / `play()` громкость не сбрасывается —
+  /// пользователь явно выключает night mode.
+  Future<void> setNightMode(bool enabled) async {
+    state = state.copyWith(nightMode: enabled);
+    await _player.setVolume(enabled ? kNightModeVolume : 1.0);
+    developer.log(
+      'setNightMode(enabled=$enabled) → volume=${enabled ? kNightModeVolume : 1.0}',
+      name: 'playback',
+    );
   }
 
   /// Сбросить error-флаг без изменения `surah/reciter`. Вызывается

@@ -1261,6 +1261,21 @@ class AppLocalizationsRu extends AppLocalizations {
   String get readingModeTooltip => 'Режим чтения';
 
   @override
+  String get readingPrevSurah => 'Предыдущая сура';
+
+  @override
+  String get readingNextSurah => 'Следующая сура';
+
+  @override
+  String get readingScrollToTop => 'К началу суры';
+
+  @override
+  String get readingScrollToBottom => 'К концу суры';
+
+  @override
+  String get readingOpenSurahList => 'Открыть список сур';
+
+  @override
   String get exitConfirmTitle => 'Выйти из приложения?';
 
   @override
@@ -1364,4 +1379,16 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get displaySettingsPreviewTranslation =>
       'Во имя Аллаха, Милостивого, Милосердного.';
+
+  @override
+  String get tafsirButton => 'Тафсир';
+
+  @override
+  String get tafsirLoading => 'Загрузка...';
+
+  @override
+  String get tafsirEmpty => 'Нет тафсира для этого аята';
+
+  @override
+  String get tafsirRetry => 'Повторить';
 }

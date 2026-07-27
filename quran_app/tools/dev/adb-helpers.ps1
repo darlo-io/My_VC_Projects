@@ -258,3 +258,115 @@ function Set-DeviceState {
 # ─── Module exports ─────────────────────────────────────────────────────
 # PowerShell auto-exports all functions defined in a dot-sourced script.
 # (Export-ModuleMember не нужен — это не .psm1, функции доступны через dot-source.)
+
+# ─── Sprint 1.5 follow-up: uiautomator-based helpers ──────────────
+#
+# `adb shell uiautomator dump` выдаёт точные bounds для каждого element на
+# экране. Это истина — tap по центру bounds = 100% точно, не зависит
+# от ratio. Используется когда `adb shell input tap` (или
+# `Invoke-AdbTapDp`) промахивается мимо кнопки.
+
+function Get-AdbUiBounds {
+    <#
+    Парсит uiautomator dump и возвращает bounds [x1, y1, x2, y2]
+    для элемента с заданным `text`, `content-desc` или `resource-id`.
+    Возвращает массив из 4 int'ов или $null если не найдено.
+    .EXAMPLE
+        $bounds = Get-AdbUiBounds -Text "Аль-Фатиха"
+        if ($bounds) {
+            $cx = [int](($bounds[0] + $bounds[2]) / 2)
+            $cy = [int](($bounds[1] + $bounds[3]) / 2)
+            adb shell input tap $cx $cy
+        }
+    #>
+    param(
+        [string]$Text = '',
+        [string]$ContentDesc = '',
+        [string]$ResourceId = '',
+        [string]$Serial = $Global:DeviceSerial
+    )
+
+    $dumpPath = "$env:TEMP\uidump.xml"
+    $null = & adb -s $Serial shell uiautomator dump /sdcard/ui.xml
+    $null = & adb -s $Serial pull /sdcard/ui.xml $dumpPath 2>$null
+    if (-not (Test-Path $dumpPath)) { return $null }
+    $xml = [xml](Get-Content $dumpPath -Raw)
+
+    # XPath: найти node с заданным текстом / content-desc / resource-id.
+    $node = $null
+    if ($Text) {
+        $node = $xml.node | Where-Object { $_.text -eq $Text -or $_.class -eq $Text } | Select-Object -First 1
+    }
+    if (-not $node -and $ContentDesc) {
+        $node = $xml.node | Where-Object { $_.content-desc -eq $ContentDesc } | Select-Object -First 1
+    }
+    if (-not $node -and $ResourceId) {
+        $node = $xml.node | Where-Object { $_.resource-id -eq $ResourceId } | Select-Object -First 1
+    }
+    if (-not $node -or -not $node.bounds) { return $null }
+
+    # bounds="[x1,y1][x2,y2]"
+    if ($node.bounds -match '\[(\d+),(\d+)\]\[(\d+),(\d+)\]') {
+        return @([int]$Matches[1], [int]$Matches[2], [int]$Matches[3], [int]$Matches[4])
+    }
+    return $null
+}
+
+function Invoke-AdbTapAtText {
+    <#
+    Тап в центр элемента с заданным текстом (через uiautomator dump).
+    Точнее чем `Invoke-AdbTapDp` — bounds берутся прямо из UI-дерева.
+    .EXAMPLE
+        Invoke-AdbTapAtText -Text "Аль-Фатиха"
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Text,
+        [string]$Serial = $Global:DeviceSerial
+    )
+    $bounds = Get-AdbUiBounds -Text $Text -Serial $Serial
+    if (-not $bounds) {
+        Write-Host "[tap-at-text] '$Text' not found in UI tree"
+        return $false
+    }
+    $cx = [int](($bounds[0] + $bounds[2]) / 2)
+    $cy = [int](($bounds[1] + $bounds[3]) / 2)
+    Write-Host "[tap-at-text] '$Text' bounds=($($bounds[0]),$($bounds[1]),$($bounds[2]),$($bounds[3])) -> ($cx, $cy)"
+    & adb -s $Serial shell input tap $cx $cy
+    return $true
+}
+
+function Write-Utf8NoBom {
+    <#
+    PowerShell `Set-Content` (без `-Encoding`) добавляет UTF-8 BOM
+    (0xEF 0xBB 0xBF), который ломает Dart analyzer: «Target of URI
+    doesn't exist». Используй эту функцию вместо `Set-Content` для
+    любых .dart-файлов. Отсутствие BOM экономит 3 байта и спасает
+    analyzer cache.
+    .EXAMPLE
+        Write-Utf8NoBom -Path "lib/foo.dart" -Content "..."
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Path,
+        [Parameter(Mandatory)] [string]$Content
+    )
+    $dir = Split-Path $Path -Parent
+    if ($dir -and -not (Test-Path $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
+    # Encoding without preamble → no BOM.
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
+}
+
+# ─── Sprint 2 dev-quality: structured logging for taps ────────────────
+#
+# `Write-Host` теряется в логах. `Write-Verbose` — правильный путь
+# для отладочного вывода который можно перенаправить через
+# `-Verbose` или `$VerbosePreference = "Continue"`.
+
+$VerbosePreference = 'SilentlyContinue'  # по умолчанию тихо
+
+function Write-TapLog {
+    param([string]$Message)
+    Write-Verbose $Message
+}

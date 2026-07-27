@@ -75,7 +75,9 @@ class SettingsScreen extends ConsumerWidget {
                   icon: Icons.translate,
                   title: t.settingsTranslation,
                   trailing: Text(
-                    prefs.translationLang,
+                    // Round 8: показываем nameRu активного
+                    // переводчика, fallback на translationLang.
+                    _activeTranslatorName(ref) ?? prefs.translationLang,
                     style: const TextStyle(
                       color: AppColors.gold,
                       fontWeight: FontWeight.w600,
@@ -210,29 +212,134 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  /// Round 8: список translators из БД для выбора перевода.
+  /// При выборе — записывает `activeTranslatorId` в prefs. Контент
+  /// перевода (translations rows) подгружается lazy через
+  /// `QuranTranslationSyncService` (Этап 3).
   void _showTrSheet(BuildContext context, WidgetRef ref, AppLocalizations t) {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.surface,
       builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final l in const ['ru', 'en'])
-              ListTile(
-                title: Text(l == 'ru' ? t.languageRussian : t.languageEnglish),
-                trailing:
-                    ref.read(appPreferencesProvider).translationLang == l
-                        ? const Icon(Icons.check, color: AppColors.gold)
-                        : null,
-                onTap: () async {
-                  await ref
-                      .read(appPreferencesProvider)
-                      .setTranslationLang(l);
-                  if (context.mounted) Navigator.pop(context);
-                },
+        child: Consumer(
+          builder: (context, ref, _) {
+            final translatorsAsync = ref.watch(translatorsListProvider);
+            final activeId = ref.read(appPreferencesProvider).activeTranslatorId;
+
+            return translatorsAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
               ),
-          ],
+              error: (e, _) => Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text('$e', textAlign: TextAlign.center),
+              ),
+              // Round 8: показываем прогресс "Загружаем перевод N из 114 сур"
+              // когда синхронизация в процессе.
+              data: (translators) {
+                final syncState = ref.watch(translationSyncStateProvider).valueOrNull;
+                final isSyncing = syncState?.isSyncing ?? false;
+                final isThisTranslatorSyncing = isSyncing &&
+                    syncState?.translatorId != null &&
+                    syncState!.translatorId != null &&
+                    translators.any((t) => t.id == syncState.translatorId);
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isThisTranslatorSyncing)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 16, height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Загружаем перевод ${syncState.completedSurahs}/${syncState.totalSurahs}…',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.gold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (translators.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'Нет переводов в БД',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppColors.textTertiary),
+                        ),
+                      )
+                    else
+                      for (final tr in translators)
+                        ListTile(
+                          leading: tr.id == syncState?.translatorId && isSyncing
+                              ? const SizedBox(
+                                  width: 20, height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(
+                                  Icons.translate,
+                                  color: tr.id == activeId
+                                      ? AppColors.gold
+                                      : AppColors.textTertiary,
+                                  size: 20,
+                                ),
+                          title: Text(
+                            tr.nameRu ?? tr.name,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: tr.id == activeId
+                                  ? AppColors.gold
+                                  : AppColors.textPrimary,
+                              fontWeight: tr.id == activeId
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
+                          ),
+                          subtitle: tr.nameRu != null && tr.name != tr.nameRu
+                              ? Text(tr.name,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textTertiary,
+                                  ))
+                              : null,
+                          trailing: tr.id == activeId
+                              ? const Icon(Icons.check, color: AppColors.gold)
+                              : null,
+                          onTap: () async {
+                            await ref
+                                .read(appPreferencesProvider)
+                                .setActiveTranslatorId(tr.id);
+                            await ref
+                                .read(appPreferencesProvider)
+                                .setTranslationLang(tr.languageCode);
+                            if (context.mounted) Navigator.pop(context);
+                            // Round 8: lazy fetch — если translations
+                            // для этого translator'a ещё не загружены
+                            // (т.е. этот translator никогда не
+                            // открывался), качает с Quran.com API
+                            // в background. Идемпотентно — второй
+                            // вызов no-op.
+                            // ignore: unawaited_futures
+                            ref
+                                .read(quranTranslationSyncServiceProvider)
+                                .ensureTranslatorLoaded(tr.id);
+                          },
+                        ),
+                  ],
+                );
+              },
+            );
+          },
         ),
       ),
     );
@@ -288,6 +395,17 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Round 8: возвращает nameRu активного переводчика (или null).
+String? _activeTranslatorName(WidgetRef ref) {
+  final id = ref.read(appPreferencesProvider).activeTranslatorId;
+  final translators = ref.read(translatorsListProvider).value;
+  if (translators == null) return null;
+  for (final t in translators) {
+    if (t.id == id) return t.nameRu ?? t.name;
+  }
+  return null;
 }
 
 class _SectionTitle extends StatelessWidget {

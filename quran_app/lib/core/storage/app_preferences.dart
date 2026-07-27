@@ -15,6 +15,11 @@ class AppPreferences {
   static const _kFontSize = 'reader.fontSize';
   static const _kReciterId = 'audio.reciterId';
   static const _kTranslationLang = 'reader.translationLang';
+
+  /// Round 8: ID активного переводчика (translator.id в БД).
+  /// Если не задан — fallback на legacy `translationLang` ('ru')
+  /// → translator.id=1 (Кулиев, alquran.cloud или Quran.com).
+  static const _kActiveTranslatorId = 'reader.activeTranslatorId';
   static const _kThemeMode = 'app.themeMode';
   static const _kCacheLimitMb = 'audio.cacheLimitMb';
   static const _kReadingMode = 'reader.readingMode';
@@ -50,6 +55,12 @@ class AppPreferences {
   String get translationLang => _prefs.getString(_kTranslationLang) ?? 'ru';
   Future<void> setTranslationLang(String v) =>
       _prefs.setString(_kTranslationLang, v);
+
+  /// Round 8: ID активного переводчика (FK в `translators`).
+  /// Default = 1 (Кулиев — наш seed переводчик).
+  int get activeTranslatorId => _prefs.getInt(_kActiveTranslatorId) ?? 1;
+  Future<void> setActiveTranslatorId(int id) =>
+      _prefs.setInt(_kActiveTranslatorId, id);
 
   String get themeMode => _prefs.getString(_kThemeMode) ?? 'dark';
   Future<void> setThemeMode(String v) => _prefs.setString(_kThemeMode, v);

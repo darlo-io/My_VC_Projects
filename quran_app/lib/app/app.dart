@@ -12,6 +12,22 @@ class QuranApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Round 4 bugfix: rotation теперь управляется **напрямую** из
+    // `ReaderScreen.initState`/`dispose` через `SystemChrome
+    // .setPreferredOrientations(...)`. Round 3 approach через
+    // Riverpod `ref.listen` + `addPostFrameCallback` имел слишком
+    // много async-step'ов и иногда не срабатывал (user feedback
+    // 2026-07-21: «поворот работает на всех экранах»).
+    //
+    // Текущий подход:
+    //   1. `main.dart` ставит `portrait-only` при старте.
+    //   2. `ReaderScreen.initState` через `addPostFrameCallback`
+    //      вызывает `setPreferredOrientations(_allOrientations)`.
+    //   3. `ReaderScreen.dispose` вызывает
+    //      `setPreferredOrientations(_portraitOnly)`.
+    //
+    // Прямой, синхронный (с `await` для надёжности), без посредников.
+
     final router = ref.watch(routerProvider);
     final languageCode = ref.watch(languageProvider);
 

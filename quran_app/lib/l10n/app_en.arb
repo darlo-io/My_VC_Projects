@@ -440,6 +440,11 @@
   "readingModeLineByLine": "Line by line",
   "readingModeBook": "Book",
   "readingModeTooltip": "Reading mode",
+  "readingPrevSurah": "Previous surah",
+  "readingNextSurah": "Next surah",
+  "readingScrollToTop": "Scroll to top",
+  "readingScrollToBottom": "Scroll to bottom",
+  "readingOpenSurahList": "Open surah list",
   "exitConfirmTitle": "Exit app?",
   "exitConfirmBody": "Are you sure you want to close the app?",
   "exitConfirmYes": "Exit",
@@ -473,5 +478,9 @@
   "displaySettingsThemeSepia": "Sepia",
   "displaySettingsThemeLight": "Light",
   "displaySettingsThemeParchment": "Parchment",
-  "displaySettingsPreviewTranslation": "In the name of Allah, the Most Gracious, the Most Merciful."
+  "displaySettingsPreviewTranslation": "In the name of Allah, the Most Gracious, the Most Merciful.",
+  "tafsirButton": "Tafsir",
+  "tafsirLoading": "Loading...",
+  "tafsirEmpty": "No tafsir available for this ayah",
+  "tafsirRetry": "Retry"
 }

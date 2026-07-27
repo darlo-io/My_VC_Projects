@@ -35,7 +35,7 @@
 - flutter_riverpod 2.6.1, go_router 14.6.2
 - dio 5.7.0, drift 2.21.0
 - just_audio 0.9.42, audio_service 0.18.18
-- flutter_skill (deprecated, replaced by Arenukvern/mcp_flutter server-only)
+- Arenukvern/mcp_flutter server-only (Flutter MCP toolkit, см. AGENTS.md)
 - mp3quran.net (HTML парсинг) — заменяем в Sprint 1
 
 ## Дополнительные рекомендации (см. полный список в чате)
@@ -58,4 +58,6 @@
 
 ## Прогресс
 
-См. todo в чате для актуального статуса. Создан 2026-07-13, обновляется по мере выполнения.
+Актуальный статус по плану — в `.kilo/plans/1783541431192-post-execution-review.md`
+(обновляется по мере выполнения). Этот файл — исходный спринт-план
+создан 2026-07-13.

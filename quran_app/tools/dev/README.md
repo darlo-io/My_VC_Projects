@@ -65,7 +65,7 @@ Start-FlutterSupervisor
 
 # После правок Flutter-кода (но без force-stop):
 #   - supervisor сам перезапустит APK если умер
-#   - hot reload через MCP `flutter-skill_hot_reload`
+#   - hot reload через MCP `fmt_hot_reload_flutter`
 
 # Если очень нужно force-stop:
 Stop-FlutterSupervisor $job    # stop the watchdog job

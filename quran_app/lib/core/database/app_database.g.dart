@@ -2891,8 +2891,35 @@ class $TranslatorsTable extends Translators
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _quranComIdMeta = const VerificationMeta(
+    'quranComId',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, name, languageCode, source];
+  late final GeneratedColumn<int> quranComId = GeneratedColumn<int>(
+    'quran_com_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameRuMeta = const VerificationMeta('nameRu');
+  @override
+  late final GeneratedColumn<String> nameRu = GeneratedColumn<String>(
+    'name_ru',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    languageCode,
+    source,
+    quranComId,
+    nameRu,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2935,6 +2962,21 @@ class $TranslatorsTable extends Translators
     } else if (isInserting) {
       context.missing(_sourceMeta);
     }
+    if (data.containsKey('quran_com_id')) {
+      context.handle(
+        _quranComIdMeta,
+        quranComId.isAcceptableOrUnknown(
+          data['quran_com_id']!,
+          _quranComIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('name_ru')) {
+      context.handle(
+        _nameRuMeta,
+        nameRu.isAcceptableOrUnknown(data['name_ru']!, _nameRuMeta),
+      );
+    }
     return context;
   }
 
@@ -2960,6 +3002,14 @@ class $TranslatorsTable extends Translators
         DriftSqlType.string,
         data['${effectivePrefix}source'],
       )!,
+      quranComId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quran_com_id'],
+      ),
+      nameRu: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name_ru'],
+      ),
     );
   }
 
@@ -2973,12 +3023,29 @@ class Translator extends DataClass implements Insertable<Translator> {
   final int id;
   final String name;
   final String languageCode;
+
+  /// Откуда пришёл перевод: `alquran.cloud`, `quran.com`, `local`.
   final String source;
+
+  /// **Round 8 (2026-07-23)**: id перевода в Quran.com API
+  /// (`/resources/translations` → `id`). Используется для
+  /// `fetchByAyah(translationId, ...)` / `fetchByChapter(...)`.
+  /// Nullable — переводчики из alquran.cloud не имеют Quran.com id.
+  final int? quranComId;
+
+  /// **Round 8**: русское display name для UI. Для Кулиева —
+  /// «Кулиев», для Ministry of Awqaf — «Министерство вакфов
+  /// Египта», для Abu Adel — «Абу Адель» (см. миграцию v15→v17).
+  /// Nullable — для не-русских переводчиков поле пустое, UI
+  /// fallback на `name`.
+  final String? nameRu;
   const Translator({
     required this.id,
     required this.name,
     required this.languageCode,
     required this.source,
+    this.quranComId,
+    this.nameRu,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2987,6 +3054,12 @@ class Translator extends DataClass implements Insertable<Translator> {
     map['name'] = Variable<String>(name);
     map['language_code'] = Variable<String>(languageCode);
     map['source'] = Variable<String>(source);
+    if (!nullToAbsent || quranComId != null) {
+      map['quran_com_id'] = Variable<int>(quranComId);
+    }
+    if (!nullToAbsent || nameRu != null) {
+      map['name_ru'] = Variable<String>(nameRu);
+    }
     return map;
   }
 
@@ -2996,6 +3069,12 @@ class Translator extends DataClass implements Insertable<Translator> {
       name: Value(name),
       languageCode: Value(languageCode),
       source: Value(source),
+      quranComId: quranComId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(quranComId),
+      nameRu: nameRu == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nameRu),
     );
   }
 
@@ -3009,6 +3088,8 @@ class Translator extends DataClass implements Insertable<Translator> {
       name: serializer.fromJson<String>(json['name']),
       languageCode: serializer.fromJson<String>(json['languageCode']),
       source: serializer.fromJson<String>(json['source']),
+      quranComId: serializer.fromJson<int?>(json['quranComId']),
+      nameRu: serializer.fromJson<String?>(json['nameRu']),
     );
   }
   @override
@@ -3019,6 +3100,8 @@ class Translator extends DataClass implements Insertable<Translator> {
       'name': serializer.toJson<String>(name),
       'languageCode': serializer.toJson<String>(languageCode),
       'source': serializer.toJson<String>(source),
+      'quranComId': serializer.toJson<int?>(quranComId),
+      'nameRu': serializer.toJson<String?>(nameRu),
     };
   }
 
@@ -3027,11 +3110,15 @@ class Translator extends DataClass implements Insertable<Translator> {
     String? name,
     String? languageCode,
     String? source,
+    Value<int?> quranComId = const Value.absent(),
+    Value<String?> nameRu = const Value.absent(),
   }) => Translator(
     id: id ?? this.id,
     name: name ?? this.name,
     languageCode: languageCode ?? this.languageCode,
     source: source ?? this.source,
+    quranComId: quranComId.present ? quranComId.value : this.quranComId,
+    nameRu: nameRu.present ? nameRu.value : this.nameRu,
   );
   Translator copyWithCompanion(TranslatorsCompanion data) {
     return Translator(
@@ -3041,6 +3128,10 @@ class Translator extends DataClass implements Insertable<Translator> {
           ? data.languageCode.value
           : this.languageCode,
       source: data.source.present ? data.source.value : this.source,
+      quranComId: data.quranComId.present
+          ? data.quranComId.value
+          : this.quranComId,
+      nameRu: data.nameRu.present ? data.nameRu.value : this.nameRu,
     );
   }
 
@@ -3050,13 +3141,16 @@ class Translator extends DataClass implements Insertable<Translator> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('languageCode: $languageCode, ')
-          ..write('source: $source')
+          ..write('source: $source, ')
+          ..write('quranComId: $quranComId, ')
+          ..write('nameRu: $nameRu')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, languageCode, source);
+  int get hashCode =>
+      Object.hash(id, name, languageCode, source, quranComId, nameRu);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3064,7 +3158,9 @@ class Translator extends DataClass implements Insertable<Translator> {
           other.id == this.id &&
           other.name == this.name &&
           other.languageCode == this.languageCode &&
-          other.source == this.source);
+          other.source == this.source &&
+          other.quranComId == this.quranComId &&
+          other.nameRu == this.nameRu);
 }
 
 class TranslatorsCompanion extends UpdateCompanion<Translator> {
@@ -3072,17 +3168,23 @@ class TranslatorsCompanion extends UpdateCompanion<Translator> {
   final Value<String> name;
   final Value<String> languageCode;
   final Value<String> source;
+  final Value<int?> quranComId;
+  final Value<String?> nameRu;
   const TranslatorsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.languageCode = const Value.absent(),
     this.source = const Value.absent(),
+    this.quranComId = const Value.absent(),
+    this.nameRu = const Value.absent(),
   });
   TranslatorsCompanion.insert({
     this.id = const Value.absent(),
     required String name,
     required String languageCode,
     required String source,
+    this.quranComId = const Value.absent(),
+    this.nameRu = const Value.absent(),
   }) : name = Value(name),
        languageCode = Value(languageCode),
        source = Value(source);
@@ -3091,12 +3193,16 @@ class TranslatorsCompanion extends UpdateCompanion<Translator> {
     Expression<String>? name,
     Expression<String>? languageCode,
     Expression<String>? source,
+    Expression<int>? quranComId,
+    Expression<String>? nameRu,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (languageCode != null) 'language_code': languageCode,
       if (source != null) 'source': source,
+      if (quranComId != null) 'quran_com_id': quranComId,
+      if (nameRu != null) 'name_ru': nameRu,
     });
   }
 
@@ -3105,12 +3211,16 @@ class TranslatorsCompanion extends UpdateCompanion<Translator> {
     Value<String>? name,
     Value<String>? languageCode,
     Value<String>? source,
+    Value<int?>? quranComId,
+    Value<String?>? nameRu,
   }) {
     return TranslatorsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
       languageCode: languageCode ?? this.languageCode,
       source: source ?? this.source,
+      quranComId: quranComId ?? this.quranComId,
+      nameRu: nameRu ?? this.nameRu,
     );
   }
 
@@ -3129,6 +3239,12 @@ class TranslatorsCompanion extends UpdateCompanion<Translator> {
     if (source.present) {
       map['source'] = Variable<String>(source.value);
     }
+    if (quranComId.present) {
+      map['quran_com_id'] = Variable<int>(quranComId.value);
+    }
+    if (nameRu.present) {
+      map['name_ru'] = Variable<String>(nameRu.value);
+    }
     return map;
   }
 
@@ -3138,7 +3254,9 @@ class TranslatorsCompanion extends UpdateCompanion<Translator> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('languageCode: $languageCode, ')
-          ..write('source: $source')
+          ..write('source: $source, ')
+          ..write('quranComId: $quranComId, ')
+          ..write('nameRu: $nameRu')
           ..write(')'))
         .toString();
   }
@@ -3557,6 +3675,15 @@ class $TafsirSourcesTable extends TafsirSources
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _nameRuMeta = const VerificationMeta('nameRu');
+  @override
+  late final GeneratedColumn<String> nameRu = GeneratedColumn<String>(
+    'name_ru',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _languageCodeMeta = const VerificationMeta(
     'languageCode',
   );
@@ -3585,6 +3712,7 @@ class $TafsirSourcesTable extends TafsirSources
     slug,
     nameAr,
     nameEn,
+    nameRu,
     languageCode,
     quranComId,
   ];
@@ -3626,6 +3754,12 @@ class $TafsirSourcesTable extends TafsirSources
       );
     } else if (isInserting) {
       context.missing(_nameEnMeta);
+    }
+    if (data.containsKey('name_ru')) {
+      context.handle(
+        _nameRuMeta,
+        nameRu.isAcceptableOrUnknown(data['name_ru']!, _nameRuMeta),
+      );
     }
     if (data.containsKey('language_code')) {
       context.handle(
@@ -3672,6 +3806,10 @@ class $TafsirSourcesTable extends TafsirSources
         DriftSqlType.string,
         data['${effectivePrefix}name_en'],
       )!,
+      nameRu: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name_ru'],
+      ),
       languageCode: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}language_code'],
@@ -3694,6 +3832,15 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
   final String slug;
   final String nameAr;
   final String nameEn;
+
+  /// Sprint 2.5.1: русское название тафсира (например, «Тафсир
+  /// Ас-Саади»). Nullable: не все тафсиры Quran.com имеют
+  /// русский перевод, и для legacy/source-local тафсиров поле тоже
+  /// может быть null. UI fallback — `nameEn`. Заполняется
+  /// через [TafsirsSyncService.forceSync] при `languageCode='ru'`
+  /// (Quran.com API возвращает `translated_name.name` в нужном
+  /// языке).
+  final String? nameRu;
   final String languageCode;
 
   /// Sprint 2.3: id тафсира в Quran.com API (для
@@ -3706,6 +3853,7 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
     required this.slug,
     required this.nameAr,
     required this.nameEn,
+    this.nameRu,
     required this.languageCode,
     this.quranComId,
   });
@@ -3716,6 +3864,9 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
     map['slug'] = Variable<String>(slug);
     map['name_ar'] = Variable<String>(nameAr);
     map['name_en'] = Variable<String>(nameEn);
+    if (!nullToAbsent || nameRu != null) {
+      map['name_ru'] = Variable<String>(nameRu);
+    }
     map['language_code'] = Variable<String>(languageCode);
     if (!nullToAbsent || quranComId != null) {
       map['quran_com_id'] = Variable<int>(quranComId);
@@ -3729,6 +3880,9 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
       slug: Value(slug),
       nameAr: Value(nameAr),
       nameEn: Value(nameEn),
+      nameRu: nameRu == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nameRu),
       languageCode: Value(languageCode),
       quranComId: quranComId == null && nullToAbsent
           ? const Value.absent()
@@ -3746,6 +3900,7 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
       slug: serializer.fromJson<String>(json['slug']),
       nameAr: serializer.fromJson<String>(json['nameAr']),
       nameEn: serializer.fromJson<String>(json['nameEn']),
+      nameRu: serializer.fromJson<String?>(json['nameRu']),
       languageCode: serializer.fromJson<String>(json['languageCode']),
       quranComId: serializer.fromJson<int?>(json['quranComId']),
     );
@@ -3758,6 +3913,7 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
       'slug': serializer.toJson<String>(slug),
       'nameAr': serializer.toJson<String>(nameAr),
       'nameEn': serializer.toJson<String>(nameEn),
+      'nameRu': serializer.toJson<String?>(nameRu),
       'languageCode': serializer.toJson<String>(languageCode),
       'quranComId': serializer.toJson<int?>(quranComId),
     };
@@ -3768,6 +3924,7 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
     String? slug,
     String? nameAr,
     String? nameEn,
+    Value<String?> nameRu = const Value.absent(),
     String? languageCode,
     Value<int?> quranComId = const Value.absent(),
   }) => TafsirSource(
@@ -3775,6 +3932,7 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
     slug: slug ?? this.slug,
     nameAr: nameAr ?? this.nameAr,
     nameEn: nameEn ?? this.nameEn,
+    nameRu: nameRu.present ? nameRu.value : this.nameRu,
     languageCode: languageCode ?? this.languageCode,
     quranComId: quranComId.present ? quranComId.value : this.quranComId,
   );
@@ -3784,6 +3942,7 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
       slug: data.slug.present ? data.slug.value : this.slug,
       nameAr: data.nameAr.present ? data.nameAr.value : this.nameAr,
       nameEn: data.nameEn.present ? data.nameEn.value : this.nameEn,
+      nameRu: data.nameRu.present ? data.nameRu.value : this.nameRu,
       languageCode: data.languageCode.present
           ? data.languageCode.value
           : this.languageCode,
@@ -3800,6 +3959,7 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
           ..write('slug: $slug, ')
           ..write('nameAr: $nameAr, ')
           ..write('nameEn: $nameEn, ')
+          ..write('nameRu: $nameRu, ')
           ..write('languageCode: $languageCode, ')
           ..write('quranComId: $quranComId')
           ..write(')'))
@@ -3808,7 +3968,7 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
 
   @override
   int get hashCode =>
-      Object.hash(id, slug, nameAr, nameEn, languageCode, quranComId);
+      Object.hash(id, slug, nameAr, nameEn, nameRu, languageCode, quranComId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3817,6 +3977,7 @@ class TafsirSource extends DataClass implements Insertable<TafsirSource> {
           other.slug == this.slug &&
           other.nameAr == this.nameAr &&
           other.nameEn == this.nameEn &&
+          other.nameRu == this.nameRu &&
           other.languageCode == this.languageCode &&
           other.quranComId == this.quranComId);
 }
@@ -3826,6 +3987,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
   final Value<String> slug;
   final Value<String> nameAr;
   final Value<String> nameEn;
+  final Value<String?> nameRu;
   final Value<String> languageCode;
   final Value<int?> quranComId;
   const TafsirSourcesCompanion({
@@ -3833,6 +3995,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
     this.slug = const Value.absent(),
     this.nameAr = const Value.absent(),
     this.nameEn = const Value.absent(),
+    this.nameRu = const Value.absent(),
     this.languageCode = const Value.absent(),
     this.quranComId = const Value.absent(),
   });
@@ -3841,6 +4004,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
     required String slug,
     required String nameAr,
     required String nameEn,
+    this.nameRu = const Value.absent(),
     required String languageCode,
     this.quranComId = const Value.absent(),
   }) : slug = Value(slug),
@@ -3852,6 +4016,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
     Expression<String>? slug,
     Expression<String>? nameAr,
     Expression<String>? nameEn,
+    Expression<String>? nameRu,
     Expression<String>? languageCode,
     Expression<int>? quranComId,
   }) {
@@ -3860,6 +4025,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
       if (slug != null) 'slug': slug,
       if (nameAr != null) 'name_ar': nameAr,
       if (nameEn != null) 'name_en': nameEn,
+      if (nameRu != null) 'name_ru': nameRu,
       if (languageCode != null) 'language_code': languageCode,
       if (quranComId != null) 'quran_com_id': quranComId,
     });
@@ -3870,6 +4036,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
     Value<String>? slug,
     Value<String>? nameAr,
     Value<String>? nameEn,
+    Value<String?>? nameRu,
     Value<String>? languageCode,
     Value<int?>? quranComId,
   }) {
@@ -3878,6 +4045,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
       slug: slug ?? this.slug,
       nameAr: nameAr ?? this.nameAr,
       nameEn: nameEn ?? this.nameEn,
+      nameRu: nameRu ?? this.nameRu,
       languageCode: languageCode ?? this.languageCode,
       quranComId: quranComId ?? this.quranComId,
     );
@@ -3898,6 +4066,9 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
     if (nameEn.present) {
       map['name_en'] = Variable<String>(nameEn.value);
     }
+    if (nameRu.present) {
+      map['name_ru'] = Variable<String>(nameRu.value);
+    }
     if (languageCode.present) {
       map['language_code'] = Variable<String>(languageCode.value);
     }
@@ -3914,6 +4085,7 @@ class TafsirSourcesCompanion extends UpdateCompanion<TafsirSource> {
           ..write('slug: $slug, ')
           ..write('nameAr: $nameAr, ')
           ..write('nameEn: $nameEn, ')
+          ..write('nameRu: $nameRu, ')
           ..write('languageCode: $languageCode, ')
           ..write('quranComId: $quranComId')
           ..write(')'))
@@ -7928,6 +8100,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this as AppDatabase,
   );
   late final AudioCacheDao audioCacheDao = AudioCacheDao(this as AppDatabase);
+  late final SearchDao searchDao = SearchDao(this as AppDatabase);
   late final WordsDao wordsDao = WordsDao(this as AppDatabase);
   late final WordTimingsDao wordTimingsDao = WordTimingsDao(
     this as AppDatabase,
@@ -7937,6 +8110,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final PlaybackSessionsDao playbackSessionsDao = PlaybackSessionsDao(
     this as AppDatabase,
   );
+  late final TafsirDao tafsirDao = TafsirDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10637,6 +10811,8 @@ typedef $$TranslatorsTableCreateCompanionBuilder =
       required String name,
       required String languageCode,
       required String source,
+      Value<int?> quranComId,
+      Value<String?> nameRu,
     });
 typedef $$TranslatorsTableUpdateCompanionBuilder =
     TranslatorsCompanion Function({
@@ -10644,6 +10820,8 @@ typedef $$TranslatorsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> languageCode,
       Value<String> source,
+      Value<int?> quranComId,
+      Value<String?> nameRu,
     });
 
 final class $$TranslatorsTableReferences
@@ -10701,6 +10879,16 @@ class $$TranslatorsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get quranComId => $composableBuilder(
+    column: $table.quranComId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nameRu => $composableBuilder(
+    column: $table.nameRu,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> translationsRefs(
     Expression<bool> Function($$TranslationsTableFilterComposer f) f,
   ) {
@@ -10755,6 +10943,16 @@ class $$TranslatorsTableOrderingComposer
     column: $table.source,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get quranComId => $composableBuilder(
+    column: $table.quranComId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nameRu => $composableBuilder(
+    column: $table.nameRu,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TranslatorsTableAnnotationComposer
@@ -10779,6 +10977,14 @@ class $$TranslatorsTableAnnotationComposer
 
   GeneratedColumn<String> get source =>
       $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<int> get quranComId => $composableBuilder(
+    column: $table.quranComId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get nameRu =>
+      $composableBuilder(column: $table.nameRu, builder: (column) => column);
 
   Expression<T> translationsRefs<T extends Object>(
     Expression<T> Function($$TranslationsTableAnnotationComposer a) f,
@@ -10838,11 +11044,15 @@ class $$TranslatorsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> languageCode = const Value.absent(),
                 Value<String> source = const Value.absent(),
+                Value<int?> quranComId = const Value.absent(),
+                Value<String?> nameRu = const Value.absent(),
               }) => TranslatorsCompanion(
                 id: id,
                 name: name,
                 languageCode: languageCode,
                 source: source,
+                quranComId: quranComId,
+                nameRu: nameRu,
               ),
           createCompanionCallback:
               ({
@@ -10850,11 +11060,15 @@ class $$TranslatorsTableTableManager
                 required String name,
                 required String languageCode,
                 required String source,
+                Value<int?> quranComId = const Value.absent(),
+                Value<String?> nameRu = const Value.absent(),
               }) => TranslatorsCompanion.insert(
                 id: id,
                 name: name,
                 languageCode: languageCode,
                 source: source,
+                quranComId: quranComId,
+                nameRu: nameRu,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -11322,6 +11536,7 @@ typedef $$TafsirSourcesTableCreateCompanionBuilder =
       required String slug,
       required String nameAr,
       required String nameEn,
+      Value<String?> nameRu,
       required String languageCode,
       Value<int?> quranComId,
     });
@@ -11331,6 +11546,7 @@ typedef $$TafsirSourcesTableUpdateCompanionBuilder =
       Value<String> slug,
       Value<String> nameAr,
       Value<String> nameEn,
+      Value<String?> nameRu,
       Value<String> languageCode,
       Value<int?> quranComId,
     });
@@ -11392,6 +11608,11 @@ class $$TafsirSourcesTableFilterComposer
 
   ColumnFilters<String> get nameEn => $composableBuilder(
     column: $table.nameEn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nameRu => $composableBuilder(
+    column: $table.nameRu,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11460,6 +11681,11 @@ class $$TafsirSourcesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get nameRu => $composableBuilder(
+    column: $table.nameRu,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get languageCode => $composableBuilder(
     column: $table.languageCode,
     builder: (column) => ColumnOrderings(column),
@@ -11491,6 +11717,9 @@ class $$TafsirSourcesTableAnnotationComposer
 
   GeneratedColumn<String> get nameEn =>
       $composableBuilder(column: $table.nameEn, builder: (column) => column);
+
+  GeneratedColumn<String> get nameRu =>
+      $composableBuilder(column: $table.nameRu, builder: (column) => column);
 
   GeneratedColumn<String> get languageCode => $composableBuilder(
     column: $table.languageCode,
@@ -11560,6 +11789,7 @@ class $$TafsirSourcesTableTableManager
                 Value<String> slug = const Value.absent(),
                 Value<String> nameAr = const Value.absent(),
                 Value<String> nameEn = const Value.absent(),
+                Value<String?> nameRu = const Value.absent(),
                 Value<String> languageCode = const Value.absent(),
                 Value<int?> quranComId = const Value.absent(),
               }) => TafsirSourcesCompanion(
@@ -11567,6 +11797,7 @@ class $$TafsirSourcesTableTableManager
                 slug: slug,
                 nameAr: nameAr,
                 nameEn: nameEn,
+                nameRu: nameRu,
                 languageCode: languageCode,
                 quranComId: quranComId,
               ),
@@ -11576,6 +11807,7 @@ class $$TafsirSourcesTableTableManager
                 required String slug,
                 required String nameAr,
                 required String nameEn,
+                Value<String?> nameRu = const Value.absent(),
                 required String languageCode,
                 Value<int?> quranComId = const Value.absent(),
               }) => TafsirSourcesCompanion.insert(
@@ -11583,6 +11815,7 @@ class $$TafsirSourcesTableTableManager
                 slug: slug,
                 nameAr: nameAr,
                 nameEn: nameEn,
+                nameRu: nameRu,
                 languageCode: languageCode,
                 quranComId: quranComId,
               ),

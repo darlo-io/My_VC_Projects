@@ -22,28 +22,39 @@ import '../../reader_settings/presentation/reader_palette.dart';
 import 'widgets/reader_widgets.dart';
 
 /// Surah + translations для конкретного открытия. Закэшировано до смены
-/// (surahId, translationLang), поэтому FutureBuilder в build не нужен.
+/// (surahId, activeTranslatorId), поэтому FutureBuilder в build не нужен.
 final _readerDataProvider = FutureProvider.autoDispose
     .family<ReaderData, ReaderKey>((ref, key) async {
-  return ref.read(quranRepositoryProvider).loadReaderData(
+  // Round 8: invalidation-hook для round 8 — после lazy fetch
+  // translations для нового translator'a (`translatorsListRefreshProvider`
+  // инкрементируется в main.dart после seed), UI обновится автоматически.
+  // Игнорируем возвращаемое значение, нужно только side-effect watch.
+  ref.watch(translatorsListRefreshProvider);
+  return ref.read(quranRepositoryProvider).loadReaderDataByTranslator(
         surahId: key.surahId,
-        translationLang: key.translationLang,
+        translatorId: key.activeTranslatorId,
       );
 });
 
 class ReaderKey {
-  const ReaderKey({required this.surahId, required this.translationLang});
+  const ReaderKey({
+    required this.surahId,
+    required this.translationLang,
+    required this.activeTranslatorId,
+  });
   final int surahId;
   final String translationLang;
+  final int activeTranslatorId;
 
   @override
   bool operator ==(Object other) =>
       other is ReaderKey &&
       other.surahId == surahId &&
-      other.translationLang == translationLang;
+      other.translationLang == translationLang &&
+      other.activeTranslatorId == activeTranslatorId;
 
   @override
-  int get hashCode => Object.hash(surahId, translationLang);
+  int get hashCode => Object.hash(surahId, translationLang, activeTranslatorId);
 }
 
 class ReaderScreen extends ConsumerStatefulWidget {
@@ -61,6 +72,17 @@ class ReaderScreen extends ConsumerStatefulWidget {
 }
 
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
+  // **Round 5 bugfix**: ориентация теперь управляется глобально
+  // через [OrientationGuard], привязанный к top-route (см.
+  // `lib/app/orientation_guard.dart` и listener в
+  // `app_router.dart`). Per-widget `initState`/`dispose` в Reader
+  // НЕ вызывал `SystemChrome.setPreferredOrientations` надёжно —
+  // `unawaited` в `dispose` ставил Future после `super.dispose()`,
+  // который мог race-condition с Android Activity. Listener по
+  // top-route более стабилен (см. user feedback 2026-07-22:
+  // "после выхода с экрана чтения, поворот экрана срабатывает и
+  // на других экранах").
+  //
   // SingleChildScrollView controller — заменил PageController,
   // потому что теперь все аяты в одной Mushaf-рамке
   // (см. `docs/images/read line by line.png`).
@@ -104,9 +126,23 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   void initState() {
     super.initState();
+    // Round 5 bugfix: ориентация управляется [OrientationGuard] —
+    // не нужно вручную вызывать `SystemChrome.setPreferredOrientations`
+    // здесь. Listener в `app_router.dart` отслеживает top-route и
+    // автоматически переключает orientation когда top-route —
+    // `/reader/:surahId`.
+    //
     // Initial reading mode from prefs. Не через `ref.watch` —
     // см. комментарий в `_readingMode`.
     _readingMode = ref.read(appPreferencesProvider).readingMode;
+    // Round 9.2B: lazy load аятов с Quran.com при первом mount.
+    // Идемпотентно — если аяты уже в БД (cold install через seed),
+    // ensureLoaded возвращает no-op. После записи в БД drift watch
+    // в build() автоматически обновит UI.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // ignore: unawaited_futures
+      ref.read(ayahsServiceProvider).ensureLoaded(widget.surahId);
+    });
     // Дополнительный listener на `_pageCtrl` для **финальной**
     // проверки scroll position. Это **не throttle'd** — срабатывает
     // на каждом изменении offset'а (включая окончательное «замирание»
@@ -310,6 +346,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       }
     }
     _pageCtrl.dispose();
+    // Round 5 bugfix: ориентация управляется [OrientationGuard] —
+    // не нужно вручную вызывать `SystemChrome.setPreferredOrientations`
+    // здесь. Listener в `app_router.dart` отслеживает top-route и
+    // автоматически переключает orientation.
     super.dispose();
   }
 
@@ -331,6 +371,209 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     setState(() => _controlsVisible = visible);
   }
 
+  /// Содержимое Mushaf-зоны: GestureDetector (toggle панелей) →
+  /// Padding → `_AnimatedControlsFrame` → dataAsync.when →
+  /// ayahsAsync.when → `_SingleScrollMushaf`.
+  ///
+  /// Вынесено в helper, чтобы layout-builder мог переиспользовать
+  /// один и тот же контент и в portrait (во весь экран), и в
+  /// landscape (внутри `Expanded` рядом с `_LandscapeSidebar`).
+  ///
+  /// В landscape дополнительно **ограничиваем ширину текстовой полосы**
+  /// (`textWidthPercent` кэп 80%) — на широком экране 100% даёт
+  /// строки по 100+ символов, нечитаемые. Кэп 80% сохраняет
+  /// пользовательский выбор, если он поставил <80%.
+  Widget _buildMushafBody({
+    required BuildContext context,
+    required AppLocalizations t,
+    required ReaderDisplaySettings display,
+    required AsyncValue<ReaderData> dataAsync,
+    required AsyncValue<List<Ayah>> ayahsAsync,
+    required Set<int> bookmarkedIds,
+    required bool isLandscape,
+  }) {
+    final effectiveDisplay = isLandscape && display.textWidthPercent > 80
+        ? display.copyWith(textWidthPercent: 80.0)
+        : display;
+    return GestureDetector(
+      // `behavior: translucent` — тап доходит **и** к нам, **и** к
+      // ребёнку (см. длинный комментарий в исходной build() ниже).
+      behavior: HitTestBehavior.translucent,
+      onTap: _toggleControls,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          effectiveDisplay.paddingHorizontal,
+          0,
+          effectiveDisplay.paddingHorizontal,
+          4,
+        ),
+        child: _AnimatedControlsFrame(
+          visible: _controlsVisible,
+          child: dataAsync.when(
+            loading: () =>
+                const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('$e')),
+            data: (data) {
+              final surah = data.surah;
+              if (surah == null) {
+                return Center(
+                  child: Text(
+                    t.searchResultsEmpty,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                );
+              }
+              return Padding(
+                padding: EdgeInsets.fromLTRB(
+                  effectiveDisplay.paddingHorizontal,
+                  8,
+                  effectiveDisplay.paddingHorizontal,
+                  8,
+                ),
+                child: ayahsAsync.when(
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                  error: (e, _) => Center(child: Text('$e')),
+                  data: (ayahs) {
+                    if (ayahs.isEmpty) {
+                      return Center(
+                        child: Text(
+                          t.searchResultsEmpty,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      );
+                    }
+                    return _SingleScrollMushaf(
+                      key: ValueKey(
+                        // `lineByLine` часть `Key` — при смене режима
+                        // Flutter размонтирует старый `_SingleScrollMushaf`
+                        // (см. длинный комментарий в исходной build()).
+                        // `fontFamily` — форсирует пересоздание State при
+                        // смене шрифта. `effectiveDisplay` гарантирует,
+                        // что при смене ориентации (textWidthPercent
+                        // кэп) AyahTile получает обновлённый display.
+                        'mushaf-$_readingMode-${ayahs.length}-'
+                        '${effectiveDisplay.fontFamily}-'
+                        '${effectiveDisplay.textWidthPercent.toInt()}',
+                      ),
+                      mushafKey: _mushafKey,
+                      ayahs: ayahs,
+                      translations:
+                          dataAsync.value?.translations ?? const {},
+                      fontSize: effectiveDisplay.fontSize,
+                      display: effectiveDisplay,
+                      bookmarkedIds: bookmarkedIds,
+                      scrollCtrl: _pageCtrl,
+                      lineByLine: _readingMode == 'lineByLine',
+                      surahNumber: dataAsync.value?.surah?.id ?? 0,
+                      onInitialLoad: (loaded) {
+                        _lastAyahs = loaded;
+                        _ayahsCount = loaded.length;
+                        if (widget.initialAyah > 1) {
+                          final idx = loaded.indexWhere(
+                            (a) => a.ayahNumber == widget.initialAyah,
+                          );
+                          if (idx >= 0) {
+                            if (_readingMode == 'lineByLine') {
+                              WidgetsBinding.instance.addPostFrameCallback((
+                                _,
+                              ) {
+                                if (!mounted) return;
+                                final state = _mushafKey.currentState;
+                                if (state is _SingleScrollMushafState) {
+                                  state.scrollToAyahByIndex(idx);
+                                }
+                              });
+                            } else {
+                              _scrollToAyah(idx);
+                            }
+                          }
+                        }
+                      },
+                      onAyahVisible: (Ayah a) {
+                        _lastReportedAyahNumber = a.ayahNumber;
+                        final repo = ref.read(quranRepositoryProvider);
+                        if (_ayahsCount != null &&
+                            _ayahsCount! - a.ayahNumber <= 50 &&
+                            a.ayahNumber != _ayahsCount) {
+                          if (_lastAyahs != null &&
+                              _lastAyahs!.isNotEmpty) {
+                            final lastAyah = _lastAyahs!.last;
+                            if (lastAyah.ayahNumber == _ayahsCount) {
+                              unawaited(
+                                repo.recordLastRead(
+                                  surahId: a.surahId,
+                                  ayahId: lastAyah.id,
+                                ),
+                              );
+                              _lastReportedAyahNumber =
+                                  lastAyah.ayahNumber;
+                            } else {
+                              unawaited(
+                                repo.recordLastRead(
+                                  surahId: a.surahId,
+                                  ayahId: a.id,
+                                ),
+                              );
+                            }
+                          } else {
+                            unawaited(
+                              repo.recordLastRead(
+                                surahId: a.surahId,
+                                ayahId: a.id,
+                              ),
+                            );
+                          }
+                        } else {
+                          unawaited(
+                            repo.recordLastRead(
+                              surahId: a.surahId,
+                              ayahId: a.id,
+                            ),
+                          );
+                        }
+                        unawaited(repo.recordAyahRead(surahId: a.surahId));
+                      },
+                      onFinalAyah: (int ayahId) {
+                        final repo = ref.read(quranRepositoryProvider);
+                        unawaited(
+                          repo.recordLastRead(
+                            surahId: widget.surahId,
+                            ayahId: ayahId,
+                          ),
+                        );
+                      },
+                      onToggleBookmark: (Ayah a, bool isBookmarked) =>
+                          toggleBookmark(
+                        ref,
+                        ayah: a,
+                        isCurrentlyBookmarked: isBookmarked,
+                      ),
+                      onScrollDelta: (delta) {
+                        // Скролл вниз (delta > 0) — панель
+                        // сворачивается. Скролл вверх НЕ
+                        // возвращает панель (см. подробный
+                        // комментарий в исходной build()).
+                        if (delta > 4) {
+                          _setControlsVisible(false);
+                        }
+                      },
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
@@ -339,6 +582,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final readerKey = ReaderKey(
       surahId: widget.surahId,
       translationLang: prefs.translationLang,
+      activeTranslatorId: prefs.activeTranslatorId,
     );
     final dataAsync = ref.watch(_readerDataProvider(readerKey));
     final ayahsAsync = ref.watch(_ayahsStreamProvider(widget.surahId));
@@ -349,344 +593,80 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       // `themeVariant` влияет на фон зоны чтения, не на глобальную
       // тему (навигация остаётся тёмной). Через `ReaderPalette.of`.
       backgroundColor: ReaderPalette.of(display.themeVariant).background,
-      body: Stack(
-        children: [
-          // Задний план: Mushaf (занимает весь экран). Тап по
-          // нему → toggle панелей.
-          //
-          // `SafeArea(top: false, bottom: false)` — убраны
-          // left/right safe-area (Android system insets для
-          // notch/cutout). Это позволяет тексту при
-          // `paddingHorizontal: 0` быть в самом краю экрана.
-          // SafeArea с `left: false, right: false` — горизонтальные
-          // system insets (notch/cutout) не добавляют отступов.
-          // `paddingHorizontal` из настроек — единственный
-          // источник горизонтального отступа: при `0` текст
-          // вплотную к краям экрана.
-          // top/bottom safe-area остаются на top/bottom bar'ах
-          // (см. ниже), чтобы статус-бар и навигация не
-          // перекрывались.
-          Positioned.fill(
-            child: SafeArea(
-              left: false,
-              right: false,
-              top: false,
-              bottom: false,
-              child: GestureDetector(
-                // `behavior: translucent` — тап доходит **и** к
-                // нам, **и** к ребёнку. Без этого:
-                //   - `opaque` поглощает тап и `WordSpan` / `IconButton`
-                //     / `SelectableText` внутри Mushaf **не**
-                //     получают тап вообще (тап по слову не открывает
-                //     WordCard);
-                //   - `deferToChild` (по умолчанию) не ловит тап,
-                //     если под пальцем текст (`SelectableText` /
-                //     `Wrap` поглощают), а toggle не работает
-                //     поверх текста.
-                // `translucent` — компромисс: тап по слову
-                // открывает WordCard И триггерит toggle; тап по
-                // пустому пространству триггерит только toggle.
-                // WordCard — модальное окно, после его закрытия
-                // панели будут в новом состоянии (это ожидаемо).
-                behavior: HitTestBehavior.translucent,
-                onTap: _toggleControls,
-                child: Padding(
-                  // `display.paddingHorizontal` — единый источник
-                  // горизонтального отступа. При `0` текст идёт
-                  // вплотную к краям экрана.
-                  padding: EdgeInsets.fromLTRB(
-                    display.paddingHorizontal,
-                    0,
-                    display.paddingHorizontal,
-                    4,
-                  ),
-                  child: _AnimatedControlsFrame(
-                    visible: _controlsVisible,
-                    child: dataAsync.when(
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (e, _) => Center(child: Text('$e')),
-                      data: (data) {
-                        final surah = data.surah;
-                        if (surah == null) {
-                          return Center(
-                            child: Text(
-                              t.searchResultsEmpty,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          );
-                        }
-                        // Раньше здесь был `GoldFrame` — декоративная
-                        // золотая рамка с арабесками по углам
-                        // (имитация печатной Mushaf). Убрано: рамка
-                        // и ornament-звёзды визуально перегружали
-                        // экран и не соответствовали современному
-                        // минималистичному дизайну. `Padding`
-                        // оставлен для отступов.
-                        return Padding(
-                          // `display.paddingHorizontal` — единый источник
-                          // горизонтального отступа (см. строки выше).
-                          padding: EdgeInsets.fromLTRB(
-                            display.paddingHorizontal,
-                            8,
-                            display.paddingHorizontal,
-                            8,
-                          ),
-                          child: ayahsAsync.when(
-                            loading: () => const Center(
-                                child: CircularProgressIndicator()),
-                            error: (e, _) => Center(child: Text('$e')),
-                            data: (ayahs) {
-                              if (ayahs.isEmpty) {
-                                return Center(
-                                  child: Text(
-                                    t.searchResultsEmpty,
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                );
-                              }
-                              return _SingleScrollMushaf(
-                                key: ValueKey(
-                                  // `lineByLine` часть `Key` —
-                                  // когда режим меняется, Flutter
-                                  // размонтирует старый `_SingleScrollMushaf`
-                                  // (с `scrollCtrl.removeListener` в
-                                  // `dispose()`) и монтирует новый.
-                                  // Без этого `ScrollController`
-                                  // остаётся привязанным к старому
-                                  // `SingleChildScrollView`, и при
-                                  // rebuild с другим деревом (book
-                                  // vs lineByLine) Flutter framework
-                                  // бросает assertion
-                                  // `controller is being used by
-                                  // multiple scrollables`, который в
-                                  // dev-режиме сбрасывает navigation
-                                  // stack на Home.
-                                  // `fontFamily` в key — критично:
-                                  // без него при смене шрифта в settings
-                                  // Flutter переиспользует Element
-                                  // _SingleScrollMushaf, и `widget.display`
-                                  // обновляется, но `displaySettingsProvider`
-                                  // notification может не дойти до
-                                  // `AyahTile` (если _SingleScrollMushaf
-                                  // не ребилдится по какой-то причине).
-                                  // `ValueKey(fontFamily)` форсирует
-                                  // пересоздание State, гарантируя
-                                  // что AyahTile получает новый display.
-                                  'mushaf-$_readingMode-${ayahs.length}-'
-                                  '${display.fontFamily}',
-                                ),
-                                // `mushafKey` — стабильный `GlobalKey`
-                                // для доступа к `scrollToAyahByIndex` из
-                                // parent'а (через `mushafKey.currentState`).
-                                // Без него parent не может приказать
-                                // `Mushaf` прокрутиться к нужному аяту
-                                // при deep-link (Continue button
-                                // → `/reader/1?ayah=5`).
-                                mushafKey: _mushafKey,
-                                ayahs: ayahs,
-                                translations:
-                                    dataAsync.value?.translations ?? const {},
-                                fontSize: display.fontSize,
-                                display: display,
-                                bookmarkedIds: bookmarkedIds,
-                                scrollCtrl: _pageCtrl,
-                                lineByLine: _readingMode == 'lineByLine',
-                                // Номер суры для ornament-header
-                                // (`SurahHeader`). Арабское название
-                                // само подтягивается glyph-строкой
-                                // из `Surah Name V2.ttf` по этому id.
-                                surahNumber: dataAsync.value?.surah?.id ?? 0,
-                                onInitialLoad: (loaded) {
-                                  // Сохраняем последний список ayahs
-                                  // для deep-link scroll в initState
-                                  // (если он сработал до того, как
-                                  // StreamBuilder в build() получил
-                                  // данные). Также делаем scroll
-                                  // здесь — это второй шанс, если
-                                  // initState не смог найти аят.
-                                  _lastAyahs = loaded;
-                                  // Сохраняем количество аятов в суре
-                                  // для проверки «близко к концу» в
-                                  // `onAyahVisible` callback.
-                                  _ayahsCount = loaded.length;
-                                  if (widget.initialAyah > 1) {
-                                    final idx = loaded.indexWhere(
-                                      (a) =>
-                                          a.ayahNumber ==
-                                          widget.initialAyah,
-                                    );
-                                    if (idx >= 0) {
-                                      // Точный scroll через RenderBox
-                                      // (для lineByLine) или tileExtent
-                                      // fallback (для book).
-                                      if (_readingMode == 'lineByLine') {
-                                        // Defer scroll на **следующий**
-                                        // postFrame — иначе
-                                        // `_tileKeys[idx].currentContext`
-                                        // ещё null (RenderBox не laid out
-                                        // при первом frame после mount).
-                                        // `curves.linear` + `Duration.zero`
-                                        // — мгновенный snap без анимации.
-                                        WidgetsBinding.instance
-                                            .addPostFrameCallback((_) {
-                                          if (!mounted) return;
-                                          final state =
-                                              _mushafKey.currentState;
-                                          if (state
-                                              is _SingleScrollMushafState) {
-                                            state.scrollToAyahByIndex(idx);
-                                          }
-                                        });
-                                      } else {
-                                        _scrollToAyah(idx);
-                                      }
-                                    }
-                                  }
-                                },
-                                onAyahVisible: (Ayah a) {
-                                  // Сохраняем номер последнего видимого
-                                  // аята для **финальной** записи в
-                                  // [dispose]. Если пользователь дочитал
-                                  // почти до конца, но scroll-tick не
-                                  // успел записать `ayahs.last` (из-за
-                                  // throttle 200ms или быстрого
-                                  // back-button), dispose() использует
-                                  // это значение для эвристики
-                                  // «близко к концу» и запишет
-                                  // `ayahs.last.id`.
-                                  _lastReportedAyahNumber = a.ayahNumber;
-                                  final repo =
-                                      ref.read(quranRepositoryProvider);
-                                  // **Дополнительная эвристика для
-                                  // конца суры**: если видимый аят
-                                  // находится в пределах 5 аятов от
-                                  // конца суры, считаем, что пользователь
-                                  // дочитал её, и записываем **последний**
-                                  // аят. Это покрывает случай, когда:
-                                  //   - `_findActiveAyahByRenderBox` для
-                                  //     book-mode возвращает предпоследний
-                                  //     аят из-за `tileExtent`-эвристики;
-                                  //   - пользователь **сразу** переходит на
-                                  //     home screen (GoRouter **не** размонтирует
-                                  //     `_ReaderScreenState`, поэтому
-                                  //     `dispose()` не вызывается);
-                                  //   - или scroll-tick записал аят N-3
-                                  //     из-за медленного scroll'а.
-                                  //
-                                  // Допуск 5 аятов покрывает обычные
-                                  // случаи (последний абзац суры может
-                                  // содержать 1-3 аята).
-                                  //
-                                  // Используем `_ayahsCount` (не
-                                  // `_lastAyahs`) — потому что `onAyahVisible`
-                                  // может вызваться **раньше** `onInitialLoad`,
-                                  // когда `_lastAyahs` ещё null. А
-                                  // `_ayahsCount` обновляется тем же
-                                  // `onInitialLoad` callback'ом, **до**
-                                  // первого `onAyahVisible`.
-                                  if (_ayahsCount != null &&
-                                      _ayahsCount! - a.ayahNumber <= 50 &&
-                                      a.ayahNumber != _ayahsCount) {
-                                    // Записываем `ayahs.last.id`
-                                    // (последний аят суры).
-                                    // Нужен `id` последнего аята — ищем
-                                    // в `_lastAyahs` (если он уже есть)
-                                    // или вычисляем по `a.surahId` и
-                                    // `_ayahsCount`.
-                                    if (_lastAyahs != null &&
-                                        _lastAyahs!.isNotEmpty) {
-                                      final lastAyah = _lastAyahs!.last;
-                                      if (lastAyah.ayahNumber ==
-                                          _ayahsCount) {
-                                        unawaited(repo.recordLastRead(
-                                          surahId: a.surahId,
-                                          ayahId: lastAyah.id,
-                                        ));
-                                        _lastReportedAyahNumber =
-                                            lastAyah.ayahNumber;
-                                      } else {
-                                        // Fallback: записываем текущий аят.
-                                        unawaited(repo.recordLastRead(
-                                          surahId: a.surahId,
-                                          ayahId: a.id,
-                                        ));
-                                      }
-                                    } else {
-                                      // `_lastAyahs` ещё null — fallback.
-                                      unawaited(repo.recordLastRead(
-                                        surahId: a.surahId,
-                                        ayahId: a.id,
-                                      ));
-                                    }
-                                  } else {
-                                    // Иначе записываем текущий аят.
-                                    unawaited(repo.recordLastRead(
-                                      surahId: a.surahId,
-                                      ayahId: a.id,
-                                    ));
-                                  }
-                                  unawaited(repo.recordAyahRead(
-                                    surahId: a.surahId,
-                                  ));
-                                },
-                                // Финальная запись при выходе с
-                                // экрана (через `dispose()` в
-                                // `_SingleScrollMushaf`). Гарантирует,
-                                // что **последний видимый** аят
-                                // попадёт в БД, даже если
-                                // scroll-tick не успел записать
-                                // из-за throttle 200ms или если
-                                // пользователь не скроллил
-                                // (тогда `_lastReportedAyahId`
-                                // ещё `null` — пишем
-                                // `widget.initialAyah`).
-                                onFinalAyah: (int ayahId) {
-                                  final repo =
-                                      ref.read(quranRepositoryProvider);
-                                  unawaited(repo.recordLastRead(
-                                    surahId: widget.surahId,
-                                    ayahId: ayahId,
-                                  ));
-                                },
-                                onToggleBookmark:
-                                    (Ayah a, bool isBookmarked) =>
-                                        toggleBookmark(
-                                  ref,
-                                  ayah: a,
-                                  isCurrentlyBookmarked: isBookmarked,
-                                ),
-                                // При скролле вниз панели
-                                // сворачиваются; вверх — появляются.
-                                onScrollDelta: (delta) {
-                                  // Скролл вниз (контент идёт вверх,
-                                  // delta > 0) — панель сворачивается,
-                                  // чтобы не загораживать текст.
-                                  // Скролл вверх (delta < 0) — НЕ
-                                  // возвращает панель: пользователь
-                                  // может скроллить обратно без
-                                  // того, чтобы top-bar каждый раз
-                                  // «выскакивал». Панель появляется
-                                  // только по явному тапу.
-                                  if (delta > 4) {
-                                    _setControlsVisible(false);
-                                  }
-                                },
-                              );
-                            },
-                          ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // Активируем landscape-раскладку при `width ≥ 600` И
+          // `width > height`. Порог 600dp отсекает портретные
+          // телефоны (даже если физически `800x400` — это всё ещё
+          // portrait-ориентация из-за большей высоты), но покрывает
+          // любой landscape phone, foldable в разложенном виде, и
+          // планшеты в обеих ориентациях. Без этого sidebar съел бы
+          // половину Mushaf на узких landscape-телефонах (<600dp).
+          final isLandscape = constraints.maxWidth >= 600 &&
+              constraints.maxWidth > constraints.maxHeight;
+          return Stack(
+            children: [
+              // Задний план: Mushaf + (в landscape) sidebar слева.
+              //
+              // `SafeArea(top: false, bottom: false)` — убраны
+              // left/right safe-area (Android system insets для
+              // notch/cutout). Это позволяет тексту при
+              // `paddingHorizontal: 0` быть в самом краю экрана.
+              // top/bottom safe-area остаются на top/bottom bar'ах
+              // (см. ниже), чтобы статус-бар и навигация не
+              // перекрывались.
+              Positioned.fill(
+                child: SafeArea(
+                  left: false,
+                  right: false,
+                  top: false,
+                  bottom: false,
+                  child: Builder(
+                    builder: (innerCtx) {
+                      if (isLandscape) {
+                        // Landscape: Row[sidebar, divider, Mushaf].
+                        // Sidebar содержит prev/next суру,
+                        // scroll-to-top/bottom и кнопку "открыть
+                        // список сур". Divider — тонкая золотая
+                        // линия в стиле Mushaf-рамки.
+                        //
+                        // Bug 2 round 3: `_LandscapeSidebar` БОЛЬШЕ
+                        // не рендерится в landscape. Пользовательский
+                        // feedback (2026-07-18): «sidebar перекрывает
+                        // текст, должен быть скрыт в landscape». В
+                        // landscape `_buildMushafBody(...)`
+                        // рендерится на всю ширину экрана. Prev/Next
+                        // сура и scroll-to-top/bottom доступны через:
+                        //   - back в `_AnimatedTopBar` (открывает
+                        //     SurahList, где выбираем другую суру);
+                        //   - нативные жесты прокрутки;
+                        //   - или открыть обычный portrait-режим и
+                        //     воспользоваться sidebar.
+                        // Round 2 сделал sidebar постоянным
+                        // дополнением — round 3 убрал.
+                        return _buildMushafBody(
+                          context: context,
+                          t: t,
+                          display: display,
+                          dataAsync: dataAsync,
+                          ayahsAsync: ayahsAsync,
+                          bookmarkedIds: bookmarkedIds,
+                          isLandscape: true,
                         );
-                      },
-                    ),
+                      }
+                      return _buildMushafBody(
+                        context: context,
+                        t: t,
+                        display: display,
+                        dataAsync: dataAsync,
+                        ayahsAsync: ayahsAsync,
+                        bookmarkedIds: bookmarkedIds,
+                        isLandscape: false,
+                      );
+},
                   ),
                 ),
               ),
-            ),
-          ),
           // Передний план: верхняя control-панель (заголовок
           // суры + reading-mode toggle + settings). Анимировано
           // через `AnimatedSlide + AnimatedOpacity`. Позиция
@@ -778,7 +758,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           // bar — HitTest идёт от ребёнка к родителю, и `InkWell`
           // / `IconButton` (по умолчанию opaque) поглощают тап раньше,
           // чем он дошёл бы до Mushaf-GestureDetector.
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -2422,4 +2404,11 @@ final _ayahsStreamProvider = StreamProvider.autoDispose.family<List<Ayah>, int>(
     return ref.watch(ayahDaoProvider).watchBySurah(surahId);
   },
 );
+
+/// (round 3) `_LandscapeSidebar` удалён — user feedback «sidebar
+/// перекрывает текст в landscape». Его функционал (prev/next сура,
+/// scroll-to-top/bottom, open-surah-list) дублирован в
+/// `_AnimatedTopBar` (back) и жестами прокрутки. Если понадобится
+/// вернуть — лучше как overlay с toggle-кнопкой (FAB), не как
+/// постоянное дополнение.
 

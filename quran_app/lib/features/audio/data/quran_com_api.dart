@@ -187,6 +187,12 @@ class QuranComApi {
   /// Endpoint: `/tafsirs/{tafsirId}/by_ayah/{verseKey}`.
   /// Возвращает [QuranComTafsirVerseDto] с HTML-разметкой в `text`.
   /// null если 404 (например, аят не покрыт этим тафсиром).
+  ///
+  /// **ВАЖНО**: response key — `tafsir` (singular), не `tafsirs`.
+  /// Подтверждено curl'ом 2026-07-17: `/tafsirs/14/by_ayah/1:1` →
+  /// `{"tafsir": {...}}`. Endpoints `/by_chapter` и `/resources/tafsirs`
+  /// возвращают `tafsirs` (plural). Bug в Sprint 2.5: код читал
+  /// `['tafsirs']` и получал `null` всегда.
   Future<QuranComTafsirVerseDto?> fetchTafsirByAyah({
     required int tafsirId,
     required String verseKey,
@@ -195,11 +201,9 @@ class QuranComApi {
       final r = await _dio.get<Map<String, dynamic>>(
         '$_basePrimary/tafsirs/$tafsirId/by_ayah/$verseKey',
       );
-      final list = (r.data?['tafsirs'] as List?) ?? const [];
-      if (list.isEmpty) return null;
-      return QuranComTafsirVerseDto.fromJson(
-        list.first as Map<String, dynamic>,
-      );
+      final obj = r.data?['tafsir'] as Map<String, dynamic>?;
+      if (obj == null) return null;
+      return QuranComTafsirVerseDto.fromJson(obj);
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) return null;
       rethrow;
@@ -225,6 +229,86 @@ class QuranComApi {
         .cast<Map<String, dynamic>>()
         .map(QuranComTafsirVerseDto.fromJson)
         .toList(growable: false);
+  }
+
+  /// Round 9: список всех 114 сур с метаданными.
+  /// Используется при cold install (lazy) или при wipe DB.
+  Future<List<QuranComSurahDto>> fetchChapters() async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '$_basePrimary/chapters',
+      queryParameters: {'language': 'en'},
+    );
+    final chapters = (r.data?['chapters'] as List?) ?? const [];
+    return chapters
+        .cast<Map<String, dynamic>>()
+        .map(QuranComSurahDto.fromJson)
+        .toList(growable: false);
+  }
+
+  /// Round 9: metadata аятов суры — page/juz/hizb для каждого аята.
+  /// Используется для ленивой подгрузки метаданных аятов в БД.
+  ///
+  /// Возвращает Map<verseKey, {page, juz, hizb}>.
+  Future<Map<String, Map<String, int>>> fetchAyahMetadataByChapter({
+    required int chapterNumber,
+  }) async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '$_basePrimary/verses/by_chapter/$chapterNumber',
+    );
+    final verses = (r.data?['verses'] as List?) ?? const [];
+    final result = <String, Map<String, int>>{};
+    for (final v in verses.cast<Map<String, dynamic>>()) {
+      final key = v['verse_key'] as String?;
+      if (key == null) continue;
+      result[key] = {
+        'page': (v['page_number'] as num?)?.toInt() ?? 0,
+        'juz': (v['juz_number'] as num?)?.toInt() ?? 0,
+        'hizb': (v['hizb_number'] as num?)?.toInt() ?? 0,
+      };
+    }
+    return result;
+  }
+
+  /// Round 9: bulk fetch аятов одной суры (Arabic + simple text параллельно).
+  /// Делает 2 HTTP запроса параллельно (uthmani + uithmani_simple),
+  /// затем мержит результаты по verse_key. Возвращает Map<verseKey,
+  /// QuranComAyahDto> (verseKey = "1:1").
+  ///
+  /// Используется для lazy load при cold install и при wipe DB.
+  Future<Map<String, QuranComAyahDto>> fetchVersesByChapter({
+    required int chapterNumber,
+  }) async {
+    final uthmaniF = _dio.get<Map<String, dynamic>>(
+      '$_basePrimary/quran/verses/uthmani',
+      queryParameters: {'chapter_number': chapterNumber},
+    );
+    final simpleF = _dio.get<Map<String, dynamic>>(
+      '$_basePrimary/quran/verses/uthmani_simple',
+      queryParameters: {'chapter_number': chapterNumber},
+    );
+    final results = await Future.wait([uthmaniF, simpleF]);
+
+    final uthmaniVerses = (results[0].data?['verses'] as List?) ?? const [];
+    final simpleVerses = (results[1].data?['verses'] as List?) ?? const [];
+
+    final simpleMap = <String, String>{};
+    for (final v in simpleVerses.cast<Map<String, dynamic>>()) {
+      final key = v['verse_key'] as String?;
+      final text = v['text_uthmani_simple'] as String?;
+      if (key != null && text != null) simpleMap[key] = text;
+    }
+
+    final result = <String, QuranComAyahDto>{};
+    for (final v in uthmaniVerses.cast<Map<String, dynamic>>()) {
+      final key = v['verse_key'] as String?;
+      if (key == null) continue;
+      result[key] = QuranComAyahDto.fromJson(
+        v,
+        textUthmani: v['text_uthmani'] as String?,
+        textUthmaniSimple: simpleMap[key],
+      );
+    }
+    return result;
   }
 }
 
@@ -390,18 +474,31 @@ class QuranComTafsirSourceDto {
 /// Один аят с тафсиром (из `/by_ayah` и `/by_chapter`).
 class QuranComTafsirVerseDto {
   QuranComTafsirVerseDto({
-    required this.id,
     required this.resourceId,
     required this.verseKey,
     required this.languageId,
     required this.text,
+    this.id,
   });
 
   factory QuranComTafsirVerseDto.fromJson(Map<String, dynamic> j) {
+    // **Round 6 bugfix (2026-07-22)**: response `/by_ayah/{key}` НЕ
+    // содержит поле `id` на верхнем уровне (только `resource_id`,
+    // `language_id`, `text`, `verses: { "1:1": {"id": 1} }` — id
+    // каждого verse лежит ВНУТРИ verses map). Раньше код делал
+    // `(j['id'] as num).toInt()` → падал с
+    // `type 'Null' is not a subtype of type 'num'` на каждом
+    // /by_ayah запросе. Делаем id nullable + null-aware cast.
+    //
+    // Сейчас `id` не используется в UI (только `text`), но
+    // оставляем поле nullable на будущее — для by_chapter endpoint,
+    // где response содержит список verse'ов с их `id`.
     return QuranComTafsirVerseDto(
-      id: (j['id'] as num).toInt(),
+      id: (j['id'] as num?)?.toInt(),
       resourceId: (j['resource_id'] as num).toInt(),
-      verseKey: j['verse_key'] as String,
+      // `verse_key` тоже может отсутствовать в by_ayah response (там
+      // есть только `verses` map). Делаем nullable.
+      verseKey: j['verse_key'] as String? ?? '',
       languageId: (j['language_id'] as num?)?.toInt() ?? 0,
       text: (j['text'] as String?) ?? '',
     );
@@ -409,7 +506,10 @@ class QuranComTafsirVerseDto {
 
   /// `quran_com_reciters.id`-like: локальный id записи (auto-increment
   /// в БД), не путать с `resource_id` (= id тафсира из API).
-  final int id;
+  /// Nullable — `/by_ayah/{key}` response НЕ содержит этого поля
+  /// (только `/by_chapter/{chapter}` возвращает список verse'ов
+  /// с `id` каждого).
+  final int? id;
   final int resourceId;
   final String verseKey;
   final int languageId;
@@ -419,3 +519,75 @@ class QuranComTafsirVerseDto {
   /// tags простым regex `r'<[^>]+>'` (Sprint 2.5 — minimal rendering).
   final String text;
 }
+
+/// Round 9 (2026-07-25): DTOs для миграции с alquran.cloud на
+/// Quran.com — Arabic text + chapters metadata.
+
+class QuranComSurahDto {
+  QuranComSurahDto({
+    required this.id,
+    required this.revelationPlace,
+    required this.revelationOrder,
+    required this.bismillahPre,
+    required this.nameSimple,
+    required this.nameComplex,
+    required this.nameArabic,
+    required this.versesCount,
+    required this.pages,
+  });
+
+  final int id;
+  final String revelationPlace;
+  final int revelationOrder;
+  final bool bismillahPre;
+  final String nameSimple;
+  final String nameComplex;
+  final String nameArabic;
+  final int versesCount;
+  final List<int> pages;
+
+  factory QuranComSurahDto.fromJson(Map<String, dynamic> j) {
+    return QuranComSurahDto(
+      id: (j['id'] as num).toInt(),
+      revelationPlace: (j['revelation_place'] as String?) ?? 'makkah',
+      revelationOrder: (j['revelation_order'] as num).toInt(),
+      bismillahPre: (j['bismillah_pre'] as bool?) ?? false,
+      nameSimple: (j['name_simple'] as String?) ?? '',
+      nameComplex: (j['name_complex'] as String?) ?? '',
+      nameArabic: (j['name_arabic'] as String?) ?? '',
+      versesCount: (j['verses_count'] as num).toInt(),
+      pages: (j['pages'] as List?)?.cast<int>() ?? [0, 0],
+    );
+  }
+}
+
+class QuranComAyahDto {
+  QuranComAyahDto({
+    required this.id,
+    required this.verseKey,
+    required this.textUthmani,
+    required this.textUthmaniSimple,
+  });
+
+  final int id;
+  final String verseKey;
+  final String textUthmani;
+  final String textUthmaniSimple;
+
+  factory QuranComAyahDto.fromJson(
+    Map<String, dynamic> j, {
+    String? textUthmani,
+    String? textUthmaniSimple,
+  }) {
+    return QuranComAyahDto(
+      id: (j['id'] as num).toInt(),
+      verseKey: (j['verse_key'] as String?) ?? '',
+      textUthmani: textUthmani ?? (j['text_uthmani'] as String?) ?? '',
+      textUthmaniSimple: textUthmaniSimple ??
+          (j['text_uthmani_simple'] as String?) ??
+          (j['text_imlaei'] as String?) ??
+          '',
+    );
+  }
+}
+

@@ -1,4 +1,4 @@
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:quran_app/features/reader_settings/domain/reader_display_settings.dart';
 import 'package:quran_app/features/reader_settings/domain/reader_display_settings_codec.dart';
 
@@ -18,7 +18,6 @@ void main() {
       expect(s.brightness, 100.0);
       expect(s.translationFontSize, 14.0);
       expect(s.showTranslation, true);
-      expect(s.showWordByWord, false);
       expect(s.keepScreenOn, true);
       expect(s.readingMode, 'lineByLine');
     });
@@ -215,7 +214,6 @@ void main() {
         lineHeight: 1.8,
         themeVariant: 'parchment',
         translationFontSize: 20,
-        showWordByWord: true,
         keepScreenOn: false,
         readingMode: 'book',
       );
@@ -225,7 +223,6 @@ void main() {
       expect(decoded.lineHeight, 1.8);
       expect(decoded.themeVariant, 'parchment');
       expect(decoded.translationFontSize, 20.0);
-      expect(decoded.showWordByWord, true);
       expect(decoded.keepScreenOn, false);
       expect(decoded.readingMode, 'book');
     });

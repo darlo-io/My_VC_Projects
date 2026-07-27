@@ -44,6 +44,29 @@ class TranslationDao extends DatabaseAccessor<AppDatabase>
     return rows.first.read<String>('text');
   }
 
+  /// Round 8: возвращает перевод аята для конкретного translator'a.
+  /// Используется в Reader (reader_screen) после выбора
+  /// `activeTranslatorId` — возвращает перевод именно этого
+  /// translator'a (а не «первого попавшегося с нужным language_code»).
+  /// `null` если перевод ещё не загружен.
+  Future<String?> getForAyahByTranslator({
+    required int ayahId,
+    required int translatorId,
+  }) async {
+    final rows = await customSelect(
+      '''
+      SELECT t.text AS text
+      FROM translations t
+      WHERE t.ayah_id = ? AND t.translator_id = ?
+      LIMIT 1
+      ''',
+      variables: [Variable.withInt(ayahId), Variable.withInt(translatorId)],
+      readsFrom: {translations},
+    ).get();
+    if (rows.isEmpty) return null;
+    return rows.first.read<String>('text');
+  }
+
   /// Возвращает переводы аятов конкретной суры на конкретном языке.
   Future<List<TranslationRow>> getForSurah({
     required int surahId,
@@ -60,6 +83,36 @@ class TranslationDao extends DatabaseAccessor<AppDatabase>
       ''',
       variables: [Variable.withInt(surahId), Variable.withString(languageCode)],
       readsFrom: {translations, translators, ayahs},
+    ).get();
+    return rows
+        .map(
+          (r) => TranslationRow(
+            ayahId: r.read<int>('ayah_id'),
+            text: r.read<String>('text'),
+          ),
+        )
+        .toList();
+  }
+
+  /// Round 8: переводы аятов суры для конкретного translator'a.
+  /// Используется после переключения `activeTranslatorId` — берёт
+  /// translations именно этого translator'а (а не «первого с нужным
+  /// language_code»). Возвращает пустой список если translations
+  /// ещё не загружены (lazy fetch в процессе).
+  Future<List<TranslationRow>> getForSurahByTranslator({
+    required int surahId,
+    required int translatorId,
+  }) async {
+    final rows = await customSelect(
+      '''
+      SELECT t.ayah_id AS ayah_id, t.text AS text
+      FROM translations t
+      INNER JOIN ayahs a ON a.id = t.ayah_id
+      WHERE a.surah_id = ? AND t.translator_id = ?
+      ORDER BY a.ayah_number
+      ''',
+      variables: [Variable.withInt(surahId), Variable.withInt(translatorId)],
+      readsFrom: {translations, ayahs},
     ).get();
     return rows
         .map(
@@ -126,6 +179,73 @@ class TranslationDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> insertTranslators(List<TranslatorsCompanion> items) async {
     await batch((b) => b.insertAllOnConflictUpdate(translators, items));
+  }
+
+  /// Round 8: bulk-insert переводов для конкретного translator'a
+  /// (например, после lazy fetch через Quran.com API).
+  /// Используется QuranTranslationSyncService для одного запроса
+  /// `/quran/translations/{id}?chapter_number={N}` → 6236 аятов.
+  Future<void> bulkInsertForTranslator({
+    required int translatorId,
+    required List<({int ayahId, String text})> items,
+  }) async {
+    final companions = items
+        .map(
+          (it) => TranslationsCompanion.insert(
+            ayahId: it.ayahId,
+            translatorId: translatorId,
+            languageCode: '', // legacy: redundant с translator join
+            textValue: it.text,
+          ),
+        )
+        .toList();
+    await batch(
+      (b) => b.insertAllOnConflictUpdate(translations, companions),
+    );
+  }
+
+  /// Round 8: сколько translations уже в БД для этого translator'a?
+  /// Используется в QuranTranslationSyncService чтобы определить,
+  /// нужен ли lazy fetch. >0 = уже синхронизирован.
+  Future<int> countForTranslator(int translatorId) async {
+    final countExpr = translations.id.count();
+    final row = await (selectOnly(translations)
+          ..addColumns([countExpr])
+          ..where(translations.translatorId.equals(translatorId)))
+        .getSingle();
+    return row.read<int>(countExpr) ?? 0;
+  }
+
+  /// Insert single translator (для Round 8 — добавляем новых
+  /// Quran.com translators которых нет в alquran.cloud seed).
+  Future<void> insertTranslator(TranslatorsCompanion item) async {
+    await into(translators).insertOnConflictUpdate(item);
+  }
+
+  /// Round 8: lookup translator по Quran.com id.
+  /// Возвращает `null` если не найден (translator ещё не в БД).
+  Future<Translator?> findByQuranComId(int quranComId) async {
+    if (quranComId <= 0) return null;
+    return (select(translators)
+          ..where((t) => t.quranComId.equals(quranComId)))
+        .getSingleOrNull();
+  }
+
+  /// Round 8: все translators для UI выбора (список в Settings).
+  /// Отсортированы: сначала русские, потом по nameRu/name.
+  Future<List<Translator>> getAllTranslatorsOrdered() async {
+    final all = await select(translators).get();
+    all.sort((a, b) {
+      // Russian first
+      final aRu = a.languageCode == 'ru' ? 0 : 1;
+      final bRu = b.languageCode == 'ru' ? 0 : 1;
+      if (aRu != bRu) return aRu.compareTo(bRu);
+      // Then by nameRu if present, else name
+      final aName = a.nameRu ?? a.name;
+      final bName = b.nameRu ?? b.name;
+      return aName.compareTo(bName);
+    });
+    return all;
   }
 
   Future<void> insertTranslations(List<TranslationsCompanion> items) async {

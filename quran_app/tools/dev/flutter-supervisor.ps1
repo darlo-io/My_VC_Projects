@@ -273,7 +273,7 @@ adb -s `$Serial forward --remove tcp:`$HostFwdPort 2>`$null | Out-Null
 adb -s `$Serial forward tcp:`$HostFwdPort tcp:`$DevicePort | Out-Null
 Write-Host "[sup] forward: tcp:`$HostFwdPort (host) -> tcp:`$DevicePort (device)"
 
-# Подменяем device-порт на host-порт в vmUri — user (MCP / flutter-skill)
+# Подменяем device-порт на host-порт в vmUri — user (MCP / flutter-mcp-toolkit)
 # подключается к host, не к device.
 `$hostVmUri = `$vmUri -replace 'ws://127\.0\.0\.1:\d+/', "ws://127.0.0.1:`$HostFwdPort/"
 
@@ -385,9 +385,9 @@ function Invoke-FlutterHotRestart {
     if (-not $proc) { throw "flutter run process not found" }
     # Note: `r` to stdin works only if flutter run was started with --no-pub
     # and from this same shell. For a daemonized flutter, hot-restart
-    # requires the MCP `flutter-skill_hot_reload` (which sends the request
+    # requires the MCP `fmt_hot_reload_flutter` (which sends the request
     # over VM service).
-    Write-Host "[hot-restart] use 'r' over VM service (flutter-skill_hot_reload)"
+    Write-Host "[hot-restart] use 'fmt_hot_reload_flutter' over VM service"
 }
 
 function Get-FlutterLogTail {

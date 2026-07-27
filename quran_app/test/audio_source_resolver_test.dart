@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:quran_app/features/audio/data/audio_source_chain.dart';
 
 /// Unit tests for the AudioSourceResolver / AudioSourceChain (§12

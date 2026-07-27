@@ -193,6 +193,15 @@ class ContentManifestRepository {
   static const _keyHash = 'content.manifest.hash';
   static const _keyPayloadSha256 = 'content.manifest.sha256';
   static const _keyAppliedAt = 'content.manifest.applied_at';
+  // Snapshot ключи для [rollback] — пишутся ПЕРЕД `apply()`, и
+  // восстанавливаются если downstream-проверка (signature, payload
+  // sha256) провалилась. Без snapshot'а rollback = wipe всех ключей
+  // и возврат к defaultManifest — пользователь теряет всё ранее
+  // скачанное содержимое.
+  static const _keyPrevVersion = 'content.manifest.prev_version';
+  static const _keyPrevHash = 'content.manifest.prev_hash';
+  static const _keyPrevPayloadSha256 = 'content.manifest.prev_sha256';
+  static const _keyPrevAppliedAt = 'content.manifest.prev_applied_at';
 
   /// Текущий применённый manifest. До `apply` (или на свежей
   /// установке) возвращает [defaultManifest] — это безопасно,
@@ -251,9 +260,16 @@ class ContentManifestRepository {
     ContentManifest newManifest, {
     String? payloadSha256,
   }) async {
-    // TODO: сохранить предыдущие значения для rollback. Сейчас
-    // `rollback()` просто стирает все ключи (см. ниже), и `current()`
-    // начинает возвращать `defaultManifest`.
+    // **Backup старых значений ДО записи** новых. При провале
+    // downstream-проверок (signature, payload sha256) — `rollback()`
+    // восстановит эти значения, и пользователь не потеряет ранее
+    // скачанное содержимое.
+    //
+    // Без snapshot'а (старый код) rollback = wipe всех ключей,
+    // что возвращает `current()` к `defaultManifest` — пользователь
+    // скачивает всё заново. С snapshot'ом — повторная попытка при
+    // следующем bootstrap'е сразу видит предыдущее рабочее состояние.
+    await _snapshotPrevious();
     await _writeManifest(newManifest, payloadSha256);
   }
 
@@ -269,22 +285,81 @@ class ContentManifestRepository {
     );
   }
 
+  /// Snapshot текущего manifest в prev_* ключи. Вызывается из
+  /// [apply] ДО записи новых значений. Если snapshot уже есть
+  /// (от предыдущего apply) — он **перезаписывается** (теряется
+  /// pre-snapshot), так как каждый apply начинается «с нуля» —
+  /// нам нужен только последний успешный baseline.
+  Future<void> _snapshotPrevious() async {
+    await _prefs.setString(
+      _keyPrevVersion,
+      _prefs.getString(_keyVersion) ?? '',
+    );
+    await _prefs.setString(
+      _keyPrevHash,
+      _prefs.getString(_keyHash) ?? '',
+    );
+    final prevSha = _prefs.getString(_keyPayloadSha256);
+    if (prevSha != null) {
+      await _prefs.setString(_keyPrevPayloadSha256, prevSha);
+    } else {
+      await _prefs.remove(_keyPrevPayloadSha256);
+    }
+    final prevAt = _prefs.getString(_keyAppliedAt);
+    if (prevAt != null) {
+      await _prefs.setString(_keyPrevAppliedAt, prevAt);
+    } else {
+      await _prefs.remove(_keyPrevAppliedAt);
+    }
+  }
+
   /// Rollback: восстановить manifest, который был до последнего
   /// `apply`. Используется при провале signature/SHA256
-  /// verification в `ContentBootstrapper.bootstrap`. Если
-  /// backup'а нет (свежая установка) — очищает все ключи
-  /// (manifest сбрасывается на [defaultManifest]).
+  /// verification в `ContentBootstrapper.bootstrap`.
+  ///
+  /// Если snapshot есть (prev_* ключи непустые) — копируем их
+  /// обратно в основные ключи и очищаем snapshot.
+  ///
+  /// Если snapshot пуст (свежая установка или первый apply) —
+  /// очищаем все ключи (manifest сбрасывается на
+  /// [defaultManifest]).
   Future<void> rollback() async {
-    // В текущей реализации мы не храним «предыдущую» копию —
-    // только текущую. Это упрощённый rollback: при провале
-    // просто стираем все ключи, и `current()` начнёт возвращать
-    // `defaultManifest` снова. В полноценной реализации backup
-    // пишется в `apply()` (см. [apply] — backup'ом помечены
-    // старые значения, но не реализовано их сохранение).
-    await _prefs.remove(_keyVersion);
-    await _prefs.remove(_keyHash);
-    await _prefs.remove(_keyPayloadSha256);
-    await _prefs.remove(_keyAppliedAt);
+    final prevVersion = _prefs.getString(_keyPrevVersion);
+    final prevHash = _prefs.getString(_keyPrevHash);
+
+    if (prevVersion != null && prevVersion.isNotEmpty && prevHash != null) {
+      // Snapshot есть — восстанавливаем.
+      await _prefs.setString(_keyVersion, prevVersion);
+      await _prefs.setString(_keyHash, prevHash);
+      final prevSha = _prefs.getString(_keyPrevPayloadSha256);
+      if (prevSha != null) {
+        await _prefs.setString(_keyPayloadSha256, prevSha);
+      } else {
+        await _prefs.remove(_keyPayloadSha256);
+      }
+      final prevAt = _prefs.getString(_keyPrevAppliedAt);
+      if (prevAt != null) {
+        await _prefs.setString(_keyAppliedAt, prevAt);
+      } else {
+        await _prefs.remove(_keyAppliedAt);
+      }
+      // Очищаем snapshot — он отработал.
+      await _clearSnapshot();
+    } else {
+      // Snapshot пуст — wipe всех ключей (как раньше).
+      await _prefs.remove(_keyVersion);
+      await _prefs.remove(_keyHash);
+      await _prefs.remove(_keyPayloadSha256);
+      await _prefs.remove(_keyAppliedAt);
+      await _clearSnapshot();
+    }
+  }
+
+  Future<void> _clearSnapshot() async {
+    await _prefs.remove(_keyPrevVersion);
+    await _prefs.remove(_keyPrevHash);
+    await _prefs.remove(_keyPrevPayloadSha256);
+    await _prefs.remove(_keyPrevAppliedAt);
   }
 
   /// Применить network-delivered manifest. В отличие от

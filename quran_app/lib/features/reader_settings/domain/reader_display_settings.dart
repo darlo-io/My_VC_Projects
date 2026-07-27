@@ -34,7 +34,6 @@ class ReaderDisplaySettings {
     required this.brightness,
     required this.translationFontSize,
     required this.showTranslation,
-    required this.showWordByWord,
     required this.keepScreenOn,
     required this.readingMode,
   });
@@ -69,11 +68,16 @@ class ReaderDisplaySettings {
   final double translationFontSize;
 
   final bool showTranslation;
-  final bool showWordByWord;
   final bool keepScreenOn;
 
   /// `'lineByLine' | 'book'`.
   final String readingMode;
+
+  // Ранее здесь был флаг `showWordByWord` (default `false`) —
+  // удалён 2026-07-17. Тап по любому `_WordSpan` уже открывает
+  // `WordCard` (translation/lemma/root + related words), так что
+  // отдельный toggle был мёртвым кодом — см. AGENTS.md (audio
+  // redesign) и `_WordSpan` в `reader_widgets.dart`.
 
   // ─── Allowed values ───────────────────────────────────────────
 
@@ -135,7 +139,6 @@ class ReaderDisplaySettings {
     brightness: 100.0,
     translationFontSize: 14.0,
     showTranslation: true,
-    showWordByWord: false,
     keepScreenOn: true,
     readingMode: 'lineByLine',
   );
@@ -155,7 +158,6 @@ class ReaderDisplaySettings {
     double? brightness,
     double? translationFontSize,
     bool? showTranslation,
-    bool? showWordByWord,
     bool? keepScreenOn,
     String? readingMode,
   }) {
@@ -185,7 +187,6 @@ class ReaderDisplaySettings {
         24.0,
       ),
       showTranslation: showTranslation ?? this.showTranslation,
-      showWordByWord: showWordByWord ?? this.showWordByWord,
       keepScreenOn: keepScreenOn ?? this.keepScreenOn,
       readingMode:
           (readingMode ?? this.readingMode).contains('book') ? 'book' : 'lineByLine',
@@ -213,7 +214,6 @@ class ReaderDisplaySettings {
         other.brightness == brightness &&
         other.translationFontSize == translationFontSize &&
         other.showTranslation == showTranslation &&
-        other.showWordByWord == showWordByWord &&
         other.keepScreenOn == keepScreenOn &&
         other.readingMode == readingMode;
   }
@@ -232,7 +232,6 @@ class ReaderDisplaySettings {
         brightness,
         translationFontSize,
         showTranslation,
-        showWordByWord,
         keepScreenOn,
         readingMode,
       );

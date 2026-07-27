@@ -127,7 +127,22 @@ class Translators extends Table {
   IntColumn get id => integer()();
   TextColumn get name => text()();
   TextColumn get languageCode => text()();
+
+  /// Откуда пришёл перевод: `alquran.cloud`, `quran.com`, `local`.
   TextColumn get source => text()();
+
+  /// **Round 8 (2026-07-23)**: id перевода в Quran.com API
+  /// (`/resources/translations` → `id`). Используется для
+  /// `fetchByAyah(translationId, ...)` / `fetchByChapter(...)`.
+  /// Nullable — переводчики из alquran.cloud не имеют Quran.com id.
+  IntColumn get quranComId => integer().nullable()();
+
+  /// **Round 8**: русское display name для UI. Для Кулиева —
+  /// «Кулиев», для Ministry of Awqaf — «Министерство вакфов
+  /// Египта», для Abu Adel — «Абу Адель» (см. миграцию v15→v17).
+  /// Nullable — для не-русских переводчиков поле пустое, UI
+  /// fallback на `name`.
+  TextColumn get nameRu => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -154,6 +169,16 @@ class TafsirSources extends Table {
   TextColumn get slug => text()();
   TextColumn get nameAr => text()();
   TextColumn get nameEn => text()();
+
+  /// Sprint 2.5.1: русское название тафсира (например, «Тафсир
+  /// Ас-Саади»). Nullable: не все тафсиры Quran.com имеют
+  /// русский перевод, и для legacy/source-local тафсиров поле тоже
+  /// может быть null. UI fallback — `nameEn`. Заполняется
+  /// через [TafsirsSyncService.forceSync] при `languageCode='ru'`
+  /// (Quran.com API возвращает `translated_name.name` в нужном
+  /// языке).
+  TextColumn get nameRu => text().nullable()();
+
   TextColumn get languageCode => text()();
 
   /// Sprint 2.3: id тафсира в Quran.com API (для

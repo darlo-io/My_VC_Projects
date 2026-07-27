@@ -379,14 +379,15 @@ class _ReaderDisplaySettingsScreenState
               const SizedBox(height: 20),
               // ── Дополнительно (скрыта) ──────────────────────
               // `showTranslation` вынесен наверх (отдельной
-              // карточкой над «Текст»). `showWordByWord` и
-              // `keepScreenOn` сохранены в [ReaderDisplaySettings]
-              // для будущего использования (когда обновим
-              // compileSdk до 34+ и подключим пакеты
-              // `wakelock_plus` / `screen_brightness` и
-              // наполним данные по словам). В UI временно
-              // не выводятся, чтобы не вводить пользователя
-              // в заблуждение тумблерами без эффекта.
+              // карточкой над «Текст»). `keepScreenOn` сохранён
+              // в [ReaderDisplaySettings] для будущего использования
+              // (когда обновим compileSdk до 34+ и подключим
+              // `wakelock_plus`). В UI временно не выводится, чтобы
+              // не вводить пользователя в заблуждение тумблером
+              // без эффекта. Раньше здесь упоминался и
+              // `showWordByWord` — удалён 2026-07-17 (мёртвый
+              // код, см. комментарий у `readingMode` в
+              // `reader_display_settings.dart`).
               ],
               ),
               // ── Sticky preview (поверх scroll) ───────────────

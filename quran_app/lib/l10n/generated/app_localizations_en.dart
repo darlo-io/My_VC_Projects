@@ -1254,6 +1254,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readingModeTooltip => 'Reading mode';
 
   @override
+  String get readingPrevSurah => 'Previous surah';
+
+  @override
+  String get readingNextSurah => 'Next surah';
+
+  @override
+  String get readingScrollToTop => 'Scroll to top';
+
+  @override
+  String get readingScrollToBottom => 'Scroll to bottom';
+
+  @override
+  String get readingOpenSurahList => 'Open surah list';
+
+  @override
   String get exitConfirmTitle => 'Exit app?';
 
   @override
@@ -1357,4 +1372,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get displaySettingsPreviewTranslation =>
       'In the name of Allah, the Most Gracious, the Most Merciful.';
+
+  @override
+  String get tafsirButton => 'Tafsir';
+
+  @override
+  String get tafsirLoading => 'Loading...';
+
+  @override
+  String get tafsirEmpty => 'No tafsir available for this ayah';
+
+  @override
+  String get tafsirRetry => 'Retry';
 }

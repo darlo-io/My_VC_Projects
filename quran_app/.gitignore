@@ -54,6 +54,18 @@ app.*.map.json
 /tool/signedmanifest.json
 /tool/signedpayloads/
 
+# Ad-hoc debug artifacts dumped into the project root during dev sessions
+# (debug screenshots, extracted DB dumps, temp-path leaks, working lists).
+# These are NOT part of the project — kept locally only.
+screenshot*.png
+scr.png
+app_v12.bin
+app_v12.db
+app.db
+C*Users007AppDataLocalTempkilo*.bin
+file_list.txt
+.mcp.json.backup-*
+
 # Self-signed TLS certs (regenerate locally via
 # `tool/gen_cert.sh` which uses `tool/certs/openssl.cnf`).
 /tool/certs/*.crt
