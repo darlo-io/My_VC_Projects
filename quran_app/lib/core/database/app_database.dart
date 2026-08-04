@@ -70,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -352,6 +352,19 @@ class AppDatabase extends _$AppDatabase {
 
       // (dead-code удалён — Round 8 перезаписывает старый v17-блок
       // который ошибочно остался от моей правки в Round 7.)
+
+      if (from < 19) {
+        // v18 -> v19: re-backfill `surahs.name_ru/subtitle_ru` из
+        // обновлённых `kSurahRuNames/kSurahRuSubtitles` (2026-08-02:
+        // 17 имён + 28 подзаголовков). v11→v12 backfill использовал
+        // `IS NULL` guard и не обновлял уже-заполненные ряды, поэтому
+        // исправления у существующих пользователей не подхватывались.
+        //
+        // Без `IS NULL` — безусловный UPDATE всех 114 рядов. Безопасно:
+        // `name_ru/subtitle_ru` read-only из файла `kSurahRuNames`,
+        // пользовательская кастомизация не предусмотрена.
+        await _backfillRussianSurahNamesUnconditional(m.database);
+      }
     },
   );
 
@@ -390,9 +403,47 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
-  // (удалено в Round 8 — `_backfillTafsirRuNames` не использовался.
-  // Аналогичный backfill теперь делается из `LocalSeedService.ensureSeeded`
-  // если потребуется в следующих раундах.)
+  /// Безусловный re-backfill `name_ru` / `subtitle_ru` для сур —
+  /// перезаписывает все 114 рядов. Вызывается из миграции v18→v19
+  /// для подхвата исправленных имён/подзаголовков у существующих
+  /// установок (v11→v12 backfill с `IS NULL` guard не обновляет
+  /// уже-заполненные ряды).
+  ///
+  /// Безопасно: `name_ru/subtitle_ru` read-only из файла
+  /// `kSurahRuNames/kSurahRuSubtitles`, пользовательская кастомизация
+  /// не предусмотрена в текущей модели данных.
+  Future<void> _backfillRussianSurahNamesUnconditional(
+    GeneratedDatabase db,
+  ) async {
+    for (var i = 1; i <= 114; i++) {
+      final name = kSurahRuNames[i];
+      final sub = kSurahRuSubtitles[i];
+      if (name != null) {
+        await db.customUpdate(
+          'UPDATE surahs SET name_ru = ? WHERE id = ?',
+          updates: {surahs},
+          variables: [
+            Variable.withString(name),
+            Variable.withInt(i),
+          ],
+        );
+      }
+      if (sub != null) {
+        await db.customUpdate(
+          'UPDATE surahs SET subtitle_ru = ? WHERE id = ?',
+          updates: {surahs},
+          variables: [
+            Variable.withString(sub),
+            Variable.withInt(i),
+          ],
+        );
+      }
+    }
+  }
+
+  // (Удалено в Round 8 — `_backfillTafsirRuNames` не использовался.
+  // Аналогичный backfill, если потребуется в следующих раундах,
+  // можно добавить рядом с [ContentBootstrapper].)
 
   /// Destructive schema reset. Used ONLY for pre-v5 installs.
   /// Must not be reachable from a v5+ upgrade path.
@@ -420,10 +471,20 @@ class AppDatabase extends _$AppDatabase {
 
   /// Performance indexes created on fresh installs and on the reset path.
   /// Kept separate from FTS5 setup so future index additions stay grouped.
+  ///
+  /// Round 9.6 (code review #M1): добавлен `idx_words_ayah_id`.
+  /// Запрос `getWordsForAyah(ayahId)` (`WHERE ayah_id = ? ORDER BY position`)
+  /// без индекса на `ayah_id` делает full table scan на таблице
+  /// из ~187k строк (6236 аятов × ~30 слов). С индексом —
+  /// O(log N) lookup + покрывающий sort по `position`.
   Future<void> _createPerformanceIndexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_audio_cache_last_played '
       'ON audio_cache_metadata (last_played_at)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_words_ayah_id '
+      'ON words (ayah_id)',
     );
   }
 

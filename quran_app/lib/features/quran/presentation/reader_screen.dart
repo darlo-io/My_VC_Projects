@@ -392,21 +392,33 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     required Set<int> bookmarkedIds,
     required bool isLandscape,
   }) {
-    final effectiveDisplay = isLandscape && display.textWidthPercent > 80
-        ? display.copyWith(textWidthPercent: 80.0)
+    // Landscape cap на `paddingHorizontal` (≤ 16 dp): на широком экране
+    // 32 dp внутреннего отступа оставляет на телефоне 736 dp текста
+    // (норма), но съедает ~12% ширины. 16 dp совпадает с дефолтом
+    // `AyahTile` (`paddingHorizontal ?? 16`) и стилем top-bar margin
+    // (`EdgeInsets.fromLTRB(8, 4, 8, 0)`).
+    //
+    // `textWidthPercent` в landscape **не** cap'им — пользователь
+    // управляет шириной полосы явно через слайдер, и принудительный
+    // 80% cap лишает его контроля (см. user feedback 2026-08-02:
+    // «большие отступы не соответствуют настройке горизонтального
+    // отступа»). Cap был введён ранее из-за опасений за длину строк
+    // на широких экранах, но `paddingHorizontal` уже ограничивает
+    // отступы, а `fontSize * lineHeight` контролируется пользователем.
+    final effectiveDisplay = isLandscape && display.paddingHorizontal > 16
+        ? display.copyWith(paddingHorizontal: 16.0)
         : display;
     return GestureDetector(
       // `behavior: translucent` — тап доходит **и** к нам, **и** к
       // ребёнку (см. длинный комментарий в исходной build() ниже).
       behavior: HitTestBehavior.translucent,
       onTap: _toggleControls,
+      // Только bottom-inset 4 dp для запаса снизу (последний аят
+      // не «липнет» к границе viewport). Горизонтальный padding
+      // применяется **внутри** `_SingleScrollMushaf` / `AyahTile`
+      // — см. [ReaderDisplaySettings.paddingHorizontal].
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          effectiveDisplay.paddingHorizontal,
-          0,
-          effectiveDisplay.paddingHorizontal,
-          4,
-        ),
+        padding: const EdgeInsets.only(bottom: 4),
         child: _AnimatedControlsFrame(
           visible: _controlsVisible,
           child: dataAsync.when(
@@ -426,12 +438,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 );
               }
               return Padding(
-                padding: EdgeInsets.fromLTRB(
-                  effectiveDisplay.paddingHorizontal,
-                  8,
-                  effectiveDisplay.paddingHorizontal,
-                  8,
-                ),
+                // Только vertical: верхний отступ под ornament-header
+                // / басмалу и нижний перед `_SingleScrollMushaf`.
+                // Горизонтальный padding применяется внутри
+                // `_SingleScrollMushaf` / `AyahTile` —
+                // см. [ReaderDisplaySettings.paddingHorizontal].
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: ayahsAsync.when(
                   loading: () => const Center(
                     child: CircularProgressIndicator(),
@@ -617,8 +629,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               // перекрывались.
               Positioned.fill(
                 child: SafeArea(
-                  left: false,
-                  right: false,
+                  // Включаем горизонтальные safe areas (`left: true`,
+                  // `right: true`) — иначе в landscape Android navigation
+                  // bar переезжает на боковую сторону и перекрывает
+                  // текст Mushaf. `top/bottom: false` — вертикальные
+                  // отступы (status-bar, gesture-bar) обрабатываются
+                  // самим top/bottom-bar этого Reader-экрана.
                   top: false,
                   bottom: false,
                   child: Builder(
@@ -1667,7 +1683,7 @@ class _SingleScrollMushafState extends State<_SingleScrollMushaf> {
       // SizedBox (Uthmani descender), и `vertical: 8` гарантирует,
       // что для крайних аятов ornament не обрежется границей
       // viewport. Строки текста при этом располагаются плотно.
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -2097,7 +2113,7 @@ class _BookTranslationBlock extends StatelessWidget {
         ? ReaderPalette.of(d.themeVariant).text.withValues(alpha: 0.7)
         : AppColors.textSecondary;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 0),
       child: RichText(
         // Перевод в book-mode выравнивается по центру —
         // соответствует выравниванию арабского потока выше.

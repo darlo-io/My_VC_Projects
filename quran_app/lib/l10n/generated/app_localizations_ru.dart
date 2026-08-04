@@ -563,28 +563,28 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName5 => 'Аль-Маида';
 
   @override
-  String get surahName6 => 'Аль-Ан\'ам';
+  String get surahName6 => 'Аль-Анам';
 
   @override
-  String get surahName7 => 'Аль-А\'раф';
+  String get surahName7 => 'Аль-Араф';
 
   @override
   String get surahName8 => 'Аль-Анфаль';
 
   @override
-  String get surahName9 => 'Ат-Тавба';
+  String get surahName9 => 'Ат-Тауба';
 
   @override
-  String get surahName10 => 'Юнус';
+  String get surahName10 => 'Йунус';
 
   @override
   String get surahName11 => 'Худ';
 
   @override
-  String get surahName12 => 'Юсуф';
+  String get surahName12 => 'Йусуф';
 
   @override
-  String get surahName13 => 'Ар-Ра\'д';
+  String get surahName13 => 'Ар-Раад';
 
   @override
   String get surahName14 => 'Ибрахим';
@@ -599,7 +599,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName17 => 'Аль-Исра';
 
   @override
-  String get surahName18 => 'Аль-Кехф';
+  String get surahName18 => 'Аль-Кахф';
 
   @override
   String get surahName19 => 'Марьям';
@@ -608,13 +608,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName20 => 'Та Ха';
 
   @override
-  String get surahName21 => 'Аль-Анбия';
+  String get surahName21 => 'Аль-Анбийа';
 
   @override
-  String get surahName22 => 'Аль-Хаджж';
+  String get surahName22 => 'Аль-Хадж';
 
   @override
-  String get surahName23 => 'Аль-Му\'минун';
+  String get surahName23 => 'Аль-Муминун';
 
   @override
   String get surahName24 => 'Ан-Нур';
@@ -623,7 +623,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName25 => 'Аль-Фуркан';
 
   @override
-  String get surahName26 => 'Аш-Шу\'ара';
+  String get surahName26 => 'Аш-Шуара';
 
   @override
   String get surahName27 => 'Ан-Намль';
@@ -632,7 +632,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName28 => 'Аль-Касас';
 
   @override
-  String get surahName29 => 'Аль-\'Анкабут';
+  String get surahName29 => 'Аль-Анкабут';
 
   @override
   String get surahName30 => 'Ар-Рум';
@@ -653,7 +653,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName35 => 'Фатыр';
 
   @override
-  String get surahName36 => 'Ясин';
+  String get surahName36 => 'Йа Син';
 
   @override
   String get surahName37 => 'Ас-Саффат';
@@ -668,7 +668,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName40 => 'Гафир';
 
   @override
-  String get surahName41 => 'Фуссылат';
+  String get surahName41 => 'Фуссилат';
 
   @override
   String get surahName42 => 'Аш-Шура';
@@ -680,7 +680,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName44 => 'Ад-Духан';
 
   @override
-  String get surahName45 => 'Аль-Джасия';
+  String get surahName45 => 'Аль-Джасийа';
 
   @override
   String get surahName46 => 'Аль-Ахкаф';
@@ -698,7 +698,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName50 => 'Каф';
 
   @override
-  String get surahName51 => 'Аз-Зарият';
+  String get surahName51 => 'Аз-Зарийат';
 
   @override
   String get surahName52 => 'Ат-Тур';
@@ -713,7 +713,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName55 => 'Ар-Рахман';
 
   @override
-  String get surahName56 => 'Аль-Ваки\'а';
+  String get surahName56 => 'Аль-Вакиа';
 
   @override
   String get surahName57 => 'Аль-Хадид';
@@ -731,7 +731,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName61 => 'Ас-Сафф';
 
   @override
-  String get surahName62 => 'Аль-Джуму\'а';
+  String get surahName62 => 'Аль-Джумуа';
 
   @override
   String get surahName63 => 'Аль-Мунафикун';
@@ -755,7 +755,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName69 => 'Аль-Хакка';
 
   @override
-  String get surahName70 => 'Аль-Ма\'аридж';
+  String get surahName70 => 'Аль-Мааридж';
 
   @override
   String get surahName71 => 'Нух';
@@ -770,7 +770,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName74 => 'Аль-Муддассир';
 
   @override
-  String get surahName75 => 'Аль-Кыяма';
+  String get surahName75 => 'Аль-Кийама';
 
   @override
   String get surahName76 => 'Аль-Инсан';
@@ -782,7 +782,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName78 => 'Ан-Наба';
 
   @override
-  String get surahName79 => 'Ан-Нази\'ат';
+  String get surahName79 => 'Ан-Назиат';
 
   @override
   String get surahName80 => 'Абаса';
@@ -806,22 +806,22 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName86 => 'Ат-Тарик';
 
   @override
-  String get surahName87 => 'Аль-А\'ля';
+  String get surahName87 => 'Аль-Аля';
 
   @override
-  String get surahName88 => 'Аль-Гашия';
+  String get surahName88 => 'Аль-Гашийа';
 
   @override
   String get surahName89 => 'Аль-Фаджр';
 
   @override
-  String get surahName90 => 'Аль-Баляд';
+  String get surahName90 => 'Аль-Балад';
 
   @override
   String get surahName91 => 'Аш-Шамс';
 
   @override
-  String get surahName92 => 'Аль-Ляйль';
+  String get surahName92 => 'Аль-Лайл';
 
   @override
   String get surahName93 => 'Ад-Духа';
@@ -842,13 +842,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName98 => 'Аль-Баййина';
 
   @override
-  String get surahName99 => 'Аз-Залзаля';
+  String get surahName99 => 'Аз-Залзала';
 
   @override
   String get surahName100 => 'Аль-Адийат';
 
   @override
-  String get surahName101 => 'Аль-Кари\'а';
+  String get surahName101 => 'Аль-Кариа';
 
   @override
   String get surahName102 => 'Ат-Такасур';
@@ -863,13 +863,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName105 => 'Аль-Филь';
 
   @override
-  String get surahName106 => 'Курайш';
+  String get surahName106 => 'Курейш';
 
   @override
-  String get surahName107 => 'Аль-Ма\'ун';
+  String get surahName107 => 'Аль-Маун';
 
   @override
-  String get surahName108 => 'Аль-Кавсар';
+  String get surahName108 => 'Аль-Каусар';
 
   @override
   String get surahName109 => 'Аль-Кафирун';
@@ -884,7 +884,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get surahName112 => 'Аль-Ихлас';
 
   @override
-  String get surahName113 => 'Аль-Фаляк';
+  String get surahName113 => 'Аль-Фалак';
 
   @override
   String get surahName114 => 'Ан-Нас';
