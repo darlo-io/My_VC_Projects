@@ -79,6 +79,10 @@ dev_dependencies:
   # - sentry_flutter перенесён в dependencies (Sprint 1.2).
   sqflite_common_ffi: ^2.3.0
   mocktail: ^1.0.0
+  # Round 9.7: генерация иконок приложения (mipmap-* + adaptive
+  # icons) из `assets/icon/icon.png`. Запуск:
+  # `dart run flutter_launcher_icons`.
+  flutter_launcher_icons: ^0.14.4
   # integration_test — для будущего Sprint 2 (тесты на device):
   # integration_test: ^8.0.0
   # golden_toolkit — для UI snapshot-тестов:
@@ -89,7 +93,6 @@ flutter:
   uses-material-design: true
   generate: true
   assets:
-    - assets/quran_seed/quran_full.json
     # Фон главного экрана — мечеть справа сверху, как на макете.
     # Генерируется `tool/build_home_background.py` из
     # `docs/images/background.webp`.
@@ -146,3 +149,12 @@ flutter:
     - family: CormorantGaramond
       fonts:
         - asset: assets/fonts/cormorantgaramond/CormorantGaramond-Variable.ttf
+
+# Round 9.7: генерация иконок приложения (mipmap-* + adaptive
+# icons) из `assets/icon/icon.png`. Запуск:
+# `dart run flutter_launcher_icons`.
+flutter_launcher_icons:
+  image_path: "assets/icon/icon.png"
+  android: true
+  min_sdk_android: 23
+  remove_alpha_ios: true

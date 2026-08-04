@@ -25,6 +25,7 @@
 
 import 'package:drift/drift.dart';
 
+import '../../search/fts_query.dart';
 import '../app_database.dart';
 import '../tables.dart';
 
@@ -92,35 +93,18 @@ class WordFtsHit {
 class SearchDao extends DatabaseAccessor<AppDatabase> with _$SearchDaoMixin {
   SearchDao(super.db);
 
-  /// Sanitize FTS5 query: РґРѕР±Р°РІР»СЏРµС‚ `*` Рє РїРѕСЃР»РµРґРЅРµРјСѓ С‚РѕРєРµРЅСѓ РґР»СЏ
-  /// prefix-match, СЌРєСЂР°РЅРёСЂСѓРµС‚ СЃРїРµС†-СЃРёРјРІРѕР»С‹ (`"`, `'`).
-  ///
-  /// Р‘РµР· СЌС‚РѕРіРѕ `"С‚РµСЃС‚'` Р±СЂРѕСЃРёС‚ SQLite error, Р° `"С‚РµСЃС‚*` РѕС‚Р»РёС‡РЅРѕ
-  /// РјР°С‚С‡РёС‚ РІСЃРµ СЃР»РѕРІР° СЃ РїСЂРµС„РёРєСЃРѕРј `С‚РµСЃС‚`.
-  String _sanitizeFtsQuery(String raw) {
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) return '';
-
-    // Р­РєСЂР°РЅРёСЂСѓРµРј РєР°РІС‹С‡РєРё. FTS5 РІ СЂРµР¶РёРјРµ В«termВ» РёСЃРїРѕР»СЊР·СѓРµС‚ "..." Р°
-    // РґР»СЏ prefix вЂ” РїРѕСЃР»РµРґРЅРµРµ СЃР»РѕРІРѕ СЃ *.
-    final escaped = trimmed
-        .replaceAll('"', '""')
-        .replaceAll("'", '');
-
-    // РџРѕСЃР»РµРґРЅРёР№ С‚РѕРєРµРЅ = prefix (РµСЃР»Рё РЅРµ РёРјРµРµС‚ *).
-    final tokens = escaped.split(RegExp(r'\s+'));
-    if (tokens.isEmpty) return escaped;
-    final last = tokens.last;
-    if (!last.endsWith('*') && !last.contains(':')) {
-      tokens[tokens.length - 1] = '$last*';
-    }
-    return tokens.join(' ');
-  }
+  /// Sanitize FTS5 query. Round 9.6 (code review #B3): этот метод
+  /// удалён — все вызовы (4 места) теперь используют общий
+  /// `buildFtsPrefixQuery` из `core/search/fts_query.dart`. Ранее
+  /// существовали две конкурирующие sanitization-стратегии:
+  /// этот (escape `""` + удаление `'`) и
+  /// `buildFtsPrefixQuery` (character removal). В зависимости
+  /// от порядка вызовов результат мог различаться.
 
   /// РџРѕРёСЃРє РїРѕ Р°СЏС‚Р°Рј (uthmani + normalized). BM25 ranking.
   Future<List<AyahFtsHit>> searchAyahsFts(String query,
       {int limit = 50}) async {
-    final q = _sanitizeFtsQuery(query);
+    final q = buildFtsPrefixQuery(query);
     if (q.isEmpty) return const [];
 
     final rows = await customSelect(
@@ -158,7 +142,7 @@ class SearchDao extends DatabaseAccessor<AppDatabase> with _$SearchDaoMixin {
     required String languageCode,
     int limit = 50,
   }) async {
-    final q = _sanitizeFtsQuery(query);
+    final q = buildFtsPrefixQuery(query);
     if (q.isEmpty) return const [];
 
     final rows = await customSelect(
@@ -201,7 +185,7 @@ class SearchDao extends DatabaseAccessor<AppDatabase> with _$SearchDaoMixin {
   /// РџРѕРёСЃРє РїРѕ `words` (Р°СЂР°Р±СЃРєРёРµ С‚РµСЂРјРёРЅС‹ + lemma + root + РїРµСЂРµРІРѕРґС‹).
   Future<List<WordFtsHit>> searchWordsFts(String query,
       {int limit = 50}) async {
-    final q = _sanitizeFtsQuery(query);
+    final q = buildFtsPrefixQuery(query);
     if (q.isEmpty) return const [];
 
     final rows = await customSelect(
@@ -241,7 +225,7 @@ class SearchDao extends DatabaseAccessor<AppDatabase> with _$SearchDaoMixin {
     String? languageCode,
     int limit = 30,
   }) async {
-    final q = _sanitizeFtsQuery(query);
+    final q = buildFtsPrefixQuery(query);
     if (q.isEmpty) return const [];
 
     final langFilter = languageCode != null

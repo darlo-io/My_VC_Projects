@@ -5,14 +5,6 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:cryptography/cryptography.dart' as ed25519;
 
 import '../storage/app_preferences.dart';
-import 'quran_api.dart';
-import 'seed_types.dart';
-
-// Re-export so existing consumers of `content_manifest.dart` for the
-// ContentDownloadResult type keep compiling. The actual definition lives
-// in seed_types.dart so the parser stays pure-Dart and testable without
-// dragging Flutter/Dio into the test graph.
-export 'seed_types.dart' show ContentDownloadResult;
 
 /// Версия контента: меняется при обновлении текстов/переводов.
 const String kContentVersion = '1.0.0';
@@ -177,38 +169,47 @@ class ManifestSignatureVerifier {
 /// Хранит текущую применённую версию контента в SharedPreferences,
 /// плюс метаданные для rollback (см. §17 ARCHITECTURE).
 ///
-/// На диске хранится:
-///   - `content.manifest.version` — `contentVersion` текущего manifest
-///   - `content.manifest.hash` — `contentHash()` текущего manifest
-///   - `content.manifest.sha256` — SHA256 payload-файла, использованного
-///     при bootstrap'е
-///   - `content.manifest.applied_at` — ISO-8601 timestamp последнего
-///     успешного apply (для диагностики)
+/// Round 9.5 (code review #C9): хранит manifest как **один JSON**
+/// в SharedPreferences вместо четырёх отдельных ключей. Это
+/// обеспечивает атомарность записи — при crash'е между write'ами
+/// SharedPreferences не окажется в half-written состоянии
+/// (старый код оставлял потенциально неконсистентный state, если
+/// процесс падал между setString(версия) и setString(applied_at)).
+///
+/// На диске хранится (JSON-объект, строкой):
+///   - `version` — `contentVersion` текущего manifest
+///   - `hash` — `contentHash()` текущего manifest
+///   - `payload_sha256` — SHA256 payload-файла, использованного
+///     при bootstrap'е (опционально)
+///   - `applied_at` — ISO-8601 timestamp последнего успешного
+///     apply (для диагностики)
+///
+/// Rollback snapshot хранится в одном JSON-ключе
+/// `content.manifest.prev`.
 class ContentManifestRepository {
   ContentManifestRepository(this._prefs);
 
   final AppPreferences _prefs;
 
-  static const _keyVersion = 'content.manifest.version';
-  static const _keyHash = 'content.manifest.hash';
-  static const _keyPayloadSha256 = 'content.manifest.sha256';
-  static const _keyAppliedAt = 'content.manifest.applied_at';
-  // Snapshot ключи для [rollback] — пишутся ПЕРЕД `apply()`, и
-  // восстанавливаются если downstream-проверка (signature, payload
-  // sha256) провалилась. Без snapshot'а rollback = wipe всех ключей
-  // и возврат к defaultManifest — пользователь теряет всё ранее
-  // скачанное содержимое.
-  static const _keyPrevVersion = 'content.manifest.prev_version';
-  static const _keyPrevHash = 'content.manifest.prev_hash';
-  static const _keyPrevPayloadSha256 = 'content.manifest.prev_sha256';
-  static const _keyPrevAppliedAt = 'content.manifest.prev_applied_at';
+  static const _key = 'content.manifest';
+  static const _keyPrev = 'content.manifest.prev';
+
+  // Legacy-ключи (Round 9.5+): миграция со старого формата с
+  // четырьмя отдельными ключами — на свежей установке их нет,
+  // а при первом запуске после обновления автоматически
+  // консолидируются в один JSON-ключ. После первой миграции —
+  // удаляются из настроек.
+  static const _legacyKeyVersion = 'content.manifest.version';
+  static const _legacyKeyHash = 'content.manifest.hash';
+  static const _legacyKeyPayloadSha256 = 'content.manifest.sha256';
+  static const _legacyKeyAppliedAt = 'content.manifest.applied_at';
 
   /// Текущий применённый manifest. До `apply` (или на свежей
   /// установке) возвращает [defaultManifest] — это безопасно,
   /// потому что `defaultManifest` встроен в APK и его
   /// целостность гарантируется процессом релиза.
   ContentManifest current() {
-    final stored = _prefs.getString(_keyVersion);
+    final stored = _readManifest();
     if (stored == null) return defaultManifest();
     // В проде здесь бы подтягивался `stored` manifest из
     // изолированного хранилища (file system) — но для MVP v0.1
@@ -218,12 +219,29 @@ class ContentManifestRepository {
     return defaultManifest();
   }
 
+  /// Безопасно прочитать JSON-объект manifest'а. На свежей
+  /// установке или после миграции со старого формата —
+  /// возвращает null.
+  Map<String, dynamic>? _readManifest() {
+    final raw = _prefs.getString(_key);
+    if (raw == null) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      // Повреждённый JSON — трактуем как отсутствующий manifest.
+      return null;
+    }
+  }
+
   /// Хеш применённого manifest (или null, если manifest ещё не
   /// применялся). Используется для проверки в `isCompatible`.
-  String? appliedHash() => _prefs.getString(_keyHash);
+  String? appliedHash() {
+    return _readManifest()?['hash'] as String?;
+  }
 
   Future<String?> appliedVersion() async {
-    return _prefs.getString(_keyVersion);
+    await _ensureMigrated();
+    return _readManifest()?['version'] as String?;
   }
 
   /// SHA256 payload-файла, который был применён последним. Используется
@@ -231,7 +249,36 @@ class ContentManifestRepository {
   /// файл не совпадает с тем, что был хеширован при apply, считаем,
   /// что контент повреждён и нужен re-seed.
   Future<String?> appliedPayloadSha256() async {
-    return _prefs.getString(_keyPayloadSha256);
+    await _ensureMigrated();
+    return _readManifest()?['payload_sha256'] as String?;
+  }
+
+  /// Один раз мигрирует manifest с 4 отдельных ключей в
+  /// JSON-ключ. Идемпотентно — повторный вызов безопасен (если
+  /// JSON уже существует — пропускает; если legacy-ключей нет —
+  /// ничего не делает). После миграции удаляет legacy-ключи.
+  ///
+  /// Это lazy migration (при первом обращении к методу), а не
+  /// startup-migration, чтобы не добавлять блокирующий I/O на
+  /// cold start.
+  Future<void> _ensureMigrated() async {
+    if (_prefs.getString(_key) != null) return;
+    final legacyVersion = _prefs.getString(_legacyKeyVersion);
+    if (legacyVersion == null) return;
+    final legacyHash = _prefs.getString(_legacyKeyHash) ?? '';
+    final legacySha = _prefs.getString(_legacyKeyPayloadSha256);
+    final legacyAt = _prefs.getString(_legacyKeyAppliedAt) ?? '';
+    final json = jsonEncode({
+      'version': legacyVersion,
+      'hash': legacyHash,
+      'payload_sha256': legacySha,
+      'applied_at': legacyAt,
+    });
+    await _prefs.setString(_key, json);
+    await _prefs.remove(_legacyKeyVersion);
+    await _prefs.remove(_legacyKeyHash);
+    await _prefs.remove(_legacyKeyPayloadSha256);
+    await _prefs.remove(_legacyKeyAppliedAt);
   }
 
   /// Реальная проверка совместимости. Сравнивает [appVersion] (например
@@ -243,73 +290,46 @@ class ContentManifestRepository {
     return _compareSemver(_stripBuildSuffix(appVersion), m.minAppVersion) >= 0;
   }
 
-  /// Применить [newManifest]. Шесть шагов:
-  ///   1. Backup текущих значений version/hash/sha256 (для rollback).
-  ///   2. Пишем новые значения.
+  /// Применить [newManifest]. Шаги:
+  ///   1. Backup текущего manifest в snapshot-ключ (для rollback).
+  ///   2. Пишем новый manifest как JSON в один ключ.
   ///   3. Если вызывающий сообщил, что apply провалился
   ///      (например, signature verification failed) — зовёт
-  ///      [rollbackIfNeeded], и предыдущие значения восстанавливаются.
+  ///      [rollback], и snapshot восстанавливается.
   ///
-  /// Atomicity: SharedPreferences-операции не транзакционны между
-  /// разными ключами, но мы делаем backup до write'ов, и при
-  /// crash'е между write'ами пользователь просто увидит свежий
-  /// (но потенциально сломанный) manifest — следующий bootstrap
-  /// увидит `appliedPayloadSha256` ≠ `actualSha256` и пере-применит
-  /// local seed.
+  /// Round 9.5 (code review #C9): оба setString теперь
+  /// атомарны (один ключ → один JSON), при crash'е между
+  /// snapshot и write пользователь не увидит неконсистентный
+  /// manifest.
   Future<void> apply(
     ContentManifest newManifest, {
     String? payloadSha256,
   }) async {
-    // **Backup старых значений ДО записи** новых. При провале
-    // downstream-проверок (signature, payload sha256) — `rollback()`
-    // восстановит эти значения, и пользователь не потеряет ранее
-    // скачанное содержимое.
-    //
-    // Без snapshot'а (старый код) rollback = wipe всех ключей,
-    // что возвращает `current()` к `defaultManifest` — пользователь
-    // скачивает всё заново. С snapshot'ом — повторная попытка при
-    // следующем bootstrap'е сразу видит предыдущее рабочее состояние.
     await _snapshotPrevious();
     await _writeManifest(newManifest, payloadSha256);
   }
 
   Future<void> _writeManifest(ContentManifest m, String? payloadSha256) async {
-    await _prefs.setString(_keyVersion, m.contentVersion);
-    await _prefs.setString(_keyHash, m.contentHash());
-    if (payloadSha256 != null) {
-      await _prefs.setString(_keyPayloadSha256, payloadSha256);
-    }
-    await _prefs.setString(
-      _keyAppliedAt,
-      DateTime.now().toUtc().toIso8601String(),
-    );
+    final json = jsonEncode({
+      'version': m.contentVersion,
+      'hash': m.contentHash(),
+      'payload_sha256': payloadSha256,
+      'applied_at': DateTime.now().toUtc().toIso8601String(),
+    });
+    await _prefs.setString(_key, json);
   }
 
-  /// Snapshot текущего manifest в prev_* ключи. Вызывается из
-  /// [apply] ДО записи новых значений. Если snapshot уже есть
+  /// Snapshot текущего manifest в `content.manifest.prev`. Вызывается
+  /// из [apply] ДО записи нового значения. Если snapshot уже есть
   /// (от предыдущего apply) — он **перезаписывается** (теряется
   /// pre-snapshot), так как каждый apply начинается «с нуля» —
   /// нам нужен только последний успешный baseline.
   Future<void> _snapshotPrevious() async {
-    await _prefs.setString(
-      _keyPrevVersion,
-      _prefs.getString(_keyVersion) ?? '',
-    );
-    await _prefs.setString(
-      _keyPrevHash,
-      _prefs.getString(_keyHash) ?? '',
-    );
-    final prevSha = _prefs.getString(_keyPayloadSha256);
-    if (prevSha != null) {
-      await _prefs.setString(_keyPrevPayloadSha256, prevSha);
+    final current = _readManifest();
+    if (current == null) {
+      await _prefs.remove(_keyPrev);
     } else {
-      await _prefs.remove(_keyPrevPayloadSha256);
-    }
-    final prevAt = _prefs.getString(_keyAppliedAt);
-    if (prevAt != null) {
-      await _prefs.setString(_keyPrevAppliedAt, prevAt);
-    } else {
-      await _prefs.remove(_keyPrevAppliedAt);
+      await _prefs.setString(_keyPrev, jsonEncode(current));
     }
   }
 
@@ -317,49 +337,20 @@ class ContentManifestRepository {
   /// `apply`. Используется при провале signature/SHA256
   /// verification в `ContentBootstrapper.bootstrap`.
   ///
-  /// Если snapshot есть (prev_* ключи непустые) — копируем их
-  /// обратно в основные ключи и очищаем snapshot.
-  ///
+  /// Если snapshot есть — копируем его обратно и очищаем snapshot.
   /// Если snapshot пуст (свежая установка или первый apply) —
-  /// очищаем все ключи (manifest сбрасывается на
-  /// [defaultManifest]).
+  /// wipe ключа, manifest сбрасывается на [defaultManifest].
   Future<void> rollback() async {
-    final prevVersion = _prefs.getString(_keyPrevVersion);
-    final prevHash = _prefs.getString(_keyPrevHash);
-
-    if (prevVersion != null && prevVersion.isNotEmpty && prevHash != null) {
+    final prevRaw = _prefs.getString(_keyPrev);
+    if (prevRaw != null && prevRaw.isNotEmpty) {
       // Snapshot есть — восстанавливаем.
-      await _prefs.setString(_keyVersion, prevVersion);
-      await _prefs.setString(_keyHash, prevHash);
-      final prevSha = _prefs.getString(_keyPrevPayloadSha256);
-      if (prevSha != null) {
-        await _prefs.setString(_keyPayloadSha256, prevSha);
-      } else {
-        await _prefs.remove(_keyPayloadSha256);
-      }
-      final prevAt = _prefs.getString(_keyPrevAppliedAt);
-      if (prevAt != null) {
-        await _prefs.setString(_keyAppliedAt, prevAt);
-      } else {
-        await _prefs.remove(_keyAppliedAt);
-      }
-      // Очищаем snapshot — он отработал.
-      await _clearSnapshot();
+      await _prefs.setString(_key, prevRaw);
+      await _prefs.remove(_keyPrev);
     } else {
-      // Snapshot пуст — wipe всех ключей (как раньше).
-      await _prefs.remove(_keyVersion);
-      await _prefs.remove(_keyHash);
-      await _prefs.remove(_keyPayloadSha256);
-      await _prefs.remove(_keyAppliedAt);
-      await _clearSnapshot();
+      // Snapshot пуст — wipe ключа (как раньше).
+      await _prefs.remove(_key);
+      await _prefs.remove(_keyPrev);
     }
-  }
-
-  Future<void> _clearSnapshot() async {
-    await _prefs.remove(_keyPrevVersion);
-    await _prefs.remove(_keyPrevHash);
-    await _prefs.remove(_keyPrevPayloadSha256);
-    await _prefs.remove(_keyPrevAppliedAt);
   }
 
   /// Применить network-delivered manifest. В отличие от
@@ -446,138 +437,4 @@ String _stripBuildSuffix(String v) {
   // pubspec: `1.0.0+1` → `1.0.0`
   final i = v.indexOf('+');
   return i >= 0 ? v.substring(0, i) : v;
-}
-
-/// Сервис скачивания контента с API.
-class ContentDownloader {
-  ContentDownloader(this._api);
-
-  final QuranApi _api;
-
-  /// Скачать полный текст + дефолтный набор переводов с ограниченной
-  /// параллельностью, чтобы не перегружать сеть и API.
-  Future<ContentDownloadResult> downloadAll({
-    int concurrency = 4,
-  }) async {
-    final manifest = defaultManifest();
-    final surahsMeta = await _api.fetchSurahs();
-
-    final translators = <Map<String, dynamic>>[
-      for (final t in manifest.translations)
-        {
-          'id': t.id,
-          'name': t.name,
-          'language_code': t.languageCode,
-          'source': 'alquran.cloud',
-        },
-    ];
-
-    // Bounded-concurrency пул: семафор на `concurrency` одновременных
-    // HTTP-запросов. Без него — 343 последовательных round-trip'а.
-    final limiter = _Semaphore(concurrency);
-    final ayahs = <Map<String, dynamic>>[];
-    final translations = <Map<String, dynamic>>[];
-
-    final uthmaniFutures = surahsMeta.map((s) async {
-      await limiter.acquire();
-      try {
-        final number = s['number'] as int;
-        final uthmani = await _api.fetchSurahEdition(
-          surahNumber: number,
-          edition: 'quran-uthmani',
-        );
-        for (final a in (uthmani['ayahs'] as List? ?? const [])) {
-          final m = a as Map<String, dynamic>;
-          ayahs.add({
-            'id': m['number'] as int,
-            'surah_id': number,
-            'ayah_number': m['numberInSurah'] as int,
-            'page': m['page'] as int?,
-            'juz': m['juz'] as int?,
-            'hizb': m['hizb'] as int?,
-            'text_uthmani': (m['text'] as String).trim(),
-          });
-        }
-      } finally {
-        limiter.release();
-      }
-    });
-
-    final translationFutures = <Future<void>>[];
-    for (final surah in surahsMeta) {
-      for (final t in manifest.translations) {
-        translationFutures.add(_fetchTranslation(
-          limiter: limiter,
-          surah: surah,
-          edition: t.edition,
-          translatorId: t.id,
-          languageCode: t.languageCode,
-          into: translations,
-        ));
-      }
-    }
-
-    await Future.wait([...uthmaniFutures, ...translationFutures]);
-
-    return ContentDownloadResult(
-      surahs: surahsMeta,
-      ayahs: ayahs,
-      translations: translations,
-      translators: translators,
-    );
-  }
-
-  Future<void> _fetchTranslation({
-    required _Semaphore limiter,
-    required Map<String, dynamic> surah,
-    required String edition,
-    required int translatorId,
-    required String languageCode,
-    required List<Map<String, dynamic>> into,
-  }) async {
-    await limiter.acquire();
-    try {
-      final number = surah['number'] as int;
-      final tr = await _api.fetchSurahEdition(
-        surahNumber: number,
-        edition: edition,
-      );
-      for (final a in (tr['ayahs'] as List? ?? const [])) {
-        final m = a as Map<String, dynamic>;
-        into.add({
-          'ayah_id': m['number'] as int,
-          'translator_id': translatorId,
-          'language_code': languageCode,
-          'text': (m['text'] as String).trim(),
-        });
-      }
-    } finally {
-      limiter.release();
-    }
-  }
-}
-
-/// Простой семафор на `permits` одновременных операций.
-class _Semaphore {
-  _Semaphore(this.permits);
-  int permits;
-  final _waiters = <Completer<void>>[];
-
-  Future<void> acquire() {
-    if (permits > 0) {
-      permits--;
-      return Future.value();
-    }
-    final c = Completer<void>();
-    _waiters.add(c);
-    return c.future;
-  }
-
-  void release() {
-    if (_waiters.isNotEmpty) {
-      _waiters.removeAt(0).complete();
-    } else {
-      permits++;
-    }
-  }
 }

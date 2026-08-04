@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../core/database/app_database.dart';
@@ -40,9 +42,56 @@ Future<void> showTafsirPanel({
   );
 }
 
-/// In-memory кеш последнего выбранного source per ayah. Сбрасывается
-/// на cold restart, что OK (первый тап снова покажет picker).
-final _lastTafsirSourceId = <int, int>{};
+/// Round 9.6 (code review #C4): persist в SharedPreferences
+/// (ключ `tafsir.lastSourceIdMap`) JSON-encoded map
+/// `ayahId → sourceId`. На cold restart — гидратируется через
+/// [_loadLastSourceMap]. Раньше — in-memory, терялось на restart.
+Map<int, int>? _persistedLastSourceMap;
+
+/// Hydrates [_persistedLastSourceMap] из SharedPreferences при
+/// первом обращении. Lazy init — на cold start мы обычно
+/// открываем tafsir-panel редко, не нужно парсить JSON в main().
+Future<Map<int, int>> _loadLastSourceMap(
+  SharedPreferences prefs,
+) async {
+  if (_persistedLastSourceMap != null) return _persistedLastSourceMap!;
+  final raw = prefs.getString('tafsir.lastSourceIdMap');
+  if (raw == null || raw.isEmpty) {
+    _persistedLastSourceMap = {};
+    return _persistedLastSourceMap!;
+  }
+  try {
+    final json = jsonDecode(raw) as Map<String, dynamic>;
+    _persistedLastSourceMap = {
+      for (final e in json.entries) int.parse(e.key): e.value as int,
+    };
+    return _persistedLastSourceMap!;
+  } catch (_) {
+    _persistedLastSourceMap = {};
+    return _persistedLastSourceMap!;
+  }
+}
+
+Future<void> _saveLastSourceMap(SharedPreferences prefs) async {
+  if (_persistedLastSourceMap == null) return;
+  await prefs.setString(
+    'tafsir.lastSourceIdMap',
+    jsonEncode({
+      for (final e in _persistedLastSourceMap!.entries)
+        '${e.key}': e.value,
+    }),
+  );
+}
+
+/// Backwards-compat shim: in-memory reference на
+/// [_persistedLastSourceMap]. Используется в местах где раньше
+/// обращались напрямую к map.
+// ignore: unused_element
+int? _lookupPersistedLastSourceId(int ayahId) {
+  final map = _persistedLastSourceMap;
+  if (map == null) return null;
+  return map[ayahId];
+}
 
 class _TafsirPanel extends ConsumerStatefulWidget {
   const _TafsirPanel({required this.ayah});
@@ -73,10 +122,19 @@ class _TafsirPanelState extends ConsumerState<_TafsirPanel> {
     super.initState();
     // Если для этого аята уже выбирали source — открываем сразу
     // текст (subsequent tap UX, см. AGENTS.md «Tafsir»).
-    final cachedId = _lastTafsirSourceId[widget.ayah.id];
+    // Round 9.6 (code review #C4): теперь читаем из
+    // SharedPreferences. Идемпотентно hydrate через
+    // [_loadLastSourceMap].
+    unawaited(_hydrateThenResolve(widget.ayah.id));
+  }
+
+  Future<void> _hydrateThenResolve(int ayahId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await _loadLastSourceMap(prefs);
+    if (!mounted) return;
+    final cachedId = _persistedLastSourceMap?[ayahId];
     if (cachedId != null) {
-      // Резолвим source асинхронно (БД).
-      _resolveInitial(cachedId);
+      unawaited(_resolveInitial(cachedId));
     }
   }
 
@@ -404,7 +462,14 @@ class _TafsirPanelState extends ConsumerState<_TafsirPanel> {
       _fetchedTafsir = null;
       _error = null;
     });
-    _lastTafsirSourceId[widget.ayah.id] = s.id;
+    // Round 9.6 (code review #C4): persist lastSourceId per ayah в
+    // SharedPreferences (вместо in-memory). На cold restart —
+    // последний выбор восстанавливается, не нужно снова открывать
+    // picker.
+    final prefs = await SharedPreferences.getInstance();
+    await _loadLastSourceMap(prefs);
+    _persistedLastSourceMap?[widget.ayah.id] = s.id;
+    await _saveLastSourceMap(prefs);
     // **Round 6 bugfix**: запускаем _fetch напрямую (без ожидания
     // StreamBuilder'а). Раньше fetch запускался внутри builder'а
     // StreamBuilder'а, который не вызывался на этом устройстве —

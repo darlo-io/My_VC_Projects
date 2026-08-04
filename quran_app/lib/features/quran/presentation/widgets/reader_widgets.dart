@@ -135,10 +135,12 @@ class _AyahTileState extends ConsumerState<AyahTile> {
       // от края Padding'а.
       padding: EdgeInsets.symmetric(
         vertical: widget.display?.paddingVertical ?? 4,
-        // `paddingHorizontal` — пользовательская настройка
-        // из settings. Раньше была только `paddingVertical`,
-        // и слайдер «горизонтальный отступ» ничего не делал
-        // в реальном Reader (работал только в PreviewAyah).
+        // **Single source of truth** для горизонтального отступа
+        // текста. Применяется ровно один раз — здесь. Внешние
+        // Padding'ы в `_buildMushafBody` (reader_screen.dart)
+        // применяют только вертикальные отступы. В landscape cap
+        // `paddingHorizontal` до 16 dp живёт в `effectiveDisplay`
+        // (см. [ReaderDisplaySettings.paddingHorizontal]).
         horizontal: widget.display?.paddingHorizontal ?? 16,
       ),
       // `ConstrainedBox` ограничивает ширину строки по
@@ -631,11 +633,11 @@ class SurahHeader extends StatelessWidget {
   });
 
   /// Номер суры 1..114. Используется как glyph-key в
-  /// `Surah Name V2.ttf` для арабского названия.
+  /// `Surah Name V4.ttf` для арабского названия.
   final int surahNumber;
 
   /// Цвет основного текста Quran (из `ReaderPalette`). Им
-  /// окрашивается крупное название суры (glyph из V2).
+  /// окрашивается крупное название суры (glyph из V4).
   final Color textColor;
 
   /// Путь к ornament-изображению рамки. Вынесено в константу,
@@ -643,10 +645,36 @@ class SurahHeader extends StatelessWidget {
   static const String _frameAsset =
       'assets/images/ornaments/surah_header_frame.webp';
 
-  /// Пропорции исходного ornament-изображения (≈600×230 px).
-  /// Используются для расчёта высоты рамки по ширине, чтобы
-  /// ornament не растягивался и не сжимался.
-  static const double _frameAspectRatio = 600 / 230;
+  /// Round 9.11: ornament SurahHeader стал **адаптивным** к
+  /// ориентации экрана. В portrait используется натуральная
+  /// пропорция PNG (600×230 ≈ 2.6) — ornament выглядит
+  /// **компактнее и уже** по высоте (~138dp на 360dp viewport).
+  /// В landscape — ornament **более вытянутый по горизонтали**
+  /// (5:1) — ниже по высоте (~158dp на 792dp viewport), что
+  /// подходит для широких landscape-экранов (планшеты, foldable).
+  static const double _frameAspectRatioPortrait = 600 / 230;
+  static const double _frameAspectRatioLandscape = 600 / 120;
+
+  /// Размеры арабского названия суры. В portrait — Mushaf-стиль
+  /// (крупно, 70 после +10%). В landscape — увеличенный (62 после +10%)
+  /// от 56, чтобы ornament был ещё крупнее на широких landscape-экранах
+  /// (792dp+) и ornament-узоры по бокам ornament-рамки не доминировали
+  /// над текстом.
+  static const double _fontSizePortrait = 70;
+  static const double _fontSizeLandscape = 62;
+
+  /// Внутренний padding. В landscape ornament более вытянутый
+  /// по горизонтали (5:1) — ornament-узоры по бокам требуют
+  /// больше места по горизонтали (`horizontal: 96`). В portrait —
+  /// вертикальные ornament-узоры требуют большего vertical padding.
+  static const EdgeInsets _paddingPortrait = EdgeInsets.symmetric(
+    horizontal: 72,
+    vertical: 32,
+  );
+  static const EdgeInsets _paddingLandscape = EdgeInsets.symmetric(
+    horizontal: 96,
+    vertical: 12,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -658,35 +686,63 @@ class SurahHeader extends StatelessWidget {
       //  - top: 24 (отступ сверху — от верхней control-панели
       //    или от предыдущего контента).
       //  - bottom: 16 (отступ снизу — от первого аята).
+      //
+      // Ornament **внутри** `SingleChildScrollView` (см.
+      // `reader_screen.dart:_buildLineByLine`), поэтому
+      // уезжает при прокрутке вместе с аятами — не является
+      // фиксированным header'ом.
       padding: const EdgeInsets.fromLTRB(4, 24, 4, 16),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           if (width <= 0) return const SizedBox.shrink();
-          final height = width / _frameAspectRatio;
+          // `MediaQuery.sizeOf` надёжнее `MediaQuery.of(context).size`
+          // (последняя бросает исключение если MediaQuery отсутствует
+          // выше по дереву). Сравнение `width >= 600` работает для
+          // типичных viewport (телефон landscape ≥ 568dp, планшет
+          // portrait ≥ 600dp) — надёжнее, чем `Orientation.of`.
+          final mediaSize = MediaQuery.sizeOf(context);
+          final isLandscape = mediaSize.width >= 600;
+
+          final aspectRatio = isLandscape
+              ? _frameAspectRatioLandscape
+              : _frameAspectRatioPortrait;
+          final fontSize =
+              isLandscape ? _fontSizeLandscape : _fontSizePortrait;
+          final padding =
+              isLandscape ? _paddingLandscape : _paddingPortrait;
+          final height = width / aspectRatio;
+
           return SizedBox(
             width: width,
             height: height,
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // 1) Ornament-рамка как фон.
+                // 1) Ornament-рамка как фон. В landscape ornament
+                //    центрируется (`BoxFit.contain + Alignment.center`)
+                //    — ornament PNG с aspect 600/230 вписывается
+                //    в более вытянутый Container (5:1), а по бокам
+                //    остаётся paper-cream letterbox. В portrait
+                //    ornament растягивается на всю ширину
+                //    (`BoxFit.fill`).
                 Image.asset(
                   _frameAsset,
-                  fit: BoxFit.fill,
+                  fit: isLandscape ? BoxFit.contain : BoxFit.fill,
+                  alignment: Alignment.center,
                   filterQuality: FilterQuality.medium,
                 ),
                 // 2) Арабское название суры по центру свободной
-                //    области рамки. Горизонтальный safe-area
-                //    оставляет место под боковые ornament-узоры;
-                //    `FittedBox` подгоняет размер шрифта, чтобы
-                //    название всегда помещалось и при этом
-                //    выглядело максимально крупным.
+                //    области ornament-рамки. `FittedBox` подгоняет
+                //    размер шрифта, чтобы название всегда
+                //    помещалось и выглядело максимально крупным.
+                //    `textDirection: rtl` нужен для V4 glyph (PUA
+                //    codepoint рендерится корректно в любом
+                //    направлении, но RTL гарантирует, что если
+                //    когда-нибудь V4 переключится на Unicode
+                //    Arabic chars, рендеринг не сломается).
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 72,
-                    vertical: 32,
-                  ),
+                  padding: padding,
                   child: Center(
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
@@ -696,13 +752,16 @@ class SurahHeader extends StatelessWidget {
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         style: TextStyle(
-                            fontSize: 64,
-                            fontWeight: FontWeight.w400,
-                            color: textColor,
-                            fontFamily: surahNameV2FontFamily,
-                            height: 1.0,
-                            letterSpacing: 0.5,
-                          ),
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.w400,
+                          color: textColor,
+                          // V4 шрифт — PUA-codepoints из
+                          // `Surah Name V4.ttf`. Зарегистрирован в
+                          // `pubspec.yaml` (fonts: family: Surah Name V4).
+                          fontFamily: surahNameV4FontFamily,
+                          height: 1.0,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                   ),

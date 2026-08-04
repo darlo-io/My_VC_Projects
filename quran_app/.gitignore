@@ -72,3 +72,7 @@ file_list.txt
 /tool/certs/*.key
 /tool/certs/*.pfx
 /tool/certs/openssl.cnf
+
+# Kilo IDE-specific (config may contain API keys, MCP paths)
+.kilo/
+

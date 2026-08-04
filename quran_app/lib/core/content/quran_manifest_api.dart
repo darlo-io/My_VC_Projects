@@ -2,25 +2,18 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 
-import '../networking/api_client.dart';
+/// Round 9.4: выделено из `quran_api.dart` (alquran.cloud).
+/// Содержит только функции работы с content-manifest endpoint'ом
+/// (отдельный от alquran.cloud endpoint — content.quran-app.com).
+/// Эти функции нужны для online-update flow (`ContentUpdateService`).
+class QuranManifestApi {
+  QuranManifestApi();
 
-/// API Quran (alquran.cloud v1) — публичное API с возможностью
-/// получать текст, переводы и тафсиры.
-class QuranApi {
-  QuranApi(this._client);
-
-  final ApiClient _client;
-  static const _base = 'https://api.alquran.cloud/v1';
-
-  /// Базовые URL'ы для content-update endpoint'а (отдельный от
-  /// alquran.cloud). Override через
+  /// Базовые URL'ы для content-update endpoint'а. Override через
   /// `--dart-define=QURAN_MANIFEST_BASE=http://localhost:8765/v1`
-  /// — вставляется **первым** в список. Используется
-  /// `String.fromEnvironment` (compile-time const) + manual
-  /// list-concat, чтобы override был первым в порядке fallback.
-  ///
-  /// Имя env var **без пробелов** (`QURAN_MANIFEST_BASE`) — иначе
-  /// PowerShell и dart-define не парсят.
+  /// — вставляется **первым** в список. Первый endpoint'override
+  /// через `--dart-define=QURAN_MANIFEST_BASE=...` (см.
+  /// `QuranManifestApi._manifestBaseEndpoints`).
   static const _manifestBaseOverride = String.fromEnvironment(
     'QURAN_MANIFEST_BASE',
     defaultValue: '',
@@ -34,27 +27,6 @@ class QuranApi {
     if (_manifestBaseOverride.isNotEmpty) _manifestBaseOverride,
     ...quranManifestFallbackEndpoints,
   ];
-
-  /// Загрузить список сур (114 сур с метаданными).
-  Future<List<Map<String, dynamic>>> fetchSurahs() async {
-    final data = await _client.getJson('$_base/surah');
-    final list = (data['surahs'] as List?) ?? const [];
-    return list.cast<Map<String, dynamic>>();
-  }
-
-  /// Загрузить полную суру в нужном издании (edition).
-  /// Editions:
-  ///   - `quran-uthmani` — текст Усмани
-  ///   - `ar.alafasy` — арабский с аудио
-  ///   - `en.sahih` — английский Sahih International
-  ///   - `ru.kuliev` — русский Кулиев
-  ///   - `ar.muyassar` — тафсир на арабском
-  Future<Map<String, dynamic>> fetchSurahEdition({
-    required int surahNumber,
-    required String edition,
-  }) async {
-    return _client.getJson('$_base/surah/$surahNumber/$edition');
-  }
 
   /// Скачать подписанный content manifest. Перебирает
   /// [quranManifestFallbackEndpoints] пока не получит
@@ -111,7 +83,7 @@ class QuranApi {
       } catch (e) {
         developer.log(
           'fetchContentManifest($base) failed',
-          name: 'QuranApi',
+          name: 'QuranManifestApi',
           error: e,
         );
         continue;
@@ -173,7 +145,7 @@ class QuranApi {
       } catch (e, st) {
         developer.log(
           'fetchPayload($base) failed',
-          name: 'QuranApi',
+          name: 'QuranManifestApi',
           error: e,
           stackTrace: st,
         );
@@ -190,7 +162,7 @@ class QuranApi {
 /// (статический manifest.json, можно деплоить через
 /// `gh-pages` branch). Первый endpoint'override через
 /// `--dart-define=QURAN_MANIFEST_BASE=...` (см.
-/// `QuranApi._manifestBaseEndpoints`).
+/// `QuranManifestApi._manifestBaseEndpoints`).
 const quranManifestFallbackEndpoints = <String>[
   // Primary (default)
   'https://content.quran-app.com/v1',

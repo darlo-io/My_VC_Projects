@@ -18,6 +18,12 @@ class BookmarksScreen extends ConsumerWidget {
     final quranRepo = ref.watch(quranRepositoryProvider);
 
     return SafeArea(
+      // Round 9.9 (insets fix): `top: false` и `bottom: false` —
+      // не дублировать status/nav bars (они учтены в Scaffold /
+      // MainScaffold). Остаются left/right — критично для landscape
+      // с 3-button nav bar справа (без них `BOTTOM OVERFLOWED BY 25`).
+      // См. `home_screen.dart` для подробного комментария.
+      top: false,
       bottom: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

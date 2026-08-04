@@ -23,6 +23,13 @@ linter:
     require_trailing_commas: true
     sort_child_properties_last: true
     use_super_parameters: true
-    unnecessary_lambdas: true
     unnecessary_await_in_return: true
     unawaited_futures: true
+    # Отключено в проекте (см. `lib/features/audio/data/audio_player_controller.dart`,
+    # `lib/features/quran/data/ayahs_service.dart` и т.п.): конструкторы с
+    # nullable optional параметрами и приватными полями с `??`-default
+    # не могут быть initializing formals без обязательного значения.
+    # `unnecessary_lambdas` отключён аналогично — на наших виджетах
+    # `() => onTap()` не всегда читабельнее, чем `() { … }` с комментарием.
+    prefer_initializing_formals: false
+    unnecessary_lambdas: false

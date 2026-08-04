@@ -148,7 +148,7 @@ class QuranComTranslationApi {
     }
   }
 
-  /// Bulk fetch всей суры. Возвращает Map<ayahNumber (1-indexed), text>.
+  /// Bulk fetch всей суры. Возвращает `Map<ayahNumber (1-indexed), text>`.
   ///
   /// **Round 8 (2026-07-25)**: Quran.com v4 API response shape для
   /// `/quran/translations/{id}?chapter_number={N}`:

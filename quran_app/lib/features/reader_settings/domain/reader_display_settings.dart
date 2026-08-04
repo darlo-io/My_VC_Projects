@@ -49,6 +49,14 @@ class ReaderDisplaySettings {
   /// Ширина полосы текста в процентах от ширины экрана.
   final double textWidthPercent;
 
+  /// Горизонтальный отступ текста от краёв экрана (dp).
+  ///
+  /// Применяется ровно один раз — внутри `AyahTile` (lineByLine) или
+  /// `_SingleScrollMushaf` (book). Внешние Padding'ы в
+  /// `_buildMushafBody` используют только вертикальные отступы.
+  /// В landscape cap'ится до 16 dp в `effectiveDisplay`
+  /// (см. `reader_screen.dart::_buildMushafBody`), чтобы 32 dp
+  /// настройка не съедала ~12% ширины широкого экрана.
   final double paddingHorizontal;
   final double paddingVertical;
 

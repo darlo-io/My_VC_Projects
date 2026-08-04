@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- Round 9.7: splash screen (API 21+) — то же что для default
+     версии, но с использованием `?android:colorBackground` для
+     автоматической поддержки dark/light mode через систему.
+     Иконка — @mipmap/ic_launcher по центру. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="?android:colorBackground" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
+    <item android:gravity="center">
         <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+            android:src="@mipmap/ic_launcher"
+            android:gravity="center" />
+    </item>
 </layer-list>

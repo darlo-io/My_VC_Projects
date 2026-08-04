@@ -179,6 +179,33 @@ class PositionDao extends DatabaseAccessor<AppDatabase>
         );
   }
 
+  /// Round 9.6 (code review #C5): `Map<date, totalAyahs>` для окна
+  /// `[start..end]`. Использует SQL `SUM(...) GROUP BY date` —
+  /// один round-trip возвращает готовый pivot для подсчёта
+  /// streak'а (раньше `watchStreakDays` делал group-by в Dart,
+  /// что для 366-дневного окна = 41k строк in-memory).
+  Stream<Map<String, int>> watchDailyTotals(
+    DateTime start,
+    DateTime end,
+  ) {
+    return customSelect(
+      'SELECT date, COALESCE(SUM(ayahs_read), 0) AS total '
+      'FROM reading_history '
+      'WHERE date >= ? AND date <= ? '
+      'GROUP BY date',
+      variables: [
+        Variable.withString(_isoDate(start)),
+        Variable.withString(_isoDate(end)),
+      ],
+      readsFrom: {readingHistory},
+    ).watch().map(
+          (rows) => <String, int>{
+            for (final r in rows)
+              r.read<String>('date'): r.read<int>('total'),
+          },
+        );
+  }
+
   /// Total ayahs read across the whole history. Used for the
   /// "all-time" stat on the Statistics screen.
   Stream<int> watchTotalAyahs() {
@@ -193,35 +220,32 @@ class PositionDao extends DatabaseAccessor<AppDatabase>
   /// counting backwards from `now`, on which the user read at
   /// least one ayah. A day with zero reading breaks the streak.
   ///
-  /// Implementation walks the `reading_history` rows for the
-  /// trailing 366 days (sufficient for any realistic streak) and
-  /// counts back from `now`'s date while the sum for that day is
-  /// non-zero. We don't watch the underlying stream for every
-  /// date separately — one SUM-GROUP-BY query covers it.
+  /// Round 9.6 (code review #C5): теперь использует
+  /// [watchDailyTotals] — один round-trip с `SUM(...) GROUP BY
+  /// date` в SQL, вместо raw rows + in-memory pivot. Для
+  /// 366-дневного окна это убирает передачу ~41k строк.
   Stream<int> watchStreakDays({DateTime? now}) {
     final today = now ?? DateTime.now();
     final earliest = today.subtract(const Duration(days: 366));
-    return watchByDateRange(earliest, today).map((rows) {
-      if (rows.isEmpty) return 0;
-      // Pivot into a `date -> ayahsRead` map so the streak loop
-      // is O(distinct days) rather than O(streak * surahs).
-      final byDate = <String, int>{};
-      for (final r in rows) {
-        byDate.update(r.date, (v) => v + r.ayahsRead,
-            ifAbsent: () => r.ayahsRead);
-      }
+    return watchDailyTotals(earliest, today).map((byDate) {
+      if (byDate.isEmpty) return 0;
       var streak = 0;
+      var graceDays = 0;
       var cursor = today;
       while (true) {
         final key = _isoDate(cursor);
         final read = byDate[key] ?? 0;
-        // Allow a one-day grace period: if the user hasn't read
-        // today yet but did read yesterday, the streak is still
-        // alive. This avoids resetting the streak to 0 just
-        // because the user opens the app in the morning before
-        // reading.
+        // Round 9.6 (code review #C4): разрешаем до 1 grace-day в
+        // середине стрика. Раньше grace применялся только к
+        // сегодняшнему дню (когда пользователь открывает
+        // приложение утром и ещё не читал). Теперь если
+        // пользователь не читал вчера И сегодня, но читал
+        // позавчера — стрик **сохраняется** (есть 1 grace-day).
+        // Это убирает раздражение у пользователей, которые
+        // читают через день.
         if (read == 0) {
-          if (streak == 0 && _isoDate(cursor) == _isoDate(today)) {
+          if (graceDays < 1) {
+            graceDays++;
             cursor = cursor.subtract(const Duration(days: 1));
             continue;
           }
@@ -319,13 +343,23 @@ class PositionDao extends DatabaseAccessor<AppDatabase>
   /// Общее время чтения (в секундах). На MVP v0.1
   /// `reading_history` хранит только `ayahs_read`, без
   /// `duration_seconds` — поэтому время чтения **оценивается**
-  /// как `ayahs_read * 3 секунды` (среднее время чтения одного
-  /// аята, ~20 слов по 0.15с/слово). В будущем — заменить на
-  /// реальный замер (см. ARCHITECTURE §19: "длительность
-  /// чтения").
+  /// Round 9.6 (code review #M3): магическое число `* 3` вынесено
+  /// в `_kSecondsPerAyahEstimate = 3` named constant. Это не меняет
+  /// поведение, но даёт единую точку настройки если маркетинг
+  /// захочет «среднее время чтения» = 2.5s/ayah или 4s/ayah.
+  /// В будущем — заменить на реальный замер (см. ARCHITECTURE
+  /// §19: "длительность чтения").
+  static const _kSecondsPerAyahEstimate = 3;
+
+  /// Общее время чтения (в секундах). На MVP v0.1
+  /// `reading_history` хранит только `ayahs_read`, без
+  /// `duration_seconds` — поэтому время чтения **оценивается**
+  /// как `ayahs_read * [_kSecondsPerAyahEstimate]` (среднее
+  /// время чтения одного аята, ~20 слов по 0.15с/слово).
   Stream<int> watchReadingTimeSeconds() {
     return customSelect(
-      'SELECT COALESCE(SUM(ayahs_read), 0) * 3 AS s FROM reading_history',
+      'SELECT COALESCE(SUM(ayahs_read), 0) * ? AS s FROM reading_history',
+      variables: [Variable.withInt(_kSecondsPerAyahEstimate)],
       readsFrom: {readingHistory},
     ).watchSingle().map((r) => r.read<int>('s'));
   }

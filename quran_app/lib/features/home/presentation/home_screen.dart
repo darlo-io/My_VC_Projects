@@ -89,6 +89,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         SafeArea(
+          // Round 9.9: `top: false` — не дублировать status bar (он уже
+          // учтён в AppBar/Container), `bottom: false` — не дублировать
+          // bottomNavigationBar (учтён в `MainScaffold` через свой
+          // SafeArea(top: false)). Остаются **left/right** insets — они
+          // критичны для **landscape с 3-button nav bar справа**:
+          // без них контент уходит за nav bar и Flutter выбрасывает
+          // `BOTTOM OVERFLOWED BY 25 PIXELS` на grid'е категорий.
+          // См. `plans/1783541431192-insets-fix.md`.
+          top: false,
           bottom: false,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),

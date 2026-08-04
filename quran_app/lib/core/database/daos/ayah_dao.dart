@@ -72,27 +72,13 @@ class AyahDao extends DatabaseAccessor<AppDatabase> with _$AyahDaoMixin {
       return Stream.value(const <Ayah>[]);
     }
     final start = kJuzStarts[juz - 1];
-    // Compute the end boundary. For Juz 30, end is the last ayah
-    // of the Quran (Surah 114, ayah 6). For all other Juz's we
-    // take the start of the next Juz and subtract one ayah.
-    final JuzStart end;
-    if (juz == kJuzStarts.length) {
-      end = const JuzStart(surahId: 114, ayahNumber: 6);
-    } else {
-      final next = kJuzStarts[juz];
-      if (next.surahId == start.surahId) {
-        end = JuzStart(surahId: next.surahId, ayahNumber: next.ayahNumber - 1);
-      } else {
-        // Multi-surah Juz: end is the last ayah of the previous
-        // surah. We can't hardcode that here without a per-surah
-        // ayahCount table, so we use a sentinel (next.surahId,
-        // 999) and let the SQL `BETWEEN` clamp it. The query
-        // also carries an explicit `surah_id BETWEEN start.surah
-        // AND (next.surah - 1)` to keep the result scoped to the
-        // Juz.
-        end = JuzStart(surahId: next.surahId - 1, ayahNumber: 999);
-      }
-    }
+    // Round 9.6 (code review #C12): теперь используем явный
+    // массив `kJuzEnds` (см. `lib/core/data/juz_mapping.dart`)
+    // вместо magic 999 sentinel. Каждый Juz знает свой
+    // **последний ayah** — multi-surah Juz'ы (например, Juz 30,
+    // охватывающий сразу несколько сур) аннотированы sentinel
+    // `ayahNumber=999` явно в `kJuzEnds`, а не в логике запроса.
+    final end = kJuzEnds[juz - 1];
     final q = select(ayahs)
       ..where(
         (a) =>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round 9.7: dark mode вариант `launch_background`. Используем
+     глубокий бумажный тон (#F1ECE0, `AppColors.backgroundDeep`) —
+     для ночного режима чуть темнее, но всё ещё paper-like.
+     Если хочется более тёмный фон — можно использовать #2A2520
+     (deep cocoa). -->
+<resources>
+    <color name="launch_background">#F1ECE0</color>
+</resources>

@@ -36,8 +36,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     // release-режиме логирует в flutter-стдаут; в debug —
     // полный stack trace + возврат на `/` через `go()`.
     errorBuilder: (context, state) {
-      debugPrint('[ROUTER] errorBuilder: ${state.error} '
-          'uri=${state.uri} matchedLocation=${state.matchedLocation}');
+      developer.log(
+        'errorBuilder: ${state.error} '
+        'uri=${state.uri} matchedLocation=${state.matchedLocation}',
+        name: 'router',
+      );
       return const _ErrorFallbackScreen();
     },
     redirect: (context, state) {
@@ -167,7 +170,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     final lastMatch = cfg.matches.isNotEmpty ? cfg.matches.last : null;
     final path = lastMatch?.matchedLocation ?? cfg.uri.path;
     final isReader = path.startsWith('/reader/');
-    debugPrint('[ORIENT] route=$path isReader=$isReader');
+    developer.log(
+      'route=$path isReader=$isReader',
+      name: 'orientation',
+    );
     globalOrientationGuard.setIsReader(isReader);
   });
 

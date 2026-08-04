@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round 9.7: adaptive icon manifest (Android 8.0+, API 26+).
+     Launcher маскирует canvas в круг/squircle/rounded-square.
+     Background — paper-cream (`launch_background`),
+     foreground — Quran logo (см. ic_launcher_foreground.png) с
+     safe-zone 192px padding (≈66dp из 108dp). -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

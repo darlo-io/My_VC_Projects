@@ -1,16 +1,15 @@
 ﻿import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/content/content_bootstrapper.dart';
 import '../core/content/content_manifest.dart';
 import '../core/content/content_update_service.dart';
-import '../core/content/local_seed_service.dart';
-import '../core/content/quran_api.dart';
+import '../core/content/quran_manifest_api.dart';
 import '../core/data/bookmarks_repository.dart';
 import '../core/data/learning_repository.dart';
 import '../core/data/notes_repository.dart';
@@ -164,20 +163,35 @@ Future<void> setLanguageCode(String? code) =>
   /// РєР°СЃРєР°РґР° РЅР° `apiClientProvider` / `audioCacheProvider` /
   /// `audioPlayerControllerProvider`.
   Future<void> setUseCustomDns(bool v) async {
-    debugPrint('[DNS_NOTIFIER] setUseCustomDns start v=$v');
+    developer.log(
+      'setUseCustomDns start v=$v',
+      name: 'AppPreferencesNotifier',
+    );
     await state.setUseCustomDns(v);
-    debugPrint('[DNS_NOTIFIER] state.setUseCustomDns ok');
+    developer.log(
+      'setUseCustomDns state updated',
+      name: 'AppPreferencesNotifier',
+    );
     _ref.read(dnsSettingsVersionProvider.notifier).update((s) => s + 1);
-    debugPrint('[DNS_NOTIFIER] dnsSettingsVersionProvider updated to '
-        '${_ref.read(dnsSettingsVersionProvider) + 0}');
+    developer.log(
+      'setUseCustomDns dnsSettingsVersionProvider bumped '
+      'to ${_ref.read(dnsSettingsVersionProvider) + 0}',
+      name: 'AppPreferencesNotifier',
+    );
   }
 
   /// РЈСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ DoH-endpoint URL. РџСЂРё РІРєР»СЋС‡РµРЅРёРё
   /// [setUseCustomDns] `true` РІСЃРµ HTTP-Р·Р°РїСЂРѕСЃС‹ РёРґСѓС‚ С‡РµСЂРµР· РЅРµРіРѕ.
   Future<void> setCustomDohUrl(String? url) async {
-    debugPrint('[DNS_NOTIFIER] setCustomDohUrl start url=$url');
+    developer.log(
+      'setCustomDohUrl start url=$url',
+      name: 'AppPreferencesNotifier',
+    );
     await state.setCustomDohUrl(url);
-    debugPrint('[DNS_NOTIFIER] state.setCustomDohUrl ok');
+    developer.log(
+      'setCustomDohUrl state updated',
+      name: 'AppPreferencesNotifier',
+    );
     _ref.read(dnsSettingsVersionProvider.notifier).update((s) => s + 1);
   }
 
@@ -322,8 +336,8 @@ final audioDioProvider = Provider<Dio>((ref) {
   );
 });
 
-final quranApiProvider = Provider<QuranApi>(
-  (ref) => QuranApi(ref.watch(apiClientProvider)),
+final quranManifestApiProvider = Provider<QuranManifestApi>(
+  (ref) => QuranManifestApi(),
 );
 
 /// РђСЃРёРЅС…СЂРѕРЅРЅР°СЏ Р·Р°РіСЂСѓР·РєР° РїРµСЂРµРІРѕРґР° С‚РµРєСѓС‰РµРіРѕ Р°СЏС‚Р° РЅР° СЏР·С‹РєРµ РїСЂРёР»РѕР¶РµРЅРёСЏ.
@@ -387,21 +401,25 @@ final quranTranslationSyncServiceProvider =
 
 /// Round 8: reactive sync state — UI может показывать прогресс
 /// "Загружаем перевод N из 114 сур".
+///
+/// CRITICAL (code review #B3, 2026-07-31): в `ref.onDispose` обязательно
+/// вызываем `removeListener` — иначе на каждом invalidate provider'а
+/// остаётся «висящий» listener на `service.state`, что ведёт к утечке
+/// памяти и потенциальным вызовам на закрытый StreamController.
 final translationSyncStateProvider =
     StreamProvider<TranslationSyncState>((ref) {
   final service = ref.watch(quranTranslationSyncServiceProvider);
-  // Listen to ValueNotifier changes and emit.
   final controller = StreamController<TranslationSyncState>();
   controller.add(service.state.value);
-  // ValueNotifier.addListener возвращает void — просто вызываем
-  // его как side-effect (dispose через ref.onDispose — отдельная
-  // задача; в production нужна реальная отписка).
-  void _onChange() {
+  void onChange() {
     if (!controller.isClosed) controller.add(service.state.value);
   }
 
-  service.state.addListener(_onChange);
-  ref.onDispose(controller.close);
+  service.state.addListener(onChange);
+  ref.onDispose(() {
+    service.state.removeListener(onChange);
+    controller.close();
+  });
   return controller.stream;
 });
 
@@ -426,16 +444,23 @@ final ayahsServiceProvider = Provider<AyahsService>((ref) {
 });
 
 /// Round 9.2: reactive state для UI прогресса lazy fetch аятов.
+///
+/// CRITICAL (code review #B3, 2026-07-31): добавлен `removeListener` в
+/// `ref.onDispose` для предотвращения утечки listener'ов на
+/// `service.state` при invalidate provider'а.
 final ayahsSyncStateProvider = StreamProvider<AyahsSyncState>((ref) {
   final service = ref.watch(ayahsServiceProvider);
   final controller = StreamController<AyahsSyncState>();
   controller.add(service.state.value);
-  void _onChange() {
+  void onChange() {
     if (!controller.isClosed) controller.add(service.state.value);
   }
 
-  service.state.addListener(_onChange);
-  ref.onDispose(controller.close);
+  service.state.addListener(onChange);
+  ref.onDispose(() {
+    service.state.removeListener(onChange);
+    controller.close();
+  });
   return controller.stream;
 });
 
@@ -598,10 +623,13 @@ final quranComTafsirApiProvider = Provider<QuranComTafsirApi>(
 
 /// Singleton воркер фоновой синхронизации списка тафсиров.
 /// State — `ValueNotifier<TafsirsSyncState>`, см. `tafsirs_sync_service.dart`.
+/// Round 9.6 (code review #M6): добавлен `sharedPreferencesProvider`
+/// для персистинга `_lastSyncedAt` между сессиями.
 final tafsirsSyncServiceProvider = Provider<TafsirsSyncService>((ref) {
   return TafsirsSyncService(
     ref.watch(tafsirDaoProvider),
     ref.watch(quranComTafsirApiProvider),
+    prefs: ref.watch(sharedPreferencesProvider),
   );
 });
 
@@ -735,19 +763,15 @@ final cacheLimitMbProvider = StateProvider<int>((ref) {
   return ref.watch(appPreferencesProvider).cacheLimitMb;
 });
 
-final contentDownloaderProvider = Provider<ContentDownloader>(
-  (ref) => ContentDownloader(ref.watch(quranApiProvider)),
-);
-
 final contentUpdateServiceProvider = Provider<ContentUpdateService>((ref) {
-  // Р‘РµСЂС‘Рј `appVersion` РёР· PackageInfo (С‡РµСЂРµР· `appVersionProvider`),
-  // РёРЅР°С‡Рµ вЂ” fallback РёР· `pubspec.yaml: version` (1.0.0+1 в†’
-  // strip build в†’ '1.0.0'). `appVersionProvider` РѕР±РЅРѕРІР»СЏРµС‚СЃСЏ РІ
-  // `main.dart` С‡РµСЂРµР· `PackageInfo.fromPlatform()` РїРѕСЃР»Рµ СЃС‚Р°СЂС‚Р°
-  // РїСЂРёР»РѕР¶РµРЅРёСЏ; РґРѕ СЌС‚РѕРіРѕ РјРѕРјРµРЅС‚Р° РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ fallback.
+  // Берём `appVersion` из PackageInfo (через `appVersionProvider`),
+  // иначе — fallback из `pubspec.yaml: version` (1.0.0+1 →
+  // strip build → '1.0.0'). `appVersionProvider` обновляется в
+  // `main.dart` через `PackageInfo.fromPlatform()` после старта
+  // приложения; до этого момента используется fallback.
   final pkg = ref.watch(appVersionProvider);
   return ContentUpdateService(
-    api: ref.watch(quranApiProvider),
+    api: ref.watch(quranManifestApiProvider),
     manifestRepository: ref.watch(contentManifestRepositoryProvider),
     appVersion: pkg ?? '1.0.0',
   );
@@ -766,28 +790,21 @@ final contentManifestRepositoryProvider =
 
 final contentBootstrapperProvider = Provider<ContentBootstrapper>(
   (ref) {
-    final bootstrapper = ContentBootstrapper(
+    // Round 9.5 (code review #C3): все зависимости передаются
+    // через конструктор — инициализация атомарна, нет late
+    // mutation. `audioCache` и `recitersSyncService` опциональны
+    // (для тестирования / offline-first режима).
+    return ContentBootstrapper(
       db: ref.watch(appDatabaseProvider),
       surahDao: ref.watch(surahDaoProvider),
       ayahDao: ref.watch(ayahDaoProvider),
       translationDao: ref.watch(translationDaoProvider),
-      wordsDao: ref.watch(wordsDaoProvider),
-      wordTimingsDao: ref.watch(wordTimingsDaoProvider),
-      downloader: ref.watch(contentDownloaderProvider),
       manifestRepository: ref.watch(contentManifestRepositoryProvider),
       recitersRepository: ref.watch(recitersRepositoryProvider),
-      localSeed: LocalSeedService(),
+      contentUpdateService: ref.watch(contentUpdateServiceProvider),
+      audioCache: ref.watch(audioCacheProvider),
+      recitersSyncService: ref.watch(recitersSyncServiceProvider),
     );
-    // РћРїС†РёРѕРЅР°Р»СЊРЅР°СЏ РїСЂРѕРєСЂСѓС‚РєР° `contentUpdateService` С‡РµСЂРµР· С‚РѕС‚ Р¶Рµ
-    // `ref`. РџРѕР·РІРѕР»СЏРµС‚ `_fetchFromNetworkInBackground` РІС‹Р·РІР°С‚СЊ
-    // `checkAndApply()` Р±РµР· Р¶С‘СЃС‚РєРѕР№ DI-Р·Р°РІРёСЃРёРјРѕСЃС‚Рё.
-    final updateService = ref.watch(contentUpdateServiceProvider);
-    bootstrapper.contentUpdateService = updateService;
-    // Р¤РѕРЅРѕРІР°СЏ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ СЃРїРёСЃРєР° С‡С‚РµС†РѕРІ СЃ mp3quran.net вЂ”
-    // [RecitersSyncService.maybeSync] РІ С„РѕРЅРµ РїРѕСЃР»Рµ `ensureSeeded`.
-    bootstrapper.recitersSyncService =
-        ref.watch(recitersSyncServiceProvider);
-    return bootstrapper;
   },
 );
 

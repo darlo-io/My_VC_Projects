@@ -1,3 +1,6 @@
+import 'dart:async' show unawaited;
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,7 +28,12 @@ class SettingsScreen extends ConsumerWidget {
     final prefs = ref.watch(appPreferencesProvider);
     final lang = ref.watch(languageProvider);
 
-    return SafeArea(
+return SafeArea(
+      // Round 9.9 (insets fix): `top: false` (status bar учтён в
+      // Scaffold), `bottom: false` (учтён в `MainScaffold.bottomNavigationBar`).
+      // `left/right` defaults → учитываем landscape 3-button nav bar
+      // справа, иначе `BOTTOM OVERFLOWED BY 25` на grid'е категорий.
+      top: false,
       bottom: false,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -330,9 +338,11 @@ class SettingsScreen extends ConsumerWidget {
                             // в background. Идемпотентно — второй
                             // вызов no-op.
                             // ignore: unawaited_futures
-                            ref
-                                .read(quranTranslationSyncServiceProvider)
-                                .ensureTranslatorLoaded(tr.id);
+                            unawaited(
+                              ref
+                                  .read(quranTranslationSyncServiceProvider)
+                                  .ensureTranslatorLoaded(tr.id),
+                            );
                           },
                         ),
                   ],
@@ -1053,7 +1063,10 @@ class _CustomDnsTileState extends ConsumerState<_CustomDnsTile> {
   }
 
   Future<void> _onSave() async {
-    debugPrint('[DNS_TILE] _onSave start url=${_urlController.text}');
+    developer.log(
+      '_onSave start url=${_urlController.text}',
+      name: 'DnsTile',
+    );
     final url = _urlController.text.trim();
     final notifier = ref.read(appPreferencesProvider.notifier);
     try {
@@ -1062,13 +1075,24 @@ class _CustomDnsTileState extends ConsumerState<_CustomDnsTile> {
       } else {
         await notifier.setCustomDohUrl(url);
       }
-      debugPrint('[DNS_TILE] _onSave setCustomDohUrl finished ok');
+      developer.log(
+        '_onSave setCustomDohUrl finished ok',
+        name: 'DnsTile',
+      );
     } catch (e, st) {
-      debugPrint('[DNS_TILE] _onSave setCustomDohUrl THREW: $e\n$st');
+      developer.log(
+        '_onSave setCustomDohUrl THREW',
+        name: 'DnsTile',
+        error: e,
+        stackTrace: st,
+      );
       rethrow;
     }
     if (!mounted) {
-      debugPrint('[DNS_TILE] _onSave: mounted=false after await, abort');
+      developer.log(
+        '_onSave: mounted=false after await, abort',
+        name: 'DnsTile',
+      );
       return;
     }
     final t = AppLocalizations.of(context);
@@ -1077,7 +1101,12 @@ class _CustomDnsTileState extends ConsumerState<_CustomDnsTile> {
         SnackBar(content: Text(t.settingsCustomDnsSaved)),
       );
     } catch (e, st) {
-      debugPrint('[DNS_TILE] showSnackBar THREW: $e\n$st');
+      developer.log(
+        'showSnackBar THREW',
+        name: 'DnsTile',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -1096,8 +1125,11 @@ class _CustomDnsTileState extends ConsumerState<_CustomDnsTile> {
     final prefs = ref.watch(appPreferencesProvider);
     // DEBUG-ONLY: трекаем, как часто ребилдится tile и что
     // показывает `prefs.useCustomDns` в момент построения.
-    debugPrint('[DNS_TILE] build prefs.useCustomDns=${prefs.useCustomDns} '
-        'prefs.customDohUrl=${prefs.customDohUrl}');
+    developer.log(
+      'build prefs.useCustomDns=${prefs.useCustomDns} '
+      'prefs.customDohUrl=${prefs.customDohUrl}',
+      name: 'DnsTile',
+    );
     final enabledLabel = prefs.useCustomDns
         ? '${t.settingsCustomDnsEnabled} — ${prefs.customDohUrl ?? ''}'
         : t.settingsCustomDnsDisabled;
@@ -1107,33 +1139,53 @@ class _CustomDnsTileState extends ConsumerState<_CustomDnsTile> {
       trailing: Switch(
         value: prefs.useCustomDns,
         onChanged: (v) async {
-          debugPrint('[DNS_TILE] Switch.onChanged v=$v '
-              '(started at ${DateTime.now().toIso8601String()})');
+          developer.log(
+            'Switch.onChanged v=$v '
+            '(started at ${DateTime.now().toIso8601String()})',
+            name: 'DnsTile',
+          );
           try {
             await ref.read(appPreferencesProvider.notifier).setUseCustomDns(v);
-            debugPrint('[DNS_TILE] setUseCustomDns($v) finished ok');
+            developer.log(
+              'setUseCustomDns($v) finished ok',
+              name: 'DnsTile',
+            );
           } catch (e, st) {
-            debugPrint('[DNS_TILE] setUseCustomDns($v) THREW: $e\n$st');
+            developer.log(
+              'setUseCustomDns($v) THREW: $e',
+              name: 'DnsTile',
+              error: e,
+              stackTrace: st,
+            );
             rethrow;
           }
         },
       ),
       onTap: () {
-        debugPrint('[DNS_TILE] onTap → _showEditorSheet');
+        developer.log(
+          'onTap → _showEditorSheet',
+          name: 'DnsTile',
+        );
         _showEditorSheet(context, enabledLabel);
       },
     );
   }
 
   Future<void> _showEditorSheet(BuildContext context, String subtitle) async {
-    debugPrint('[DNS_TILE] _showEditorSheet start');
+    developer.log(
+      '_showEditorSheet start',
+      name: 'DnsTile',
+    );
     final t = AppLocalizations.of(context);
     try {
       await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
         builder: (sheetCtx) {
-          debugPrint('[DNS_TILE] bottom-sheet builder invoked');
+          developer.log(
+            'bottom-sheet builder invoked',
+            name: 'DnsTile',
+          );
           return Padding(
             padding: EdgeInsets.only(
               left: 16, right: 16,
@@ -1181,10 +1233,16 @@ class _CustomDnsTileState extends ConsumerState<_CustomDnsTile> {
                     const Spacer(),
                     FilledButton(
                       onPressed: () async {
-                        debugPrint('[DNS_TILE] Save button pressed');
+                        developer.log(
+                          'Save button pressed',
+                          name: 'DnsTile',
+                        );
                         final err = _validate(_urlController.text.trim());
                         if (err != null) {
-                          debugPrint('[DNS_TILE] validation err=$err');
+                          developer.log(
+                            'validation err=$err',
+                            name: 'DnsTile',
+                          );
                           ScaffoldMessenger.of(sheetCtx).showSnackBar(
                             SnackBar(content: Text(err)),
                           );
@@ -1192,7 +1250,10 @@ class _CustomDnsTileState extends ConsumerState<_CustomDnsTile> {
                         }
                         await _onSave();
                         if (sheetCtx.mounted) {
-                          debugPrint('[DNS_TILE] popping bottom-sheet');
+                          developer.log(
+                            'popping bottom-sheet',
+                            name: 'DnsTile',
+                          );
                           Navigator.pop(sheetCtx);
                         }
                       },
@@ -1206,8 +1267,14 @@ class _CustomDnsTileState extends ConsumerState<_CustomDnsTile> {
         },
       );
     } catch (e, st) {
-      debugPrint('[DNS_TILE] _showEditorSheet THREW: $e\n$st');
+      developer.log(
+        '_showEditorSheet THREW',
+        name: 'DnsTile',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 }
+
 

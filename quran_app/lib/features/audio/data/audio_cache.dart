@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -235,8 +236,12 @@ class AudioCache {
     try {
       await _register(reciterId, surah, file);
     } catch (e, st) {
-      // ignore: avoid_print
-      print('audio_cache._register failed for $reciterId/$surah: $e\n$st');
+      developer.log(
+        'audio_cache._register failed: $reciterId/$surah',
+        name: 'AudioCache',
+        error: e,
+        stackTrace: st,
+      );
     }
     // Eviction ВСЕГДА (не только при `maxBytesOverride`):
     // раньше eviction вызывался только из Settings, что
@@ -315,8 +320,10 @@ class AudioCache {
 
   Future<void> _register(String reciterId, int surah, File file) async {
     final size = await file.length();
-    // ignore: avoid_print
-    print('audio_cache: _register $reciterId/$surah size=$size');
+    developer.log(
+      'audio_cache._register: $reciterId/$surah size=$size',
+      name: 'AudioCache',
+    );
     try {
       await dao.upsertCacheEntry(
         reciterId: reciterId,
@@ -325,8 +332,12 @@ class AudioCache {
         fileSizeBytes: size,
       );
     } catch (e, st) {
-      // ignore: avoid_print
-      print('audio_cache: _register FAILED for $reciterId/$surah: $e\n$st');
+      developer.log(
+        'audio_cache._register FAILED: $reciterId/$surah',
+        name: 'AudioCache',
+        error: e,
+        stackTrace: st,
+      );
       rethrow;
     }
   }
@@ -334,8 +345,10 @@ class AudioCache {
   Future<void> _touchPlayed(String reciterId, int surah, File file) async {
     final existing = await dao.findByKey(reciterId, surah);
     if (existing == null) {
-      // ignore: avoid_print
-      print('audio_cache: _touchPlayed MISS for $reciterId/$surah, registering');
+      developer.log(
+        'audio_cache._touchPlayed MISS: $reciterId/$surah, registering',
+        name: 'AudioCache',
+      );
       await _register(reciterId, surah, file);
     } else {
       await dao.touchPlayed(existing.id, DateTime.now());
@@ -432,20 +445,26 @@ class AudioCache {
   Future<int> rebuildMissingFromDisk() async {
     final root = await _ensureRoot();
     if (!root.existsSync()) {
-      // ignore: avoid_print
-      print('audio_cache.rebuild: root does not exist: ${root.path}');
+      developer.log(
+        'audio_cache.rebuild: root does not exist: ${root.path}',
+        name: 'AudioCache',
+      );
       return 0;
     }
-    // ignore: avoid_print
-    print('audio_cache.rebuild: root=${root.path}');
+    developer.log(
+      'audio_cache.rebuild: root=${root.path}',
+      name: 'AudioCache',
+    );
     var restored = 0;
     var scanned = 0;
     var skipped = 0;
     // Один прогон по всем reciter-подкаталогам + 114 файлов в каждом.
     // Стоимость: ~570 stat'ов на 5 ректоров, 10-50мс в сумме.
     final subdirs = root.listSync().whereType<Directory>().toList();
-    // ignore: avoid_print
-    print('audio_cache.rebuild: found ${subdirs.length} reciter dirs');
+    developer.log(
+      'audio_cache.rebuild: found ${subdirs.length} reciter dirs',
+      name: 'AudioCache',
+    );
     for (final sub in subdirs) {
       final reciterId = sub.path.split(p.separator).last;
       // reciterId типа 'mp3quran_112' → 'mp3quran:112'
@@ -478,13 +497,18 @@ class AudioCache {
           );
           restored++;
         } catch (e) {
-          // ignore: avoid_print
-          print('audio_cache.rebuild: failed $file: $e');
+          developer.log(
+            'audio_cache.rebuild: failed $file',
+            name: 'AudioCache',
+            error: e,
+          );
         }
       }
     }
-    // ignore: avoid_print
-    print('audio_cache.rebuild: scanned=$scanned skipped_invalid=$skipped restored=$restored');
+    developer.log(
+      'audio_cache.rebuild: scanned=$scanned skipped_invalid=$skipped restored=$restored',
+      name: 'AudioCache',
+    );
     return restored;
   }
 
@@ -555,8 +579,12 @@ class AudioCache {
     try {
       await _register(reciterId, surah, file);
     } catch (e, st) {
-      // ignore: avoid_print
-      print('audio_cache._register no-evict failed for $reciterId/$surah: $e\n$st');
+      developer.log(
+        'audio_cache._register no-evict failed: $reciterId/$surah',
+        name: 'AudioCache',
+        error: e,
+        stackTrace: st,
+      );
     }
     return file;
   }

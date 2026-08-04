@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- Round 9.7: splash screen с иконкой приложения по центру.
+     Фон — наш emerald (#0E3B33) из AppColors.emeraldDeep.
+     Иконка — @mipmap/ic_launcher (1024px PNG), автоматически
+     центрируется через `gravity="center"` + inset 64dp чтобы
+     иконка не растягивалась на всю ширину. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
+    <item android:drawable="@color/launch_background" />
+    <item android:gravity="center">
         <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+            android:src="@mipmap/ic_launcher"
+            android:gravity="center" />
+    </item>
 </layer-list>

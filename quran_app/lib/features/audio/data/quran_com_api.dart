@@ -66,7 +66,7 @@ class QuranComApi {
   }
 
   /// Multi-locale fetch: дёргает `/recitations?language=<l>` для каждого
-  /// языка, объединяет результаты. Возвращает Map<id, Recitation> с
+  /// языка, объединяет результаты. Возвращает `Map<id, Recitation>` с
   /// заполненным `nameByLocale`.
   ///
   /// Используется при initial sync чтобы одной операцией сохранить
@@ -248,7 +248,7 @@ class QuranComApi {
   /// Round 9: metadata аятов суры — page/juz/hizb для каждого аята.
   /// Используется для ленивой подгрузки метаданных аятов в БД.
   ///
-  /// Возвращает Map<verseKey, {page, juz, hizb}>.
+  /// Возвращает `Map<verseKey, {page, juz, hizb}>`.
   Future<Map<String, Map<String, int>>> fetchAyahMetadataByChapter({
     required int chapterNumber,
   }) async {

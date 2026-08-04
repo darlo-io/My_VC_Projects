@@ -6,7 +6,7 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart' show ValueNotifier;
 
 import 'content_manifest.dart';
-import 'quran_api.dart';
+import 'quran_manifest_api.dart';
 
 /// Состояние процесса проверки content-обновлений.
 enum ContentUpdateStage {
@@ -44,7 +44,7 @@ class ContentUpdateState {
 
 /// Pipeline обновления контента (ARCHITECTURE §15):
 ///
-/// 1. **Fetch manifest** через [QuranApi.fetchContentManifest] с
+/// 1. **Fetch manifest** через [QuranManifestApi.fetchContentManifest] с
 ///    fallback'ом по [quranManifestFallbackEndpoints].
 /// 2. **SHA256 verify** — для `contentVersion == appliedVersion`
 ///    → no-op (manifest не менялся). Для новой версии — скачиваем
@@ -71,7 +71,7 @@ class ContentUpdateService {
     required this.appVersion,
   });
 
-  final QuranApi api;
+  final QuranManifestApi api;
   final ContentManifestRepository manifestRepository;
   final String appVersion;
 

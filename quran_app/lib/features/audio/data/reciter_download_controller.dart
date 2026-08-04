@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -175,8 +176,11 @@ class ReciterDownloadController extends StateNotifier<ReciterDownloadState> {
           } on DioException catch (e) {
             if (cancel.isCancelled) return;
             // Один сур упал — продолжаем остальные.
-            // ignore: avoid_print
-            print('prefetch: surah $surah failed: $e');
+            developer.log(
+              'prefetch: surah $surah failed',
+              name: 'ReciterDownloadController',
+              error: e,
+            );
           }
           completed += 1;
           if (!cancel.isCancelled) {

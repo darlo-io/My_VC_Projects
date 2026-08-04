@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:drift/drift.dart';
 
 import '../app_database.dart';
@@ -17,7 +19,10 @@ class AudioCacheDao extends DatabaseAccessor<AppDatabase>
           ))
         .getSingleOrNull();
     // ignore: avoid_print
-    print('audio_cache.findByKey($reciterId, $surahId) = ${row?.id}');
+      developer.log(
+        'audio_cache.findByKey($reciterId, $surahId) = ${row?.id}',
+        name: 'AudioCacheDao',
+      );
     return row;
   }
 
@@ -82,11 +87,13 @@ class AudioCacheDao extends DatabaseAccessor<AppDatabase>
       readsFrom: {audioCacheMetadata},
     ).watch().map((rows) {
       // ignore: avoid_print
-      print('audio_cache.watchFullyCachedReciters fired with ${rows.length} rows: '
-          '${rows.map((r) => r.read<String>('reciter_id')).toList()}');
+      developer.log(
+        'audio_cache.watchFullyCachedReciters fired with ${rows.length} rows: '
+        '${rows.map((r) => r.read<String>('reciter_id')).toList()}',
+        name: 'AudioCacheDao',
+      );
       return rows
           .map((r) => r.read<String>('reciter_id'))
-          .where((s) => s != null)
           .cast<String>()
           .toSet();
     });
@@ -113,7 +120,10 @@ class AudioCacheDao extends DatabaseAccessor<AppDatabase>
     ).getSingle();
     final n = row.read<int>('cnt');
     // ignore: avoid_print
-    print('audio_cache.isCached($reciterId, $surahId) raw cnt=$n total=$totalCount');
+    developer.log(
+      'audio_cache.isCached($reciterId, $surahId) raw cnt=$n total=$totalCount',
+      name: 'AudioCacheDao',
+    );
     return n > 0;
   }
 

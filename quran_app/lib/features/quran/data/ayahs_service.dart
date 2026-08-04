@@ -14,6 +14,10 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart' show ValueNotifier;
 
+// Импортируем расширение, которое даёт `&` (Bitwise AND) для Expression<bool>.
+// Без него dart неявно резолвит `&` как bitwise int operator, который
+// возвращает `int` а не `Expression<bool>`, что и приводит к ошибке
+// `A value of type 'Expression<bool>' can't be assigned to a variable of type 'bool'`.
 import '../../../core/database/app_database.dart';
 import '../../../core/database/daos/ayah_dao.dart';
 import '../../audio/data/quran_com_api.dart';
@@ -56,9 +60,9 @@ class AyahsService {
     required AyahDao ayahDao,
     required QuranComApi quranComApi,
     required AppDatabase db,
-  })  : _dao = ayahDao,
-        _api = quranComApi,
-        _db = db;
+  }) : _dao = ayahDao,
+       _api = quranComApi,
+       _db = db;
 
   final AyahDao _dao;
   final QuranComApi _api;
@@ -72,7 +76,15 @@ class AyahsService {
   /// **Идемпотентно**: если в БД уже есть аяты — no-op.
   /// Иначе — fetch с Quran.com + bulk insert.
   Future<AyahsSyncState> ensureLoaded(int surahId) async {
+    developer.log(
+      'ensureLoaded START surahId=$surahId',
+      name: 'ayahs_service',
+    );
     if (state.value.isSyncing && state.value.surahId == surahId) {
+      developer.log(
+        'ensureLoaded: already syncing, skip',
+        name: 'ayahs_service',
+      );
       return state.value;
     }
 
@@ -89,6 +101,10 @@ class AyahsService {
     // 3. countAyahs > 0 и все аяты имеют page — skip
     if (existing > 0) {
       final needsMetadata = await _hasMissingMetadata(surahId);
+      developer.log(
+        'ensureLoaded: surahId=$surahId needsMetadata=$needsMetadata',
+        name: 'ayahs_service',
+      );
       if (!needsMetadata) {
         developer.log(
           'ensureLoaded: surahId=$surahId already loaded with metadata, skip',
@@ -100,6 +116,11 @@ class AyahsService {
         'ensureLoaded: surahId=$surahId has ayahs but missing page/juz/hizb, fetching',
         name: 'ayahs_service',
       );
+    } else {
+      developer.log(
+        'ensureLoaded: cold install, fetching all verses for surahId=$surahId',
+        name: 'ayahs_service',
+      );
     }
 
     return _fetchAndInsert(surahId);
@@ -108,10 +129,11 @@ class AyahsService {
   /// Проверяет, есть ли аяты с page IS NULL для данной суры.
   /// Используется для решения — fetch или skip.
   Future<bool> _hasMissingMetadata(int surahId) async {
-    // Используем drift query API (а не customSelect с Variable) — 
-    // проще и без зависимости от drift Variable API.
+    // Drift 2.x: оператор `&&` возвращает bool, а `..where` ждет
+    // Expression<bool>. Решение — разбить на два .where():
     final query = _db.select(_db.ayahs)
-      ..where((a) => a.surahId.equals(surahId) & a.page.isNull());
+      ..where((a) => a.surahId.equals(surahId))
+      ..where((a) => a.page.isNull());
     final count = await query.get().then((rows) => rows.length);
     return count > 0;
   }
@@ -140,8 +162,9 @@ class AyahsService {
       );
       final results = await Future.wait([textsFuture, metaFuture]);
 
-      final texts = results[0] as Map<String, QuranComAyahDto>;
-      final metaMap = results[1] as Map<String, Map<String, int>>;
+      final texts = (results[0] as Map<String, QuranComAyahDto>?) ?? const {};
+      final metaMap = (results[1] as Map<String, Map<String, int>>?) ??
+          const <String, Map<String, int>>{};
 
       if (texts.isEmpty && metaMap.isEmpty) {
         state.value = state.value.copyWith(
@@ -150,72 +173,60 @@ class AyahsService {
         return state.value;
       }
 
-      // 1. INSERT OR IGNORE metadata для всех аятов суры
-      // customStatement принимает List<Object?> — raw values, не Variable.
-      for (final entry in metaMap.entries) {
-        final verseKey = entry.key;
-        final meta = entry.value;
-        final parts = verseKey.split(':');
-        if (parts.length != 2) continue;
-        final ayahNumber = int.tryParse(parts[1]);
-        if (ayahNumber == null) continue;
-        try {
-          await _db.customStatement(
-            'INSERT OR IGNORE INTO ayahs '
-            '(surah_id, ayah_number, page, juz, hizb, '
-            'text_uthmani, text_normalized) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [
-              surahId,
-              ayahNumber,
-              meta['page']!,
-              meta['juz']!,
-              meta['hizb']!,
-              '',  // пустой text_uthmani
-              '',  // пустой text_normalized
-            ],
-          );
-        } catch (e, st) {
-          developer.log(
-            'insert metadata failed for $verseKey: $e',
-            name: 'ayahs_service',
-            error: e,
-            stackTrace: st,
+      // 1. Batch UPDATE metadata для существующих аятов (по surah_id +
+      // ayah_number). Round 9.5 (code review #C2): заменили N отдельных
+      // await customStatement на batch(), что сокращает латентность для
+      // больших сур (Бакара = 286 итераций → 1 round-trip в SQLite).
+      // Не INSERT OR IGNORE — у таблицы `ayahs` нет UNIQUE constraint
+      // на (surah_id, ayah_number), только PRIMARY KEY на id. INSERT
+      // OR IGNORE создаёт дубликаты при наличии строки с тем же
+      // (surah_id, ayah_number). Используем UPDATE чтобы перезаписать
+      // page/juz/hizb без создания дубликатов. customStatement
+      // принимает List<Object?> — raw values, не Variable.
+      //
+      // На провале любого statement в batch() — вся транзакция
+      // откатывается (Drift гарантирует). Failure → exception
+      // ловится во внешнем try/catch.
+      await _db.batch((batch) {
+        for (final entry in metaMap.entries) {
+          final verseKey = entry.key;
+          final meta = entry.value;
+          final parts = verseKey.split(':');
+          if (parts.length != 2) continue;
+          final ayahNumber = int.tryParse(parts[1]);
+          if (ayahNumber == null) continue;
+          final page = meta['page'];
+          final juz = meta['juz'];
+          final hizb = meta['hizb'];
+          if (page == null || juz == null || hizb == null) continue;
+          batch.customStatement(
+            'UPDATE ayahs SET page = ?, juz = ?, hizb = ? '
+            'WHERE surah_id = ? AND ayah_number = ?',
+            [page, juz, hizb, surahId, ayahNumber],
           );
         }
-      }
+      });
 
-      // 2. UPDATE text для всех аятов с fetched text
-      var updated = 0;
-      for (final entry in texts.entries) {
-        final verseKey = entry.key;
-        final dto = entry.value;
-        final parts = verseKey.split(':');
-        if (parts.length != 2) continue;
-        final ayahNumber = int.tryParse(parts[1]);
-        if (ayahNumber == null) continue;
-        try {
-          await _db.customStatement(
+      // 2. Batch UPDATE text для всех аятов с fetched text. Аналогично
+      // пункту 1 — один round-trip вместо N.
+      await _db.batch((batch) {
+        for (final entry in texts.entries) {
+          final verseKey = entry.key;
+          final dto = entry.value;
+          final parts = verseKey.split(':');
+          if (parts.length != 2) continue;
+          final ayahNumber = int.tryParse(parts[1]);
+          if (ayahNumber == null) continue;
+          batch.customStatement(
             'UPDATE ayahs SET text_uthmani = ?, text_normalized = ? '
             'WHERE surah_id = ? AND ayah_number = ?',
-            [
-              dto.textUthmani,
-              dto.textUthmaniSimple,
-              surahId,
-              ayahNumber,
-            ],
-          );
-          updated++;
-        } catch (e) {
-          developer.log(
-            'update text failed for $verseKey: $e',
-            name: 'ayahs_service',
+            [dto.textUthmani, dto.textUthmaniSimple, surahId, ayahNumber],
           );
         }
-      }
+      });
 
       developer.log(
-        'fetched ${texts.length} verses, updated $updated for surahId=$surahId',
+        'fetched ${texts.length} verses, batch-updated for surahId=$surahId',
         name: 'ayahs_service',
       );
 

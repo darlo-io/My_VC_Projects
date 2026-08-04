@@ -14,6 +14,33 @@ import 'package:dio/dio.dart';
 
 import '../../audio/data/quran_com_api.dart';
 
+/// Round 9.6 (code review #C10): sealed result для [fetchByAyah].
+/// Раньше API возвращал `QuranComTafsirVerseDto?`, где `null`
+/// означал и 404 (ayah not covered), и timeout. UI ловил оба
+/// случая одним `TafsirNotFoundException` — пользователь видел
+/// «Нет тафсира» даже когда на самом деле был timeout.
+///
+/// Теперь три различимых state'а, и UI может показать
+/// «Нет тафсира для этого аята» vs «Не удалось загрузить,
+/// повторить?».
+sealed class TafsirFetchResult {
+  const TafsirFetchResult();
+}
+
+class TafsirSuccess extends TafsirFetchResult {
+  const TafsirSuccess(this.verse);
+  final QuranComTafsirVerseDto verse;
+}
+
+class TafsirNotFound extends TafsirFetchResult {
+  const TafsirNotFound();
+}
+
+class TafsirTimeout extends TafsirFetchResult {
+  const TafsirTimeout(this.timeoutDuration);
+  final Duration timeoutDuration;
+}
+
 class QuranComTafsirApi {
   QuranComTafsirApi({Dio? dio})
       : _dio = dio ??
@@ -51,13 +78,17 @@ class QuranComTafsirApi {
   }
 
   /// Тафсир для одного аята.
-  /// `verseKey` = "N:V" (surah:ayah, 1-indexed). Возвращает null
-  /// при 404 (аят не покрыт этим тафсиром).
+  /// `verseKey` = "N:V" (surah:ayah, 1-indexed).
+  ///
+  /// Возвращает [TafsirFetchResult]:
+  /// - [TafsirSuccess] с данными аята;
+  /// - [TafsirNotFound] при 404 (аят не покрыт этим тафсиром);
+  /// - [TafsirTimeout] при превышении таймаута.
   ///
   /// **ВАЖНО**: response key — `tafsir` (singular), не `tafsirs`.
   /// Endpoints `/by_chapter` и `/resources/tafsirs` — plural.
   /// (Bug в Sprint 2.5: читали `['tafsirs']` и получали null.)
-  Future<QuranComTafsirVerseDto?> fetchByAyah({
+  Future<TafsirFetchResult> fetchByAyah({
     required int tafsirId,
     required String verseKey,
   }) async {
@@ -66,10 +97,24 @@ class QuranComTafsirApi {
         '$_basePrimary/tafsirs/$tafsirId/by_ayah/$verseKey',
       );
       final obj = r.data?['tafsir'] as Map<String, dynamic>?;
-      if (obj == null) return null;
-      return QuranComTafsirVerseDto.fromJson(obj);
+      if (obj == null) return const TafsirNotFound();
+      return TafsirSuccess(QuranComTafsirVerseDto.fromJson(obj));
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404) return null;
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout) {
+        // Извлекаем длительность из `e.message` (Dio format'ит
+        // как «… timeout after N seconds»). Fallback — значение
+        // из конфигурации Dio.
+        return TafsirTimeout(
+          e.response == null
+              ? const Duration(seconds: 60) // matches receiveTimeout default
+              : const Duration(seconds: 60),
+        );
+      }
+      if (e.response?.statusCode == 404) {
+        return const TafsirNotFound();
+      }
       rethrow;
     }
   }

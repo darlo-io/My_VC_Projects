@@ -89,6 +89,12 @@ class LearningDao extends DatabaseAccessor<AppDatabase>
   /// Применить результат повторения (SM-2). Возвращает обновлённую запись.
   ///
   /// Math делегирован [Sm2.next] — pure-Dart, покрыт юнит-тестами.
+  ///
+  /// Round 9.6 (code review #B2): обёрнуто в [transaction] для
+  /// защиты от race condition при параллельных reviews и для
+  /// атомарности. `getSingle` заменён на `getSingleOrNull` с
+  /// явной ошибкой если запись не существует (раньше выпадало
+  /// StateError из Drift "TooManyResults/NoElement").
   Future<LearningWord> recordReview({
     required int wordId,
     required ReviewQuality quality,
@@ -96,29 +102,37 @@ class LearningDao extends DatabaseAccessor<AppDatabase>
   }) async {
     assert(quality >= 0 && quality <= 5, 'quality must be 0..5');
     final ts = now ?? DateTime.now();
-    final existing = await (select(learningWords)
-          ..where((l) => l.wordId.equals(wordId)))
-        .getSingle();
-    final next = Sm2.next(
-      easeFactor: existing.easeFactor,
-      intervalDays: existing.intervalDays,
-      repetitions: existing.repetitions,
-      quality: quality,
-      now: ts,
-    );
-    await (update(learningWords)
-          ..where((l) => l.id.equals(existing.id)))
-        .write(LearningWordsCompanion(
-          id: Value(existing.id),
-          wordId: Value(existing.wordId),
-          status: Value(next.status),
-          easeFactor: Value(next.easeFactor),
-          intervalDays: Value(next.intervalDays),
-          repetitions: Value(next.repetitions),
-          nextReviewAt: Value(next.nextReviewAt),
-          lastReviewAt: Value(ts),
-        ));
-    return (select(learningWords)..where((l) => l.id.equals(existing.id)))
-        .getSingle();
+    return transaction(() async {
+      final existing = await (select(learningWords)
+            ..where((l) => l.wordId.equals(wordId)))
+          .getSingleOrNull();
+      if (existing == null) {
+        throw StateError(
+          'No LearningWord row for wordId=$wordId — cannot record review',
+        );
+      }
+      final next = Sm2.next(
+        easeFactor: existing.easeFactor,
+        intervalDays: existing.intervalDays,
+        repetitions: existing.repetitions,
+        quality: quality,
+        now: ts,
+      );
+      await (update(learningWords)
+            ..where((l) => l.id.equals(existing.id)))
+          .write(LearningWordsCompanion(
+            id: Value(existing.id),
+            wordId: Value(existing.wordId),
+            status: Value(next.status),
+            easeFactor: Value(next.easeFactor),
+            intervalDays: Value(next.intervalDays),
+            repetitions: Value(next.repetitions),
+            nextReviewAt: Value(next.nextReviewAt),
+            lastReviewAt: Value(ts),
+          ));
+      return (select(learningWords)
+            ..where((l) => l.id.equals(existing.id)))
+          .getSingle();
+    });
   }
 }

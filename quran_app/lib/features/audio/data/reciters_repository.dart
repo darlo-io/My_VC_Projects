@@ -318,7 +318,6 @@ class RecitersRepository {
     final merged = await _quranComApi.fetchRecitationsMultiLocale(
       languages: languages,
     );
-    final now = DateTime.now();
     var inserted = 0;
     // Map Quran.com id → (mp3quranId, path) для обратной ссылки.
     final quranComToMp3quran = <int, int>{};
@@ -348,7 +347,7 @@ class RecitersRepository {
       );
       inserted += 1;
     }
-    await _quranComDao!.upsertAll(upserts);
+    await _quranComDao.upsertAll(upserts);
     developer.log(
       'quran_com sync: $inserted reciters',
       name: 'reciters_repo',
@@ -394,9 +393,12 @@ class RecitersRepository {
   /// самостоятельной операции fix-up при старте.
   ///
   /// Возвращает количество исправленных строк.
+  ///
+  /// Round 9.6 (code review #C3): один `transaction` вместо N+1
+  /// round-trip-ов. 240 ректоров = 240 SQLite writes → 1 batch.
   Future<int> applyNameOverrides() async {
     final all = await _dao.getAll();
-    var fixed = 0;
+    final updates = <({String id, String newNameRu})>[];
     for (final r in all) {
       final id = r.mp3quranId;
       if (id == null) continue;
@@ -411,10 +413,9 @@ class RecitersRepository {
         newName = r.nameEn;
       }
       if (newName != null && newName != r.nameRu) {
-        await _dao.updateNameRu(r.id, newName);
-        fixed += 1;
+        updates.add((id: r.id, newNameRu: newName));
       }
     }
-    return fixed;
+    return _dao.updateNameRuBatch(updates);
   }
 }

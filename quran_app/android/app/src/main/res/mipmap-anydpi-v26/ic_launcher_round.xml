@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round 9.7: round launcher icon — алиас для adaptive icon.
+     Некоторые launcher'ы (Pixel, Samsung) показывают именно
+     round-версию. Используем тот же adaptive-icon. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

@@ -63,9 +63,9 @@ class QuranRepository {
   }
 
   /// Round 8: возвращает переводы аятов конкретной суры для
-  /// конкретного translator'a (не languageCode). Используется
+  /// конкретного translator'a (не `languageCode`). Используется
   /// reader_screen после переключения на нового translator'а через
-  /// Settings → Перевод. Возвращает Map<ayahId, text>; пустая map
+  /// Settings → Перевод. Возвращает `Map<ayahId, text>`; пустая map
   /// если translations ещё не загружены (lazy fetch в процессе).
   Future<Map<int, String>> translationsForSurahByTranslator({
     required int surahId,

@@ -1,6 +1,6 @@
 /// Round 8 (2026-07-23): hardcoded словарь русских переводчиков
-/// Quran.com API. Используется для `LocalSeedService.ensureSeeded`
-/// при initial sync переводов (Round 8 Этап 1) и для `QuranTranslationSyncService`
+/// Quran.com API. Используется для `ContentBootstrapper.seedTranslators`
+/// при initial seed переводов (Round 8 Этап 1) и для `QuranTranslationSyncService`
 /// для lazy fetch (Round 8 Этап 3).
 ///
 /// Аналогия `kTafsirRuNames` (Round 3) и `kSurahRuNames` —

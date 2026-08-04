@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round 9.7: цвета splash screen + adaptive icon background.
+     `launch_background` — paper-cream фон splash screen (тот же
+     что `AppColors.background` в Dart-коде).
+     `ic_launcher_background` — dark emerald для adaptive icon
+     background layer. Цвет подобран по icon.png foreground: тот
+     же зелёный что и Quran-каллиграфия → launcher при любой маске
+     (круг/квадрат) показывает визуально целостную зелёную иконку
+     БЕЗ paper-cream rim или системных белых полосок. -->
+<resources>
+    <color name="launch_background">#FAF7F0</color>
+    <color name="ic_launcher_background">#00291C</color>
+</resources>

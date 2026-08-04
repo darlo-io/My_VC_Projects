@@ -90,7 +90,7 @@ await SystemChrome.setPreferredOrientations(const [
     // Вызываем ПОСЛЕ runApp через WidgetsBinding.instance.scheduleFrameCallback,
     // чтобы widget tree был инициализирован. Идемпотентно —
     // findByQuranComId проверяет наличие. Раньше это было в
-    // `_applyLocalSeed`, но этот путь срабатывает только при
+    // bulk-install bootstrap, но этот путь срабатывает только при
     // cold install — на existing installations bootstrap screen
     // пропускается (isReady=true) и translators не доходили до
     // existing devices.

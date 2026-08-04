@@ -40,6 +40,22 @@ class TafsirDao extends DatabaseAccessor<AppDatabase> with _$TafsirDaoMixin {
       (select(tafsirSources)..where((s) => s.id.equals(id)))
           .getSingleOrNull();
 
+  /// Round 9.6 (code review #C1): SQL `COUNT(*)` для источников
+  /// с указанным `language_code`. Раньше
+  /// `TafsirsSyncService._countSourcesByLanguage` загружал ВСЕ
+  /// источники через `getAllSources()` и фильтровал в Dart — это
+  /// N round-trip-ов вместо одного SQL query. Используется для
+  /// cache-TTL check: пропустить sync, если в БД уже есть
+  /// хотя бы один source для запрошенного языка.
+  Future<int> countSourcesByLanguage(String languageCode) {
+    final countExpr = tafsirSources.id.count();
+    return (selectOnly(tafsirSources)
+          ..addColumns([countExpr])
+          ..where(tafsirSources.languageCode.equals(languageCode)))
+        .map((row) => row.read(countExpr) ?? 0)
+        .getSingle();
+  }
+
   /// Тафсиры для конкретного аята. `sourceId == null` — все источники.
   Future<List<Tafsir>> getForAyah(int ayahId, {int? sourceId}) {
     final q = select(tafsirs)..where((t) => t.ayahId.equals(ayahId));

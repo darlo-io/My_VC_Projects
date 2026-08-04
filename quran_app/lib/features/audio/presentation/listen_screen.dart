@@ -191,6 +191,7 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
                                             .syncFromApi();
                                       } catch (e) {
                                         if (!mounted) return;
+                                        if (!context.mounted) return;
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
                                           SnackBar(content: Text('$e')),
@@ -689,6 +690,7 @@ class _SurahAyahSelectors extends ConsumerWidget {
   void _showAyahPicker(BuildContext context, int surahIdValue) async {
     final surah = await surahDao.getById(surahIdValue);
     if (surah == null) return;
+    if (!context.mounted) return;
     final selected = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
@@ -1159,7 +1161,6 @@ class _Player extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasTrack = state.surah != null;
     return Column(
       children: [
         // Полный прогресс-бар (seek).
@@ -1272,7 +1273,7 @@ class _SeekBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final duration = state.durationMs ?? 0;
+    final duration = state.durationMs;
     final position = state.positionMs.clamp(0, duration);
     final remaining = duration - position;
     return Column(
@@ -1882,15 +1883,7 @@ class _PlaybackControls extends StatelessWidget {
             icon: Icons.nightlight_round,
             label: 'Ночной режим',
             value: state.nightMode ? 'Вкл' : 'Выкл',
-            onTap: () {
-              // Volume dim — см. [AudioPlayerController.setNightMode].
-              // Прагматичный минимум для ночного прослушивания:
-              // 0.4 громкости вместо 1.0. just_audio не умеет
-              // переключать битрейт/каналы на лету (требует
-              // re-encoding источника), поэтому dim — единственный
-              // реальный эффект.
-              onNightModeToggle();
-            },
+            onTap: () => onNightModeToggle(),
           ),
         ],
       ),

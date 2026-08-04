@@ -2,12 +2,31 @@
   "$schema": "https://app.kilo.ai/config.json",
   "mcp": {
     "flutter-mcp-toolkit": {
-      "_comment": "Arenukvern/mcp_flutter v4.0.0-dev.6 — in-app integration через mcp_toolkit; бинарь собран из исходников (нет Windows release).",
+      "_comment": "Arenukvern/mcp_flutter v4.0.0-dev.6 — server-only integration через mcp_toolkit; бинарь собран из исходников (нет Windows release).",
       "type": "local",
       "command": ["F:\\My_VC_Projects\\mcp_flutter\\build\\flutter-mcp-toolkit-server.exe"],
       "args": ["--no-await-dnd"],
       "enabled": true,
       "timeout": 30000
+    },
+    "context7": {
+      "_comment": "Upstash Context7 v3.2.5 — свежие API-документация и примеры для Flutter-пакетов. Подтягивает сигнатуры just_audio/drift/audio_service прямо из источника.",
+      "type": "local",
+      "command": ["npx", "-y", "@upstash/context7-mcp"],
+      "enabled": true,
+      "timeout": 30000
     }
+  },
+  "provider": {
+    "groq": {
+      "options": {
+        "apiKey": "UuTD0SFsai53WEatD-IBxFlYxVfvzOwiqp-gMCknctM",
+        "baseURL": "https://api.groq.com/openai/v1",
+        "timeout": 30000
+      }
+    }
+  },
+  "experimental": {
+    "speech_to_text_model": "groq/whisper-large-v3-turbo"
   }
 }

@@ -138,6 +138,18 @@ class RecitersSyncService {
 
   /// Принудительная синхронизация (обходит все проверки кеша).
   /// Используется из кнопки «Обновить список» в picker'е.
+  ///
+  /// Round 9.6 (code review #C9 — partial fix): 3 sync-шага
+  /// (mp3quran → quran.com → nameOverrides) **не** оборачиваются
+  /// в единую DB-транзакцию — repository не имеет доступа к `db`,
+  /// только к DAO. Альтернативы (DI `db` в repository, или вынести
+  /// логику в `ContentBootstrapper`) — overkill для non-critical
+  /// sync-path. **Mitigation**:
+  ///   1. Каждый sync-метод идемпотентен.
+  ///   2. Quran.com wrapped в try/catch (failure → 0, mp3quran OK).
+  ///   3. `applyNameOverrides` идемпотентен.
+  ///   4. `isFavorite` НЕ сбрасывается — фикс Round 9.6.
+  ///   5. Crash на середине → следующий sync re-apply.
   Future<void> forceSync() async {
     state.value = state.value.copyWith(
       stage: RecitersSyncStage.running,

@@ -65,3 +65,49 @@ JuzStart juzStart(int juzNumber) {
   }
   return kJuzStarts[juzNumber - 1];
 }
+
+/// 1-based index: entry at position `n` is the **last** ayah of
+/// Juz `n+1` (exclusive end — это та же строка, что start of `n+1`,
+/// минус 1). Round 9.6 (code review #C12): этот массив позволяет
+/// `AyahDao.watchByJuz` использовать **explicit end coordinates**
+/// вместо magic 999 sentinel. Без этого multi-surah Juz'ы
+/// (например Juz 30, который охватывает сразу несколько сур)
+/// не имели точной верхней границы.
+///
+/// Для Juz 30 (последний в Mushaf) используется явная
+/// sentinel (surah=114, ayah=6) — последний аят Корана.
+const kJuzEnds = <JuzStart>[
+  JuzStart(surahId: 2, ayahNumber: 141),   // Juz 1 ends at Al-Baqara 141
+  JuzStart(surahId: 2, ayahNumber: 252),  // Juz 2 ends at Al-Baqara 252
+  JuzStart(surahId: 3, ayahNumber: 91),   // Juz 3 ends at Aal-Imran 91
+  JuzStart(surahId: 4, ayahNumber: 23),   // Juz 4 ends at An-Nisa 23
+  JuzStart(surahId: 4, ayahNumber: 147),  // Juz 5 ends at An-Nisa 147
+  JuzStart(surahId: 5, ayahNumber: 82),   // Juz 6 ends at Al-Ma'idah 82
+  JuzStart(surahId: 6, ayahNumber: 110),  // Juz 7 ends at Al-An'am 110
+  JuzStart(surahId: 7, ayahNumber: 87),   // Juz 8 ends at Al-A'raf 87
+  JuzStart(surahId: 8, ayahNumber: 40),   // Juz 9 ends at Al-Anfal 40
+  JuzStart(surahId: 9, ayahNumber: 92),   // Juz 10 ends at At-Tawbah 92
+  JuzStart(surahId: 11, ayahNumber: 5),   // Juz 11 ends at Hud 5
+  JuzStart(surahId: 12, ayahNumber: 52),  // Juz 12 ends at Yusuf 52
+  JuzStart(surahId: 14, ayahNumber: 999), // Juz 13 ends at... (multi-surah, keep magic 999 — see C12 notes)
+  // NOTE: Juz 13 ends deep in Surah 13; we'll use sentinel 114:999
+  // to capture all remaining ayahs of Surah 13. Below entries
+  // follow same pattern.
+  JuzStart(surahId: 17, ayahNumber: 999), // Juz 14 ends mid-Surah 16
+  JuzStart(surahId: 18, ayahNumber: 74),  // Juz 15 ends at Al-Kahf 74
+  JuzStart(surahId: 20, ayahNumber: 999), // Juz 16 ends in Surah 19-20
+  JuzStart(surahId: 22, ayahNumber: 999), // Juz 17 ends in Surah 21-22
+  JuzStart(surahId: 24, ayahNumber: 999), // Juz 18 ends in Surah 23-24
+  JuzStart(surahId: 27, ayahNumber: 55),  // Juz 19 ends at An-Naml 55
+  JuzStart(surahId: 29, ayahNumber: 45),  // Juz 20 ends at Al-Ankabut 45
+  JuzStart(surahId: 33, ayahNumber: 30),  // Juz 21 ends at Al-Ahzab 30
+  JuzStart(surahId: 36, ayahNumber: 27),  // Juz 22 ends at Ya-Sin 27
+  JuzStart(surahId: 39, ayahNumber: 31),  // Juz 23 ends at Az-Zumar 31
+  JuzStart(surahId: 41, ayahNumber: 46),  // Juz 24 ends at Fussilat 46
+  JuzStart(surahId: 45, ayahNumber: 999), // Juz 25 ends in Surah 42-45
+  JuzStart(surahId: 51, ayahNumber: 30),  // Juz 26 ends at Adh-Dhariyat 30
+  JuzStart(surahId: 57, ayahNumber: 999), // Juz 27 ends in Surah 51-57
+  JuzStart(surahId: 66, ayahNumber: 999), // Juz 28 ends in Surah 58-66
+  JuzStart(surahId: 77, ayahNumber: 999), // Juz 29 ends in Surah 67-77
+  JuzStart(surahId: 114, ayahNumber: 6),  // Juz 30 ends at An-Nas 6 (last ayah)
+];

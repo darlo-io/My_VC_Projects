@@ -4,11 +4,6 @@ import 'dart:math';
 /// index of the correct one. The text shown to the user is
 /// reconstructed by the screen layer (translation in the user's
 /// UI locale, or the Arabic fallback).
-
-/// One multiple-choice question. Carries the four options and the
-/// index of the correct one. The text shown to the user is
-/// reconstructed by the screen layer (translation in the user's
-/// UI locale, or the Arabic fallback).
 class QuizQuestion {
   const QuizQuestion({
     required this.ayahId,

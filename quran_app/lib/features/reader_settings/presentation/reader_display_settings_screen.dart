@@ -36,11 +36,14 @@ class ReaderDisplaySettingsScreen extends ConsumerStatefulWidget {
 /// Используется как верхний padding для ListView (чтобы контент
 /// стартовал **под** header'ом) и как `height: Positioned`.
 ///
-/// Размер 280px подобран эмпирически: при экстремальных значениях
-/// (fontSize 40 + lineHeight 2.6) внутри помещается:
-///   1 строка арабского (104px) + 4 gap + 28 (۝) + 12 gap +
+/// Round 9.6 (code review #C8): 280px подобран эмпирически для
+/// экстремальных значений (fontSize 40 + lineHeight 2.6):
+///   1 строка арабского (104px) + 4 gap + 28 () + 12 gap +
 ///   1 строка перевода (40px) + 16+16 padding (top+bottom) = 220px,
 /// с запасом 60px на sub-pixel rendering и `TextOverflow.fade`.
+///
+/// TODO: вычислить динамически через [MediaQuery.textScalerOf(context)]
+/// × [ReaderDisplaySettings.fontSize] вместо hardcoded значения.
 const double kPreviewHeight = 280;
 
 class _ReaderDisplaySettingsScreenState

@@ -32,6 +32,10 @@ class AppPreferences {
   /// пользователи с `reader.fontSize = 24` не потеряли значение).
   static const _kDisplaySettings = 'reader.displaySettings';
 
+  /// `null` означает «использовать системную локаль» (определяется
+  /// MaterialApp через `Locale.deviceLocale` или явно через LTR/RTL
+  /// detect). Чтобы отличить «никогда не ставили» (по умолчанию) от
+  /// «явно сбросили на системную» — не нужно; `null` покрывает оба.
   String? get languageCode => _prefs.getString(_kLanguageCode);
 
   Future<void> setLanguageCode(String? code) async {
@@ -118,25 +122,47 @@ class AppPreferences {
   /// `readerDisplaySettingsProvider`. На чтение мигрирует со
   /// старых по-полевых ключей (`reader.fontSize` и т.п.), чтобы
   /// не потерять значения, выставленные до v0.4.
+  ///
+  /// Round 9.6 (code review #R3): теперь кешируется через
+  /// [_displaySettingsCache] — на каждый `ref.watch` UI-provider
+  /// пересоздавался объект ~30 строк геттерами. В Reader'е этот
+  /// getter вызывается **на каждый scroll-frame**, что потребляло
+  /// CPU. Теперь после первого запроса — возвращается кешированный
+  /// instance, инвалидируется при [setDisplaySettings]/[clearAll].
   ReaderDisplaySettings get displaySettings {
+    final cached = _displaySettingsCache;
+    if (cached != null) return cached;
     const codec = ReaderDisplaySettingsCodec();
     final raw = _prefs.getString(_kDisplaySettings);
     if (raw != null && raw.isNotEmpty) {
-      return codec.decode(raw);
+      _displaySettingsCache = codec.decode(raw);
+      return _displaySettingsCache!;
     }
     // Миграция: собираем из legacy-ключей + defaults для всего
     // остального. Один раз; на следующей записи в `_kDisplaySettings`
     // legacy-ключи перестают быть источником истины.
-    return codec.decode(null).copyWith(
+    final migrated = codec.decode(null).copyWith(
       fontSize: fontSize,
       readingMode: readingMode,
       themeVariant: themeMode,
     );
+    _displaySettingsCache = migrated;
+    return migrated;
   }
+
+  /// Round 9.6 (code review #R3): inline cache для [displaySettings].
+  /// Reader вызывает getter на каждый scroll-frame — без cache это
+  /// был бы JSON decode × N frames. Также помогает если несколько
+  /// provider'ов одновременно делают `ref.watch(displaySettingsProvider)`.
+  /// Инвалидируется в [setDisplaySettings] (т.к. legacy-ключи
+  /// изменены) и в [clearAll] / [remove] (если ключ — именно
+  /// displaySettings, например через Settings → Reset to defaults).
+  ReaderDisplaySettings? _displaySettingsCache;
 
   Future<void> setDisplaySettings(ReaderDisplaySettings s) async {
     const codec = ReaderDisplaySettingsCodec();
     await _prefs.setString(_kDisplaySettings, codec.encode(s));
+    _displaySettingsCache = s; // инвалидируем inline cache (R3).
     // Дублируем в legacy-ключи поля, которые читаются напрямую
     // из других мест (bottom-sheet, тест, ...). Остальные поля
     // (`lineHeight`, `letterSpacing`, `themeVariant` из палитры
@@ -158,5 +184,8 @@ class AppPreferences {
     for (final k in keys) {
       await _prefs.remove(k);
     }
+    // Round 9.6 (code review #R3): инвалидируем cache — после clearAll
+    // prefs пустые, cache нужно пересчитать через миграцию с legacy.
+    _displaySettingsCache = null;
   }
 }

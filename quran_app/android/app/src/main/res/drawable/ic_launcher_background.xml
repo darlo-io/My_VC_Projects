@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round 9.7: background layer для adaptive icon (Android 8.0+).
+     Заливка — `@color/ic_launcher_background` (deep emerald),
+     тот же цвет, что на foreground PNG. Это обеспечивает
+     визуально целостную иконку при любой маске launcher'а:
+     - внутри маски виден foreground (Quran logo) на background (emerald)
+     - ВНЕ маски, но внутри canvas — foreground transparent →
+       виден background (emerald), а НЕ paper-cream rim или
+       системный фон launcher'а.
+     Размеры 108×108 dp соответствуют спецификации adaptive icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/ic_launcher_background"
+        android:pathData="M0,0 L108,0 L108,108 L0,108 Z" />
+</vector>

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart' show ValueNotifier;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/database/daos/tafsir_dao.dart';
 import '../../../core/i18n/tafsir_ru_names.dart';
@@ -35,17 +36,32 @@ class TafsirsSyncState {
 
   static const idle = TafsirsSyncState(stage: TafsirsSyncStage.idle);
 
+  // Round 9.6 (code review #M14): добавлены параметры
+  // `clearError` и `clearInsertedCount` для явного сброса
+  // nullable полей. Без них вызов `copyWith(stage: X)` пассивно
+  // сбрасывал `error` и `insertedCount` в null — что в этом
+  // API намеренно (если перешли в новую стадию, прошлая
+  // ошибка уже неактуальна), но это было сложно отлаживать.
+  //
+  // Чтобы дать вызывающему коду выбор, добавлены явные
+  // `clearError: true` / `clearInsertedCount: true`. По
+  // умолчанию `copyWith` сохраняет предыдущие значения (как
+  // для `stage` и `lastSyncedAt`).
   TafsirsSyncState copyWith({
     TafsirsSyncStage? stage,
     DateTime? lastSyncedAt,
     Object? error,
     int? insertedCount,
+    bool clearError = false,
+    bool clearInsertedCount = false,
   }) {
     return TafsirsSyncState(
       stage: stage ?? this.stage,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
-      error: error,
-      insertedCount: insertedCount,
+      error: clearError ? null : (error ?? this.error),
+      insertedCount: clearInsertedCount
+          ? null
+          : (insertedCount ?? this.insertedCount),
     );
   }
 }
@@ -65,23 +81,49 @@ class TafsirsSyncState {
 ///   - TTL — 30 дней, т.к. список тафсиров у Quran.com меняется
 ///     крайне редко (добавление нового tafsir — раз в несколько лет).
 class TafsirsSyncService {
-  TafsirsSyncService(this._dao, this._api);
+  TafsirsSyncService(
+    this._dao,
+    this._api, {
+    required SharedPreferences prefs,
+  }) : _prefs = prefs;
 
   final TafsirDao _dao;
   final QuranComTafsirApi _api;
+
+  /// SharedPreferences для кеша `_lastSyncedAt` (TTL между
+  /// сессиями). Round 9.6: обязательный параметр в production
+  /// коде. Unit-тесты могут передавать `setMockInitialValues({})`-
+  /// инициализированный instance.
+  final SharedPreferences _prefs;
 
   final ValueNotifier<TafsirsSyncState> state =
       ValueNotifier(TafsirsSyncState.idle);
 
   static const _kDefaultCacheTtl = Duration(days: 30);
 
-  /// Cache timestamp хранится как int-колонка в `tafsir_sources` нет,
-  /// поэтому используем in-memory `DateTime.now()` после последнего
-  /// успешного sync и сравниваем вручную. Альтернатива — отдельная
-  /// key-value таблица `sync_metadata`, но для одного значения это
-  /// overkill. Состояние теряется при hot restart, что OK (следующий
-  /// запуск снова дёрнет API после проверки `_dao.countSourcesByLanguage`).
+  /// Round 9.6 (code review #M6): cache-TTL timestamp теперь
+  /// персистится в `SharedPreferences` (ключ
+  /// `tafsirs.lastSyncedAt`), а не только in-memory. Раньше после
+  /// cold start `_lastSyncedAt == null` → `forceSync` всегда
+  /// срабатывал на каждом запуске, даже если sync был час назад.
+  /// Теперь TTL работает корректно между сессиями.
+  static const _kLastSyncedAtKey = 'tafsirs.lastSyncedAt';
+
   DateTime? _lastSyncedAt;
+
+  /// Читает `_lastSyncedAt` из кеша. Идемпотентно — повторный
+  /// вызов возвращает то же значение. На cold start возвращает
+  /// последнее сохранённое время вместо `null` (раньше — `null`).
+  Future<DateTime?> _loadLastSyncedAt() async {
+    final ms = _prefs.getInt(_kLastSyncedAtKey);
+    if (ms == null) return _lastSyncedAt;
+    return DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  Future<void> _saveLastSyncedAt(DateTime dt) async {
+    _lastSyncedAt = dt;
+    await _prefs.setInt(_kLastSyncedAtKey, dt.millisecondsSinceEpoch);
+  }
 
   Future<void> maybeSync({
     String languageCode = 'ru',
@@ -91,11 +133,13 @@ class TafsirsSyncService {
 
     state.value = state.value.copyWith(
       stage: TafsirsSyncStage.checkingCache,
-      error: null,
+      clearError: true,
     );
     try {
-      final count = await _countSourcesByLanguage(languageCode);
-      final last = _lastSyncedAt;
+      final count = await _dao.countSourcesByLanguage(languageCode);
+      // Round 9.6 (code review #M6): загружаем TTL-таймстамп из
+      // SharedPreferences для корректной работы между сессиями.
+      final last = await _loadLastSyncedAt();
       final freshEnough =
           last != null && DateTime.now().difference(last) < cacheTtl;
       if (freshEnough && count > 0) {
@@ -129,7 +173,8 @@ class TafsirsSyncService {
   Future<int> forceSync({String languageCode = 'ru'}) async {
     state.value = state.value.copyWith(
       stage: TafsirsSyncStage.running,
-      error: null,
+      clearError: true,
+      clearInsertedCount: true,
     );
     try {
       final dtos = await _api.fetchSources(language: languageCode);
@@ -167,10 +212,12 @@ class TafsirsSyncService {
         );
         n += 1;
       }
-      _lastSyncedAt = DateTime.now();
+      final now = DateTime.now();
+      // Round 9.6 (code review #M6): persist + in-memory update.
+      await _saveLastSyncedAt(now);
       state.value = TafsirsSyncState(
         stage: TafsirsSyncStage.completed,
-        lastSyncedAt: _lastSyncedAt,
+        lastSyncedAt: now,
         insertedCount: n,
       );
       developer.log(
@@ -243,7 +290,14 @@ class TafsirsSyncService {
     // Curl-проверка на c1316607 (16-17 июля) показывала 0.5-1s
     // response для этого endpoint — значит 90s более чем достаточно
     // для нормального сценария. Превышение 90s = проблема с сетью.
-    final verse = await _api.fetchByAyah(
+    //
+    // Round 9.6 (code review #C10): теперь API возвращает
+    // [TafsirFetchResult] — sealed класс с тремя вариантами:
+    // success, notFound, timeout. Это позволяет UI показать
+    // разные сообщения: «нет тафсира» vs «не удалось загрузить,
+    // повторить?». Раньше оба случая мапились на один
+    // [TafsirNotFoundException].
+    final result = await _api.fetchByAyah(
       tafsirId: quranComId,
       verseKey: verseKey,
     ).timeout(
@@ -254,27 +308,26 @@ class TafsirsSyncService {
           'ayah=$verseKey',
           name: 'tafsir_sync',
         );
-        // Возвращаем null — пусть UI покажет empty-state + retry
-        // (раньше было `throw TimeoutException(...)`, но теперь
-        // возвращаем null чтобы избежать exception-ов в логах).
-        return null;
+        return const TafsirTimeout(Duration(seconds: 90));
       },
     );
-    if (verse == null) {
-      throw TafsirNotFoundException(
-        'No tafsir for quranComId=$quranComId, ayah=$verseKey (after 90s timeout or 404)',
-      );
+    switch (result) {
+      case TafsirSuccess(:final verse):
+        await _dao.upsertTafsir(
+          ayahId: ayahId,
+          tafsirSourceId: tafsirSourceId, // LOCAL id — FK constraint
+          text: verse.text,
+        );
+      case TafsirNotFound():
+        throw TafsirNotFoundException(
+          'No tafsir for quranComId=$quranComId, ayah=$verseKey (404)',
+        );
+      case TafsirTimeout():
+        throw TafsirNotFoundException(
+          'No tafsir for quranComId=$quranComId, ayah=$verseKey '
+          '(timeout ${result.timeoutDuration.inSeconds}s)',
+        );
     }
-    await _dao.upsertTafsir(
-      ayahId: ayahId,
-      tafsirSourceId: tafsirSourceId, // LOCAL id — FK constraint
-      text: verse.text,
-    );
-  }
-
-  Future<int> _countSourcesByLanguage(String languageCode) async {
-    final all = await _dao.getAllSources();
-    return all.where((s) => s.languageCode == languageCode).length;
   }
 
   /// Маппинг `language_name` от API → короткий код.

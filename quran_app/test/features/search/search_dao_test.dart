@@ -1,19 +1,27 @@
 // FTS5 unit-тесты SearchDao — Sprint 2.7.
 //
 // Тестируем полнотекстовый поиск через FTS5 virtual tables
-// (ayahs_fts, translations_fts, words_fts), созданные в [AppDatabase._createFts].
+// (ayahs_fts, translations_fts, words_fts), созданные в
+// [AppDatabase._createFts].
 //
-// Использует in-memory БД через `NativeDatabase.memory()` (sqflite_common_ffi
-// уже в dev-deps) — никакого реального device не нужно.
+// Использует in-memory БД через `NativeDatabase.memory()`
+// (sqflite_common_ffi уже в dev-deps) — никакого реального device.
 //
-// Стратегия: заполняем таблицы минимальным набором данных, потом проверяем
-// FTS5 MATCH-поиск. Проверяем:
-// 1. BM25 ranking: точные совпадения выше частичных
-// 2. Snippet generation: <mark>...</mark> обрамляет hit
-// 3. Prefix search ('mercy*' матчит 'mercy', 'merciful')
-// 4. Diacritics-нормализация (Uthmani vs простой текст)
-// 5. Multi-language: searchTranslationsFts фильтрует по language_code
-// 6. JOIN с реальной таблицей ayahs (проверка rowid соответствия)
+// Стратегия: заполняем таблицы минимальным набором данных, потом
+// проверяем FTS5 MATCH-поиск. Проверяем:
+//   1. BM25 ranking: точные совпадения выше частичных
+//   2. Snippet generation: <mark>...</mark> обрамляет hit
+//   3. Prefix search ('mercy*' матчит 'mercy', 'merciful')
+//   4. Diacritics-нормализация (Uthmani vs простой текст)
+//   5. Multi-language: searchTranslationsFts фильтрует по language_code
+//   6. JOIN с реальной таблицей ayahs (проверка rowid соответствия)
+//
+// **Примечание (2026-07-31)**: схема Drift обновлена в Sprint 2+:
+//   - `Translators` больше не имеет `languageName`/`slug`,
+//     поле `source` теперь обязательное.
+//   - `Translations` хранит `languageCode` денормализованно.
+//   - `Words` не имеет `surahId` (только `ayahId` через reference).
+// Тесты адаптированы под текущую схему `lib/core/database/tables.dart`.
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -35,7 +43,8 @@ void main() {
     await db.close();
   });
 
-  Future<void> _insertAyah(
+  // Помощник: вставляет аят и сразу прокидывает его в FTS5.
+  Future<void> insertAyah(
     int id, {
     required int surahId,
     required int ayahNumber,
@@ -44,17 +53,17 @@ void main() {
   }) async {
     await db.into(db.ayahs).insert(AyahsCompanion.insert(
           id: Value(id),
-          surahId: Value(surahId),
-          ayahNumber: Value(ayahNumber),
-          textUthmani: Value(uthmani),
-          textNormalized: Value(normalized.isEmpty ? uthmani : normalized),
+          surahId: surahId,
+          ayahNumber: ayahNumber,
+          textUthmani: uthmani,
+          textNormalized: normalized.isEmpty ? uthmani : normalized,
         ));
   }
 
   group('searchAyahsFts', () {
     test('находит аят по exact слову Uthmani', () async {
-      await _insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ');
-      await _insertAyah(2, surahId: 1, ayahNumber: 2, uthmani: 'ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَٰلَمِينَ');
+      await insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ');
+      await insertAyah(2, surahId: 1, ayahNumber: 2, uthmani: 'ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَٰلَمِينَ');
 
       final hits = await dao.searchAyahsFts('ٱلرَّحْمَٰنِ');
       expect(hits, hasLength(1));
@@ -65,17 +74,17 @@ void main() {
     });
 
     test('prefix-поиск (* suffix) находит частичные совпадения', () async {
-      await _insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ');
-      await _insertAyah(2, surahId: 1, ayahNumber: 2, uthmani: 'ٱلرَّحِيمِ رَبُّ ٱلْعَٰلَمِينَ');
+      await insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ');
+      await insertAyah(2, surahId: 1, ayahNumber: 2, uthmani: 'ٱلرَّحِيمِ رَبُّ ٱلْعَٰلَمِينَ');
 
       final hits = await dao.searchAyahsFts('ٱلر*');
       expect(hits, hasLength(2));
     });
 
     test('BM25 ranking: точное совпадение выше prefix', () async {
-      await _insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'ٱلرَّحْمَٰنِ ٱلرَّحِيمِ');
-      await _insertAyah(2, surahId: 1, ayahNumber: 2, uthmani: 'ٱلرَّحْمَٰنِ رَبُّ ٱلْعَٰلَمِينَ');
-      await _insertAyah(3, surahId: 1, ayahNumber: 3, uthmani: 'مَٰلِكِ يَوْمِ ٱلدِّينِ');
+      await insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'ٱلرَّحْمَٰنِ ٱلرَّحِيمِ');
+      await insertAyah(2, surahId: 1, ayahNumber: 2, uthmani: 'ٱلرَّحْمَٰنِ رَبُّ ٱلْعَٰلَمِينَ');
+      await insertAyah(3, surahId: 1, ayahNumber: 3, uthmani: 'مَٰلِكِ يَوْمِ ٱلدِّينِ');
 
       final hits = await dao.searchAyahsFts('ٱلرَّحْمَٰنِ');
       expect(hits, hasLength(2));
@@ -83,7 +92,7 @@ void main() {
     });
 
     test('quote sanitization: пробелы вокруг query trimmed', () async {
-      await _insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'ٱلرَّحْمَٰنِ ٱلرَّحِيمِ');
+      await insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'ٱلرَّحْمَٰنِ ٱلرَّحِيمِ');
 
       final hits1 = await dao.searchAyahsFts('  ٱلرَّحْمَٰنِ  ');
       final hits2 = await dao.searchAyahsFts('ٱلرَّحْمَٰنِ');
@@ -97,13 +106,13 @@ void main() {
     });
 
     test('"\'" в query экранируется без ошибок', () async {
-      await _insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'بِسْمِ');
+      await insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'بِسْمِ');
       final hits = await dao.searchAyahsFts("بِسْم'");
       expect(hits, isEmpty);
     });
 
     test('search_uses text_normalized если задан', () async {
-      await _insertAyah(
+      await insertAyah(
         1, surahId: 1, ayahNumber: 1,
         uthmani: 'بِسْمِ ٱللَّهِ',
         normalized: 'بسم الله',
@@ -113,8 +122,8 @@ void main() {
     });
 
     test('limit ограничивает результат', () async {
-      for (int i = 1; i <= 10; i++) {
-        await _insertAyah(i, surahId: 1, ayahNumber: i, uthmani: 'ٱلرَّحْمَٰنِ آية $i');
+      for (var i = 1; i <= 10; i++) {
+        await insertAyah(i, surahId: 1, ayahNumber: i, uthmani: 'ٱلرَّحْمَٰنِ آية $i');
       }
       final hits = await dao.searchAyahsFts('ٱلرَّحْمَٰنِ', limit: 3);
       expect(hits, hasLength(3));
@@ -123,21 +132,24 @@ void main() {
 
   group('searchTranslationsFts', () {
     setUp(() async {
+      // Текущая схема `Translators`: id, name, languageCode, source.
+      // `languageName`/`slug` были удалены в Sprint 2 (см. таблицы).
       await db.into(db.translators).insert(TranslatorsCompanion.insert(
             id: const Value(1),
-            name: const Value('Кулиев'),
-            languageCode: const Value('ru'),
-            languageName: const Value('Russian'),
-            slug: const Value('ru-kuliev'),
+            name: 'Кулиев',
+            languageCode: 'ru',
+            source: 'quran.com',
           ));
       await db.into(db.translations).insert(TranslationsCompanion.insert(
             ayahId: 1,
             translatorId: 1,
+            languageCode: 'ru',
             textValue: 'милость милосердного',
           ));
       await db.into(db.translations).insert(TranslationsCompanion.insert(
             ayahId: 2,
             translatorId: 1,
+            languageCode: 'ru',
             textValue: 'хвала Аллаху',
           ));
     });
@@ -167,14 +179,14 @@ void main() {
 
       await db.into(db.translators).insert(TranslatorsCompanion.insert(
             id: const Value(2),
-            name: const Value('Pickthall'),
-            languageCode: const Value('en'),
-            languageName: const Value('English'),
-            slug: const Value('en-pickthall'),
+            name: 'Pickthall',
+            languageCode: 'en',
+            source: 'quran.com',
           ));
       await db.into(db.translations).insert(TranslationsCompanion.insert(
             ayahId: 1,
             translatorId: 2,
+            languageCode: 'en',
             textValue: 'mercy of the merciful',
           ));
 
@@ -186,21 +198,22 @@ void main() {
 
   group('searchWordsFts', () {
     setUp(() async {
-      await _insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ');
+      // Схема `Words`: ayahId (через reference), position, arabic,
+      // normalized, translation (nullable), lemma, root. `surahId`
+      // отсутствует (вычисляется через JOIN с Ayahs/Surahs).
+      await insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ');
       await db.into(db.words).insert(WordsCompanion.insert(
-            surahId: const Value(1),
-            ayahId: const Value(1),
-            position: const Value(1),
-            arabic: const Value('بِسْمِ'),
-            normalized: const Value('بسم'),
+            ayahId: 1,
+            position: 1,
+            arabic: 'بِسْمِ',
+            normalized: 'بسم',
             translation: const Value('In the name'),
           ));
       await db.into(db.words).insert(WordsCompanion.insert(
-            surahId: const Value(1),
-            ayahId: const Value(1),
-            position: const Value(2),
-            arabic: const Value('ٱللَّهِ'),
-            normalized: const Value('الله'),
+            ayahId: 1,
+            position: 2,
+            arabic: 'ٱللَّهِ',
+            normalized: 'الله',
             translation: const Value('of Allah'),
           ));
     });
@@ -231,7 +244,7 @@ void main() {
 
   group('rebuildAll', () {
     test('rebuild после DELETE восстанавливает FTS индекс', () async {
-      await _insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'ٱلرَّحْمَٰنِ ٱلرَّحِيمِ');
+      await insertAyah(1, surahId: 1, ayahNumber: 1, uthmani: 'ٱلرَّحْمَٰنِ ٱلرَّحِيمِ');
       expect(await dao.searchAyahsFts('ٱلرَّحْمَٰنِ'), hasLength(1));
       await (db.delete(db.ayahs)..where((a) => a.id.equals(1))).go();
       expect(await dao.searchAyahsFts('ٱلرَّحْمَٰنِ'), isEmpty);
