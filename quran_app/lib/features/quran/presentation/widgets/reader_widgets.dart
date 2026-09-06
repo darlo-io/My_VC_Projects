@@ -15,7 +15,24 @@ import '../../../reader_settings/presentation/reader_palette.dart';
 import 'notes_panel.dart';
 import 'tafsir_panel.dart';
 
-class AyahTile extends ConsumerStatefulWidget {
+/// Слова всех аятов суры ОДНИМ запросом (JOIN `words` + `ayahs`),
+/// сгруппированные по `ayahId`. `AyahTile` достаёт свою часть за
+/// O(1). Раньше каждый тайл делал отдельный DB-запрос в initState —
+/// открытие Бакары стоило 286 запросов + 572 setState одновременно.
+/// autoDispose освобождает кеш, когда Reader покидает дерево.
+final wordsForSurahProvider =
+    FutureProvider.family.autoDispose<Map<int, List<Word>>, int>(
+  (ref, surahId) async {
+    final rows = await ref.read(quranRepositoryProvider).wordsForSurah(surahId);
+    final map = <int, List<Word>>{};
+    for (final w in rows) {
+      (map[w.ayahId] ??= []).add(w);
+    }
+    return map;
+  },
+);
+
+class AyahTile extends ConsumerWidget {
   const AyahTile({
     required this.ayah,
     required this.translation,
@@ -61,44 +78,14 @@ class AyahTile extends ConsumerStatefulWidget {
   final bool lineByLine;
 
   @override
-  ConsumerState<AyahTile> createState() => _AyahTileState();
-}
-
-class _AyahTileState extends ConsumerState<AyahTile> {
-  List<Word>? _words;
-  bool _loadingWords = false;
-  // Token guard против stale-load: при каждом _loadWords() увеличиваем;
-  // setState() применяем только если в setState момент токен всё ещё актуален.
-  int _loadToken = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadWords();
-  }
-
-  @override
-  void didUpdateWidget(covariant AyahTile old) {
-    super.didUpdateWidget(old);
-    if (old.ayah.id != widget.ayah.id) {
-      _loadWords();
-    }
-  }
-
-  Future<void> _loadWords() async {
-    final token = ++_loadToken;
-    setState(() => _loadingWords = true);
-    final list =
-        await ref.read(quranRepositoryProvider).wordsForAyahViaWordsDao(widget.ayah.id);
-    if (!mounted || token != _loadToken) return;
-    setState(() {
-      _words = list;
-      _loadingWords = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Слова всей суры приходят ОДНИМ запросом через общий
+    // [wordsForSurahProvider] (раньше каждый тайл делал собственный
+    // DB-запрос в initState: Бакара = 286 запросов + 572 setState
+    // одновременно).
+    final wordsMap = ref.watch(wordsForSurahProvider(ayah.surahId));
+    final words = wordsMap.valueOrNull?[ayah.id];
+    final loadingWords = wordsMap.isLoading;
     // Здесь НЕТ GoldFrame — рамка рисуется один раз на всю
     // Mushaf-область в [ReaderScreen]. Оборачивать каждый аят в свою
     // рамку — нарушает референс, где рамка одна и обнимает ВСЕ
@@ -134,14 +121,14 @@ class _AyahTileState extends ConsumerState<AyahTile> {
       // (`textWidthPercent`) считалась от inner-content, а не
       // от края Padding'а.
       padding: EdgeInsets.symmetric(
-        vertical: widget.display?.paddingVertical ?? 4,
+        vertical: display?.paddingVertical ?? 4,
         // **Single source of truth** для горизонтального отступа
         // текста. Применяется ровно один раз — здесь. Внешние
         // Padding'ы в `_buildMushafBody` (reader_screen.dart)
         // применяют только вертикальные отступы. В landscape cap
         // `paddingHorizontal` до 16 dp живёт в `effectiveDisplay`
         // (см. [ReaderDisplaySettings.paddingHorizontal]).
-        horizontal: widget.display?.paddingHorizontal ?? 16,
+        horizontal: display?.paddingHorizontal ?? 16,
       ),
       // `ConstrainedBox` ограничивает ширину строки по
       // `display.textWidthPercent` от текущей ширины viewport'а.
@@ -153,35 +140,35 @@ class _AyahTileState extends ConsumerState<AyahTile> {
       // для вычисления процента.
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final pct = widget.display?.textWidthPercent ?? 100.0;
+          final pct = display?.textWidthPercent ?? 100.0;
           final maxW = constraints.maxWidth.isFinite
               ? constraints.maxWidth * pct / 100.0
               : double.infinity;
           final content = Column(
-            key: widget.tileKey,
+            key: tileKey,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _AyahHeader(
-                ayah: widget.ayah,
-                isBookmarked: widget.isBookmarked,
-                onToggleBookmark: widget.onToggleBookmark,
-                display: widget.display,
+                ayah: ayah,
+                isBookmarked: isBookmarked,
+                onToggleBookmark: onToggleBookmark,
+                display: display,
               ),
               const SizedBox(height: 2),
-          _ArabicTextBody(
-            ayah: widget.ayah,
-            fontSize: widget.fontSize,
-            words: _words,
-            loading: _loadingWords,
-            lineByLine: widget.lineByLine,
-            display: widget.display,
-          ),
-              if (widget.translation != null &&
-                  (widget.display?.showTranslation ?? true)) ...[
+              _ArabicTextBody(
+                ayah: ayah,
+                fontSize: fontSize,
+                words: words,
+                loading: loadingWords,
+                lineByLine: lineByLine,
+                display: display,
+              ),
+              if (translation != null &&
+                  (display?.showTranslation ?? true)) ...[
                 const SizedBox(height: 4),
                 _AyahTranslation(
-                  text: widget.translation!,
-                  display: widget.display,
+                  text: translation!,
+                  display: display,
                 ),
               ],
             ],
@@ -324,14 +311,18 @@ class _ArabicTextBody extends ConsumerWidget {
       return _plainText(ayah.textUthmani);
     }
 
-    final player = ref.watch(audioPlayerControllerProvider);
-    final activeSurah = player.surah;
-    final isCurrentSurah = activeSurah != null && activeSurah.id == ayah.surahId;
-    // Subsample: highlight меняется раз в 50 ms — этого достаточно для глаза.
-    // Без subsample parent rebuild 10×/сек → 7 ayahs × 10 = 70 rebuilds/sec
-    // для Al-Fatiha, 2860/sec для Al-Baqarah.
+    // Нужен только факт «играет ли плеер ЭТУ суру» — подписываемся
+    // через .select, иначе каждый секундный тик позиции перестраивал
+    // бы все видимые тайлы аятов (TextPainter relayout впустую).
+    final activeSurahId =
+        ref.watch(audioPlayerControllerProvider.select((s) => s.surah?.id));
+    final isCurrentSurah = activeSurahId != null && activeSurahId == ayah.surahId;
+    // `currentWordIdProvider` — потоковый: эмитит только при реальной
+    // смене слова (distinct), так что rebuild тайла происходит 1–3
+    // раза в секунду, а не на каждый тик позиции плеера.
     final currentWord = isCurrentSurah
-        ? ref.watch(currentWordIdProvider)
+        ? ref.watch(currentWordIdProvider).valueOrNull ??
+            CurrentWordId.beforeFirst
         : CurrentWordId.beforeFirst;
 
     if (!lineByLine) {

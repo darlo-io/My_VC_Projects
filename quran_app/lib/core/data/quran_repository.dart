@@ -130,8 +130,10 @@ class QuranRepository {
   // ----- Words -----
 
   Future<List<Word>> wordsForAyah(int ayahId) => ayahDao.getWordsForAyah(ayahId);
-  Future<List<Word>> wordsForAyahViaWordsDao(int ayahId) =>
-      wordsDao.getByAyah(ayahId);
+
+  /// Слова всей суры одним запросом. Потребитель группирует по
+  /// `ayahId` (см. `wordsForSurahProvider` в reader_widgets.dart).
+  Future<List<Word>> wordsForSurah(int surahId) => wordsDao.getBySurah(surahId);
 
   // ----- Stats / Reading history -----
 

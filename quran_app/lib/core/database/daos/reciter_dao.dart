@@ -139,7 +139,18 @@ class ReciterDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Multi-locale версия: nullable nameRu, nameEn, moshafType.
-  /// Использует [RecitersRepository.syncFromApi].
+  /// Используется [RecitersRepository.syncFromApi].
+  ///
+  /// Upsert через типизированный `DoUpdate`: на конфликте по `id`
+  /// обновляются ТОЛЬКО колонки из [data] (все поля синхронизации);
+  /// `isFavorite` и `isDownloaded` (user-state) в companion
+  /// отсутствуют — при вставке получают дефолты, при обновлении
+  /// не трогаются.
+  ///
+  /// (Раньше здесь был рукописный SQL со ссылкой на несуществующую
+  /// колонку `mp3quran_is_downloaded` и условным списком биндов,
+  /// который не совпадал с числом плейсхолдеров при `null`-именах —
+  /// синхронизация падала на любом пустом/частичном ответе сети.)
   Future<void> upsertWithMp3quranMultiLocale({
     required String reciterId,
     required String slug,
@@ -155,57 +166,24 @@ class ReciterDao extends DatabaseAccessor<AppDatabase>
     required int surahTotal,
     required int cachedAt,
   }) async {
-    // Round 9.6 (code review #C9): при sync из API mp3quran.net
-    // вызывался `insertOnConflictUpdate(RecitersCompanion.insert(...))`,
-    // который в ветке `ON CONFLICT DO UPDATE` перезаписывал
-    // ВСЕ колонки — включая user-edited `isFavorite` (default 0).
-    // Это означало, что sync стирал отметку «избранное» каждый
-    // раз. Теперь используется кастомное обновление,
-    // исключающее user-state колонки (`isFavorite`).
-    await customInsert(
-      '''
-      INSERT INTO reciters (
-        id, slug, name_ar, name_ru, name_en, style,
-        mp3quran_id, mp3quran_moshaf_id, mp3quran_server,
-        mp3quran_surah_total, mp3quran_rewaya, mp3quran_moshaf_type,
-        mp3quran_cached_at, mp3quran_is_downloaded
-      ) VALUES (
-        ?, ?, ?, ?, ?, ?,
-        ?, ?, ?,
-        ?, ?, ?,
-        ?, ?
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        slug = excluded.slug,
-        name_ar = excluded.name_ar,
-        name_ru = excluded.name_ru,
-        name_en = excluded.name_en,
-        style = excluded.style,
-        mp3quran_id = excluded.mp3quran_id,
-        mp3quran_moshaf_id = excluded.mp3quran_moshaf_id,
-        mp3quran_server = excluded.mp3quran_server,
-        mp3quran_surah_total = excluded.mp3quran_surah_total,
-        mp3quran_rewaya = excluded.mp3quran_rewaya,
-        mp3quran_moshaf_type = excluded.mp3quran_moshaf_type,
-        mp3quran_cached_at = excluded.mp3quran_cached_at
-        -- is_favorite НЕ изменяется (user-state)
-      ''',
-      variables: [
-        Variable.withString(reciterId),
-        Variable.withString(slug),
-        Variable.withString(nameAr),
-        if (nameRu != null) Variable.withString(nameRu),
-        if (nameEn != null) Variable.withString(nameEn),
-        Variable.withString(style),
-        Variable.withInt(mp3quranId),
-        Variable.withInt(moshafId),
-        Variable.withString(server),
-        Variable.withInt(surahTotal),
-        Variable.withString(rewaya),
-        if (moshafType != null) Variable.withInt(moshafType),
-        Variable.withInt(cachedAt),
-        Variable.withInt(0), // mp3quran_is_downloaded default
-      ],
+    final data = RecitersCompanion.insert(
+      id: reciterId,
+      slug: slug,
+      nameAr: nameAr,
+      nameRu: Value(nameRu),
+      nameEn: Value(nameEn),
+      style: style,
+      mp3quranId: Value(mp3quranId),
+      mp3quranMoshafId: Value(moshafId),
+      mp3quranServer: Value(server),
+      mp3quranSurahTotal: Value(surahTotal),
+      mp3quranRewaya: Value(rewaya),
+      mp3quranMoshafType: Value(moshafType),
+      mp3quranCachedAt: Value(cachedAt),
+    );
+    await into(reciters).insert(
+      data,
+      onConflict: DoUpdate((_) => data),
     );
   }
 

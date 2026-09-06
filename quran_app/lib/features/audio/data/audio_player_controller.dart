@@ -91,6 +91,46 @@ class AudioPlayerState {
     durationMs: 0,
   );
 
+  /// Значимое равенство: `StateNotifier` не уведомляет подписчиков,
+  /// если новая state равна старой. Без этого каждый тик
+  /// `positionStream` (~20/с) пересобирал ВСЕ виджеты, вотчащие
+  /// `audioPlayerControllerProvider` (ListenScreen, MiniPlayer,
+  /// все аяты открытого Reader'а). В паре с квантованием
+  /// `positionMs` до секунд в контроллере даёт ≤1 нотификацию/с.
+  @override
+  bool operator ==(Object other) =>
+      other is AudioPlayerState &&
+      other.reciter == reciter &&
+      other.surah == surah &&
+      other.surahName == surahName &&
+      other.playing == playing &&
+      other.loading == loading &&
+      other.positionMs == positionMs &&
+      other.durationMs == durationMs &&
+      other.currentAyah == currentAyah &&
+      other.totalAyahs == totalAyahs &&
+      other.error == error &&
+      other.speed == speed &&
+      other.sleepTimerAtMs == sleepTimerAtMs &&
+      other.nightMode == nightMode;
+
+  @override
+  int get hashCode => Object.hash(
+        reciter,
+        surah,
+        surahName,
+        playing,
+        loading,
+        positionMs,
+        durationMs,
+        currentAyah,
+        totalAyahs,
+        error,
+        speed,
+        sleepTimerAtMs,
+        nightMode,
+      );
+
   AudioPlayerState copyWith({
     Reciter? reciter,
     Surah? surah,
@@ -185,6 +225,16 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
   StreamSubscription<Duration?>? _durSub;
   Timer? _sleepTimer;
 
+  /// Дефолт `StateNotifier.updateShouldNotify` — `!identical(old,
+  /// current)`: без этого переопределения каждый `copyWith` (новый
+  /// инстанс) уведомлял бы всех подписчиков даже при равных значениях.
+  /// Со значимым `operator==` у [AudioPlayerState] нотификации идут
+  /// только при реальном изменении состояния (с квантованием позиции
+  /// до секунд в `_wireStreams` — ≤1/с во время воспроизведения).
+  @override
+  bool updateShouldNotify(AudioPlayerState old, AudioPlayerState current) =>
+      old != current;
+
   /// Активный `CancelToken` для download-фазы `getOrDownload`.
   /// Если пользователь жмёт stop / play другую суру до завершения
   /// загрузки — отменяем in-flight запрос, иначе полу-скачанный
@@ -201,9 +251,18 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
       );
     });
     _posSub = _player.positionStream.listen((p) {
+      // В state пишем «грубую» позицию, квантованную до секунд.
+      // Short-circuit до записи: внутри одной секунды (и без смены
+      // аята) не создаём новый инстанс state вообще.
+      final coarseMs = p.inMilliseconds ~/ 1000 * 1000;
+      if (coarseMs == state.positionMs) {
+        // duration обновляется отдельной подпиской; при неизменной
+        // секунде currentAyah тоже не меняется.
+        return;
+      }
       state = state.copyWith(
-        positionMs: p.inMilliseconds,
-        currentAyah: _computeCurrentAyah(p.inMilliseconds),
+        positionMs: coarseMs,
+        currentAyah: _computeCurrentAyah(coarseMs),
       );
     });
     _durSub = _player.durationStream.listen((d) {
@@ -219,6 +278,13 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
     });
   }
 
+  /// Точный поток позиции воспроизведения (нативные тики just_audio,
+  /// ~20/с). Используется точечно для задач, которым нужна
+  /// гранулярность выше секунды (подсветка активного слова в
+  /// `currentWordIdProvider`), минуя `StateNotifier` — чтобы каждый
+  /// тик не пересобирал все виджеты, вотчащие контроллер.
+  Stream<Duration> get positionStream => _player.positionStream;
+
   /// Возвращает глобальный номер 1-го аята данной суры (т.е. суммарное
   /// число аятов во всех предыдущих сурах + 1). Используется для
   /// per-ayah режима, где CDN ждёт глобальный id аята 1..6236, а не
@@ -227,56 +293,128 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
   /// Проиграть суру: качаем per-surah файл и отдаём в just_audio через
   /// `setFilePath`.
   ///
-  /// Источник URL выбирается через [resolveSurahUrlHybrid] (Sprint 1.5
-  /// cutover, июль 2026): предпочитает Quran.com CDN
-  /// (`verses.quran.com/{path}/mp3/{NNN}.mp3`) если для mp3quran-id есть
-  /// маппинг в `kMp3quranToQuranCom`, иначе fallback на mp3quran.net
-  /// (`server{N}.mp3quran.net/{dir}/{NNN}.mp3`). Hybrid нужен потому что
-  /// mp3quran.net CDN нестабилен с mid-2026 (DNS hijacks, 70/7s rate
-  /// limit), а Quran.com — official partnership с KFGQPC, structured
-  /// metadata и лучшая доставляемость. Старый `resolveSurahUrl` остаётся
-  /// для тестов и прямого использования.
+  /// Источники перебираются через [resolveSurahUrlCandidates]:
+  /// сначала QuranAudio CDN (quranicaudio.com, если есть маппинг в
+  /// `kMp3quranToQuranAudio`), затем mp3quran.net. Перебор нужен
+  /// потому что любой CDN может деградировать (mp3quran.net
+  /// нестабилен с mid-2026: DNS hijacks, rate limits; Quran.com не
+  /// имеет per-surah файлов вовсе): если primary умер, playback
+  /// уходит на фоллбэк вместо ошибки. Кеш-ключ `{reciterId}/{surah}`
+  /// один и тот же для обоих источников — контент идентичен.
   ///
   /// Используется рекомендованная структура кеша `audio_cache/{id}/
   /// {NNN}.mp3` (см. AGENTS.md «Audio playback — CDN and cache»).
+  ///
+  /// Cache-first воспроизведение суры:
+  ///   1. Файл уже в кеше (валидный) → [AudioPlayer.setFilePath]:
+  ///      мгновенный старт, оффлайн, без сетевой буферизации.
+  ///   2. Файла нет → [AudioPlayer.setUrl] (стриминг): время до звука
+  ///      = буфер, а не весь файл. Параллельно запускаем фоновую
+  ///      докачку в кеш ([getOrDownload]) с того же рабочего URL,
+  ///      чтобы повторы и оффлайн сработали без повторной полной
+  ///      загрузки. Двойная загрузка (стрим + кеш на первом
+  ///      прослушивании) — осознанный трейд-офф: мгновенный старт
+  ///      против ~2× трафика.
   Future<void> _playSurahMp3Quran({
     required Reciter reciter,
     required Surah surah,
     required CancelToken cancelToken,
   }) async {
-    final url = _reciters.resolveSurahUrlHybrid(reciter, surah.id);
-    if (url == null) {
+    final candidates = resolveSurahUrlCandidates(reciter, surah.id);
+    if (candidates.isEmpty) {
       throw StateError(
         'Reciter ${reciter.id} has no mp3quran/quran_com metadata — '
         'run syncFromApi() to populate',
       );
     }
-    developer.log(
-      '_playSurahMp3Quran reciter=${reciter.id} surah=${surah.id} url=$url',
-      name: 'playback',
-    );
-    // Per-surah файл кладётся под composite-ключом
-    // `{reciterId}/{surah3}` (см. audioCacheRelativePath) — это и
-    // рекомендованная структура каталогов, и удобный cache-busting
-    // по (reciter, surah).
-    final file = await _cache.getOrDownload(
-      reciterId: reciter.id,
+    final reciterId = reciter.id;
+
+    // 1) Cache-hit → локальное воспроизведение (мгновенно, оффлайн).
+    //    Ключ кеша не зависит от источника — файл, скачанный с любого
+    //    из кандидатов, переиспользуется.
+    final cached = await _cache.peekCachedFile(
+      reciterId: reciterId,
       surah: surah.id,
-      url: url,
-      cancelToken: cancelToken,
     );
-    if (cancelToken.isCancelled) {
-      throw StateError('Download cancelled before playback');
+    if (cached != null) {
+      if (cancelToken.isCancelled) {
+        throw StateError('Download cancelled before playback');
+      }
+      developer.log(
+        '_playSurahMp3Quran cache-hit -> ${cached.path}',
+        name: 'playback',
+      );
+      // Ре-чек после await'ов выше: stop/новый playSurah могли
+      // случиться, пока мы читали кеш.
+      if (cancelToken.isCancelled) {
+        throw StateError('Download cancelled before playback');
+      }
+      await _player.setFilePath(cached.path);
+      await _player.play();
+      developer.log(
+        '_playSurahMp3Quran _player.play() returned (cache)',
+        name: 'playback',
+      );
+      return;
     }
-    await _player.setFilePath(file.path);
-    developer.log(
-      '_playSurahMp3Quran setFilePath OK -> ${file.path}',
-      name: 'playback',
-    );
-    await _player.play();
-    developer.log(
-      '_playSurahMp3Quran _player.play() returned',
-      name: 'playback',
+
+    // 2) Cache-miss → стриминг по сети с перебором кандидатов.
+    //    setUrl бросает [PlayerException] при source error (404/5xx/
+    //    network) — идём к следующему кандидату. Последняя ошибка —
+    //    в исключении, чтобы playSurah показал её в state.error.
+    Object? lastError;
+    for (final url in candidates) {
+      if (cancelToken.isCancelled) {
+        throw StateError('Download cancelled before playback');
+      }
+      developer.log(
+        '_playSurahMp3Quran streaming reciter=$reciterId surah=${surah.id} url=$url',
+        name: 'playback',
+      );
+      try {
+        await _player.setUrl(url);
+      } catch (e) {
+        lastError = e;
+        developer.log(
+          '_playSurahMp3Quran setUrl FAILED ($url): $e — next candidate',
+          name: 'playback',
+        );
+        continue;
+      }
+      // Ре-чек ПОСЛЕ успешного setUrl: пока load был в полёте, юзер
+      // мог нажать stop или запустить другую суру — без этого чека
+      // play() стартовал бы аудио вопреки отмене.
+      if (cancelToken.isCancelled) {
+        throw StateError('Download cancelled before playback');
+      }
+      // URL рабочий → запускаем фоновую докачку в кеш с него же.
+      // Тот же cancelToken, что у play-запроса: stop отменит и её.
+      unawaited(
+        _cache
+            .getOrDownload(
+              reciterId: reciterId,
+              surah: surah.id,
+              url: url,
+              cancelToken: cancelToken,
+            )
+            .then((f) => developer.log(
+                  '_playSurahMp3Quran bg-cache OK -> ${f.path}',
+                  name: 'playback',
+                ))
+            .catchError((Object e) => developer.log(
+                  '_playSurahMp3Quran bg-cache FAILED: $e',
+                  name: 'playback',
+                )),
+      );
+      await _player.play();
+      developer.log(
+        '_playSurahMp3Quran _player.play() returned (stream)',
+        name: 'playback',
+      );
+      return;
+    }
+    throw StateError(
+      'All audio sources failed for ${reciter.id}/${surah.id}: $lastError',
     );
   }
 

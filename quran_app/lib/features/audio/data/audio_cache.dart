@@ -200,11 +200,12 @@ class AudioCache {
     int? maxBytesOverride,
     CancelToken? cancelToken,
   }) async {
-    final file = await _localFile(reciterId, surah);
-    if (file.existsSync() && _isLikelyValidMedia(file)) {
-      await _touchPlayed(reciterId, surah, file);
-      return file;
+    final cached = await _validCachedFile(reciterId, surah);
+    if (cached != null) {
+      await _touchPlayed(reciterId, surah, cached);
+      return cached;
     }
+    final file = await _localFile(reciterId, surah);
     // Stale или неполный файл — удаляем и качаем заново.
     if (file.existsSync()) {
       try {
@@ -289,6 +290,12 @@ class AudioCache {
             onProgress(received / total);
           },
           options: Options(
+            // Per-file таймауты: зависший коннект не висит до
+            // глобальных 90s receiveTimeout (audioDioProvider) —
+            // фейлим быстрее и уходим на retry / следующий источник.
+            connectTimeout: const Duration(seconds: 15),
+            sendTimeout: const Duration(seconds: 30),
+            receiveTimeout: const Duration(seconds: 30),
             // 5xx + 429 — могут быть временными; именно для них
             // включается retry. Прочие 4xx (404 и пр.) — это
             // сигнал «next source» для [AudioSourceResolver],
@@ -517,6 +524,44 @@ class AudioCache {
   Stream<Set<String>> watchFullyCachedReciters() =>
       dao.watchFullyCachedReciters();
 
+  /// Единая точка проверки «файл для {reciterId, surah} валиден и
+  /// готов к воспроизведению». Используется всеми тремя путями
+  /// чтения кеша ([peekCachedFile], `_resolveOrFetch`,
+  /// `_resolveOrFetchNoEvict`) — раньше предикат был скопирован
+  /// трижды и мог расползтись.
+  ///
+  /// Возвращает `null`, если файла нет, он битый ИЛИ он прямо сейчас
+  /// докачивается (in-flight): частично записанный MP3 проходит
+  /// header-проверку (ID3/MPEG-sync уже в первых байтах), и без
+  /// guard'а плеер получил бы обрезок, а `_touchPlayed` —
+  /// зарегистрировал бы его как валидный кеш навсегда.
+  Future<File?> _validCachedFile(String reciterId, int surah) async {
+    if (_inFlight.containsKey(_key(reciterId, surah))) return null;
+    final file = await _localFile(reciterId, surah);
+    if (file.existsSync() && _isLikelyValidMedia(file)) {
+      return file;
+    }
+    return null;
+  }
+
+  /// Возвращает уже скачанный валидный файл БЕЗ сетевой загрузки.
+  ///
+  /// Используется плеером для мгновенного локального воспроизведения
+  /// (cache-hit / оффлайн) — см. [AudioPlayerController._playSurahMp3Quran].
+  /// Если файла нет на диске, он битый или докачивается прямо сейчас —
+  /// возвращает `null`, и caller стримит сур по сети. Попутно
+  /// обновляет `last_played_at` (LRU), как при обычном розыгрыше кеша.
+  Future<File?> peekCachedFile({
+    required String reciterId,
+    required int surah,
+  }) async {
+    final file = await _validCachedFile(reciterId, surah);
+    if (file != null) {
+      await _touchPlayed(reciterId, surah, file);
+    }
+    return file;
+  }
+
   /// `true` если сура [surah] для ректора [reciterId] уже скачана.
   /// Используется в [ReciterDownloadController] для skip'а уже
   /// закешированных сур.
@@ -556,11 +601,12 @@ class AudioCache {
     required String url,
     CancelToken? cancelToken,
   }) async {
-    final file = await _localFile(reciterId, surah);
-    if (file.existsSync() && _isLikelyValidMedia(file)) {
-      await _touchPlayed(reciterId, surah, file);
-      return file;
+    final cached = await _validCachedFile(reciterId, surah);
+    if (cached != null) {
+      await _touchPlayed(reciterId, surah, cached);
+      return cached;
     }
+    final file = await _localFile(reciterId, surah);
     if (file.existsSync()) {
       try {
         await file.delete();

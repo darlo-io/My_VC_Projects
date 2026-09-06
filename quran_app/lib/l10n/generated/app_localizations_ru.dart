@@ -1294,10 +1294,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get displaySettingsPreview => 'Предпросмотр';
 
   @override
-  String get displaySettingsGroupText => 'Текст';
+  String get displaySettingsGroupText => 'Арабский текст';
 
   @override
-  String get displaySettingsGroupLayout => 'Макет';
+  String get displaySettingsGroupLayout => 'Макет страницы';
 
   @override
   String get displaySettingsGroupTheme => 'Тема';
@@ -1327,42 +1327,31 @@ class AppLocalizationsRu extends AppLocalizations {
   String get displaySettingsShowTranslation => 'Показывать перевод';
 
   @override
-  String get displaySettingsReset => 'Сброс';
+  String get displaySettingsReset => 'Сбросить';
 
   @override
-  String get displaySettingsResetConfirmTitle => 'Сбросить настройки чтения?';
+  String get displaySettingsResetDone => 'Настройки сброшены';
 
   @override
-  String get displaySettingsResetConfirmBody =>
-      'Все параметры отображения вернутся к стандартным. Прогресс и закладки сохранятся.';
+  String get displaySettingsLetterSpacing => 'Интервал между буквами';
 
   @override
-  String get displaySettingsDiscardTitle => 'Отменить изменения?';
+  String get displaySettingsTextWidth => 'Ширина полосы текста';
 
   @override
-  String get displaySettingsDiscardBody =>
-      'Изменения настроек не сохранены. Выйти без сохранения?';
+  String get displaySettingsGroupReading => 'Чтение';
 
   @override
-  String get displaySettingsSave => 'Готово';
+  String get displaySettingsKeepScreenOn => 'Не выключать экран';
 
   @override
-  String get displaySettingsDiscard => 'Не сохранять';
+  String get displaySettingsAutoScrollSpeed => 'Скорость автоскролла';
 
   @override
-  String get displaySettingsCancel => 'Отмена';
+  String get readerAutoScroll => 'Автоскролл';
 
   @override
-  String get displaySettingsUnitPx => 'пикс.';
-
-  @override
-  String get displaySettingsUnitPercent => '%';
-
-  @override
-  String get displaySettingsFontFamilyAmiriRegular => 'Amiri Regular';
-
-  @override
-  String get displaySettingsFontFamilyAmiriBold => 'Amiri Bold';
+  String get readerTranslationToggle => 'Показать/скрыть перевод';
 
   @override
   String get displaySettingsThemeDark => 'Тёмная';
@@ -1379,6 +1368,28 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get displaySettingsPreviewTranslation =>
       'Во имя Аллаха, Милостивого, Милосердного.';
+
+  @override
+  String get displaySettingsUndo => 'Отменить';
+
+  @override
+  String get displaySettingsGroupTranslation => 'Перевод';
+
+  @override
+  String get displaySettingsTranslatorHint => 'выберите перевод';
+
+  @override
+  String get displaySettingsTranslatorError =>
+      'Не удалось загрузить переводчиков';
+
+  @override
+  String get displaySettingsTranslatorTitle => 'Выбор переводчика';
+
+  @override
+  String get displaySettingsReadingMode => 'Режим чтения';
+
+  @override
+  String get displaySettingsAdvanced => 'Дополнительно';
 
   @override
   String get tafsirButton => 'Тафсир';

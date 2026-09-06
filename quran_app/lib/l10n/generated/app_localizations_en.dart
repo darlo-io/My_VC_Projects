@@ -1287,10 +1287,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get displaySettingsPreview => 'Preview';
 
   @override
-  String get displaySettingsGroupText => 'Text';
+  String get displaySettingsGroupText => 'Arabic text';
 
   @override
-  String get displaySettingsGroupLayout => 'Layout';
+  String get displaySettingsGroupLayout => 'Page layout';
 
   @override
   String get displaySettingsGroupTheme => 'Theme';
@@ -1323,39 +1323,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get displaySettingsReset => 'Reset';
 
   @override
-  String get displaySettingsResetConfirmTitle => 'Reset all display settings?';
+  String get displaySettingsResetDone => 'Settings have been reset';
 
   @override
-  String get displaySettingsResetConfirmBody =>
-      'All reading display parameters will return to defaults. Your last position and bookmarks are kept.';
+  String get displaySettingsLetterSpacing => 'Letter spacing';
 
   @override
-  String get displaySettingsDiscardTitle => 'Discard changes?';
+  String get displaySettingsTextWidth => 'Text width';
 
   @override
-  String get displaySettingsDiscardBody =>
-      'Your changes to the display settings were not saved. Leave anyway?';
+  String get displaySettingsGroupReading => 'Reading';
 
   @override
-  String get displaySettingsSave => 'Done';
+  String get displaySettingsKeepScreenOn => 'Keep screen on';
 
   @override
-  String get displaySettingsDiscard => 'Discard';
+  String get displaySettingsAutoScrollSpeed => 'Auto-scroll speed';
 
   @override
-  String get displaySettingsCancel => 'Cancel';
+  String get readerAutoScroll => 'Auto-scroll';
 
   @override
-  String get displaySettingsUnitPx => 'px';
-
-  @override
-  String get displaySettingsUnitPercent => '%';
-
-  @override
-  String get displaySettingsFontFamilyAmiriRegular => 'Amiri Regular';
-
-  @override
-  String get displaySettingsFontFamilyAmiriBold => 'Amiri Bold';
+  String get readerTranslationToggle => 'Show/hide translation';
 
   @override
   String get displaySettingsThemeDark => 'Dark';
@@ -1372,6 +1361,27 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get displaySettingsPreviewTranslation =>
       'In the name of Allah, the Most Gracious, the Most Merciful.';
+
+  @override
+  String get displaySettingsUndo => 'Undo';
+
+  @override
+  String get displaySettingsGroupTranslation => 'Translation';
+
+  @override
+  String get displaySettingsTranslatorHint => 'select translation';
+
+  @override
+  String get displaySettingsTranslatorError => 'Failed to load translators';
+
+  @override
+  String get displaySettingsTranslatorTitle => 'Select Translator';
+
+  @override
+  String get displaySettingsReadingMode => 'Reading mode';
+
+  @override
+  String get displaySettingsAdvanced => 'Advanced';
 
   @override
   String get tafsirButton => 'Tafsir';

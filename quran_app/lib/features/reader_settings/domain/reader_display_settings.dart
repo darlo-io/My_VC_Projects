@@ -20,6 +20,7 @@
 ///   - `translationFontSize ∈ [10, 24]`
 ///   - `themeVariant ∈ {'dark','sepia','light','parchment'}`
 ///   - `fontFamily ∈ {'AmiriRegular','AmiriBold'}` — см. [fontFamilies]
+///   - `autoScrollSpeed ∈ [10, 60]` (лог. px/сек автоскролла)
 class ReaderDisplaySettings {
   const ReaderDisplaySettings({
     required this.fontSize,
@@ -36,6 +37,7 @@ class ReaderDisplaySettings {
     required this.showTranslation,
     required this.keepScreenOn,
     required this.readingMode,
+    required this.autoScrollSpeed,
   });
 
   final double fontSize;
@@ -80,6 +82,12 @@ class ReaderDisplaySettings {
 
   /// `'lineByLine' | 'book'`.
   final String readingMode;
+
+  /// Скорость автоскролла в логических пикселях в секунду
+  /// (10–60). UI показывает как множитель `×(v/10)`: 10 → ×1.0
+  /// (медленно), 60 → ×6.0 (быстро). См. `_ReaderScreenState`
+  /// (`_autoScrollTicker`).
+  final double autoScrollSpeed;
 
   // Ранее здесь был флаг `showWordByWord` (default `false`) —
   // удалён 2026-07-17. Тап по любому `_WordSpan` уже открывает
@@ -149,6 +157,7 @@ class ReaderDisplaySettings {
     showTranslation: true,
     keepScreenOn: true,
     readingMode: 'lineByLine',
+    autoScrollSpeed: 25.0,
   );
 
   // ─── copyWith + clamp ─────────────────────────────────────────
@@ -168,6 +177,7 @@ class ReaderDisplaySettings {
     bool? showTranslation,
     bool? keepScreenOn,
     String? readingMode,
+    double? autoScrollSpeed,
   }) {
     return ReaderDisplaySettings(
       fontSize: _clamp(fontSize ?? this.fontSize, 18.0, 40.0),
@@ -198,6 +208,8 @@ class ReaderDisplaySettings {
       keepScreenOn: keepScreenOn ?? this.keepScreenOn,
       readingMode:
           (readingMode ?? this.readingMode).contains('book') ? 'book' : 'lineByLine',
+      autoScrollSpeed:
+          _clamp(autoScrollSpeed ?? this.autoScrollSpeed, 10.0, 60.0),
     );
   }
 
@@ -223,7 +235,8 @@ class ReaderDisplaySettings {
         other.translationFontSize == translationFontSize &&
         other.showTranslation == showTranslation &&
         other.keepScreenOn == keepScreenOn &&
-        other.readingMode == readingMode;
+        other.readingMode == readingMode &&
+        other.autoScrollSpeed == autoScrollSpeed;
   }
 
   @override
@@ -242,5 +255,6 @@ class ReaderDisplaySettings {
         showTranslation,
         keepScreenOn,
         readingMode,
+        autoScrollSpeed,
       );
 }

@@ -129,11 +129,17 @@ class ReciterDownloadController extends StateNotifier<ReciterDownloadState> {
       // Собираем список сур к скачиванию. mp3quran гарантирует
       // 114 для Hafs; moshaf.surahTotal может быть меньше для
       // других rewaya — берём реальное число.
+      //
+      // Кандидаты URL через [resolveSurahUrlCandidates] (Quran.com →
+      // mp3quran): ключ кеша `{reciterId}/{surah}` один и тот же для
+      // обоих CDN — контент идентичен, так что prefetch и playback
+      // консистентны.
       final total = reciter.mp3quranSurahTotal ?? 114;
       final toDownload = <int>[];
       for (var s = 1; s <= total; s++) {
-        final url = resolveSurahUrl(reciter, s);
-        if (url == null) continue; // reciter без mp3quran-метаданных
+        if (resolveSurahUrlCandidates(reciter, s).isEmpty) {
+          continue; // reciter без mp3quran-метаданных
+        }
         if (await _cache.isCached(reciterId: reciterId, surah: s)) continue;
         toDownload.add(s);
       }
@@ -161,25 +167,36 @@ class ReciterDownloadController extends StateNotifier<ReciterDownloadState> {
           if (cancel.isCancelled) return;
           if (pending.isEmpty) return;
           final surah = pending.removeAt(0);
-          final url = resolveSurahUrl(reciter, surah);
-          if (url == null) continue;
-          try {
-            // getOrDownloadNoEvict — НЕ запускает evictIfNeeded
-            // (см. AudioCache.getOrDownloadNoEvict). Eviction
-            // сделаем single-shot после всего prefetch'а ниже.
-            await _cache.getOrDownloadNoEvict(
-              reciterId: reciterId,
-              surah: surah,
-              url: url,
-              cancelToken: cancel,
-            );
-          } on DioException catch (e) {
+          // Перебор кандидатов: первый успешный источник качает файл.
+          // 404 на устаревшем Quran.com-маппинге не валит суру —
+          // уходим на mp3quran-фоллбэк (проверка 2026-08).
+          var downloaded = false;
+          Object? lastError;
+          for (final url in resolveSurahUrlCandidates(reciter, surah)) {
             if (cancel.isCancelled) return;
-            // Один сур упал — продолжаем остальные.
+            try {
+              // getOrDownloadNoEvict — НЕ запускает evictIfNeeded
+              // (см. AudioCache.getOrDownloadNoEvict). Eviction
+              // сделаем single-shot после всего prefetch'а ниже.
+              await _cache.getOrDownloadNoEvict(
+                reciterId: reciterId,
+                surah: surah,
+                url: url,
+                cancelToken: cancel,
+              );
+              downloaded = true;
+              break;
+            } catch (e) {
+              if (cancel.isCancelled) return;
+              lastError = e;
+            }
+          }
+          if (!downloaded && lastError != null) {
+            // Одна сура упала на всех источниках — продолжаем остальные.
             developer.log(
-              'prefetch: surah $surah failed',
+              'prefetch: surah $surah failed on all sources',
               name: 'ReciterDownloadController',
-              error: e,
+              error: lastError,
             );
           }
           completed += 1;

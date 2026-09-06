@@ -28,6 +28,7 @@ class ReaderDisplaySettingsCodec {
       'showTranslation': s.showTranslation,
       'keepScreenOn': s.keepScreenOn,
       'readingMode': s.readingMode,
+      'autoScrollSpeed': s.autoScrollSpeed,
     });
   }
 
@@ -75,6 +76,8 @@ class ReaderDisplaySettingsCodec {
             _asBool(m['keepScreenOn']) ?? ReaderDisplaySettings.defaults.keepScreenOn,
         readingMode: _asString(m['readingMode']) ??
             ReaderDisplaySettings.defaults.readingMode,
+        autoScrollSpeed: _asDouble(m['autoScrollSpeed']) ??
+            ReaderDisplaySettings.defaults.autoScrollSpeed,
       ).copyWith(); // clamp на double-поля
     } catch (_) {
       // Любая ошибка декодирования → defaults. Не падаем, чтобы

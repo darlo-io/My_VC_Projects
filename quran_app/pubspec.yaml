@@ -51,6 +51,7 @@ dependencies:
   # `--dart-define=SENTRY_DSN=<dsn>`; без DSN — no-op (см.
   # `lib/core/observability/sentry_bootstrap.dart`).
   sentry_flutter: ^8.10.0
+  wakelock_plus: ^1.7.0
   # MCP: используем только бинарь Arenukvern/mcp_flutter (см. AGENTS.md).
   # In-app `mcp_toolkit` НЕ подключаем — upstream-баг с
   # `intentcall_platform` ломает Android-сборку.
@@ -93,6 +94,9 @@ flutter:
   uses-material-design: true
   generate: true
   assets:
+    # Полный текст Корана (Усмани + переводы) для офлайн-сидирования БД
+    # на первой установке. Генерируется `tools/build_quran_seed.dart`.
+    - assets/quran_seed/quran_full.json
     # Фон главного экрана — мечеть справа сверху, как на макете.
     # Генерируется `tool/build_home_background.py` из
     # `docs/images/background.webp`.

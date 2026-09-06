@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/i18n/arabic_digits.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../domain/reader_display_settings.dart';
 import 'reader_palette.dart';
 
@@ -140,9 +139,9 @@ class PreviewAyah extends StatelessWidget {
                   Container(
                     width: 28,
                     height: 28,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.gold,
+                      color: palette.gold,
                     ),
                     child: Center(
                       child: Text(

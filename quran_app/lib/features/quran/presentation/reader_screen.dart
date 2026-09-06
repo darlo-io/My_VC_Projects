@@ -1,21 +1,23 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../app/router/safe_pop.dart';
 
 import '../../../app/providers.dart';
+import '../../../core/data/quran_repository.dart';
 import '../../../core/data/reader_data.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/i18n/arabic_digits.dart';
 import '../../../core/i18n/bismillah.dart';
 import '../../../core/i18n/localized_names.dart';
-import '../../../core/i18n/surah_name_glyph.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import '../../../shared/widgets/common_widgets.dart';
 import '../../../shared/widgets/ornaments.dart';
 import '../../reader_settings/domain/reader_display_settings.dart';
 import '../../reader_settings/presentation/reader_palette.dart';
@@ -71,7 +73,8 @@ class ReaderScreen extends ConsumerStatefulWidget {
   ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
 }
 
-class _ReaderScreenState extends ConsumerState<ReaderScreen> {
+class _ReaderScreenState extends ConsumerState<ReaderScreen>
+    with TickerProviderStateMixin {
   // **Round 5 bugfix**: ориентация теперь управляется глобально
   // через [OrientationGuard], привязанный к top-route (см.
   // `lib/app/orientation_guard.dart` и listener в
@@ -96,6 +99,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // визуально неотличим от «идеального» scroll'а.
   final ScrollController _pageCtrl = ScrollController();
 
+  // ── Автоскролл ────────────────────────────────────────────────
+  // Ticker даёт ~кадровую частоту (vsync): каждый тик прибавляем к
+  // позиции `speed px/s × dt` → плавный ход без рывков
+  // animateTo-цепочек. Останавливается сам в конце суры или при
+  // ручном скролле пользователя (см. NotificationListener в build).
+  bool _autoScrollActive = false;
+  Ticker? _autoScrollTicker;
+  double _autoScrollLastElapsedMs = 0;
+
+  // ── Keep screen on ────────────────────────────────────────────
+  /// Актуальное состояние wake-lock'а, чтобы дёргать платформу
+  /// только при реальном изменении `keepScreenOn`.
+  bool _wakeLockOn = false;
+
   /// Стабильный [GlobalKey] для `_SingleScrollMushaf` — через
   /// `mushafKey.currentState` parent может дёргать
   /// `scrollToAyahByIndex(idx)` для deep-link scroll (Continue
@@ -113,28 +130,34 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   // listener в [_SingleScrollMushaf].
   bool _controlsVisible = true;
 
-  /// Локальный mirror `appPreferencesProvider.readingMode`.
-  /// Инициализируется в `initState` из prefs (там же, где
-  /// `recordLastRead`). Обновляется через `setState` при тапе
-  /// по toggle'у — **без участия Riverpod**, чтобы избежать
-  /// re-evaluation'а `redirect` в go_router (что в этой версии
-  /// всё ещё выкидывает Reader в Home, несмотря на убранный
-  /// `languageProvider` listener). На каждом mount / refresh
-  /// провайдера `_readingMode` снова берётся из prefs.
-  late String _readingMode;
+  /// `true`, когда пользователь проскроллил декоративный
+  /// [SurahHeader] (orn ament). В этом состоянии в ghost-dock
+  /// появляется компактный чип с названием суры и счётчиком аятов —
+  /// ориентир для длинных сур, пока header вне зоны видимости.
+  bool _pastHeader = false;
+
+  /// Кэш репозитория для использования в [dispose]. `ref` нельзя
+  /// читать после unmount (Riverpod 2.x бросает StateError в
+  /// `finalizeTree`), поэтому держим ссылку, полученную в [initState].
+  late final QuranRepository _quranRepo;
+
+  /// Режим чтения (`lineByLine` / `book`) берётся напрямую из
+  /// [readerDisplaySettingsProvider] (поле `readingMode`) — единый
+  /// источник истины вместо параллельного legacy-ключа
+  /// `appPreferences.readingMode`. Топ-бар и строка в настройках
+  /// чтения пишут в один провайдер, рассинхрон исключён.
 
   @override
   void initState() {
     super.initState();
+    // Держим ссылку для [dispose] — там `ref` уже нельзя читать.
+    _quranRepo = ref.read(quranRepositoryProvider);
     // Round 5 bugfix: ориентация управляется [OrientationGuard] —
     // не нужно вручную вызывать `SystemChrome.setPreferredOrientations`
     // здесь. Listener в `app_router.dart` отслеживает top-route и
     // автоматически переключает orientation когда top-route —
     // `/reader/:surahId`.
     //
-    // Initial reading mode from prefs. Не через `ref.watch` —
-    // см. комментарий в `_readingMode`.
-    _readingMode = ref.read(appPreferencesProvider).readingMode;
     // Round 9.2B: lazy load аятов с Quran.com при первом mount.
     // Идемпотентно — если аяты уже в БД (cold install через seed),
     // ensureLoaded возвращает no-op. После записи в БД drift watch
@@ -152,6 +175,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // scroll-tick'и из `_onScroll` пропустили последний кадр (из-за
     // throttle или быстрого fling'а).
     _pageCtrl.addListener(_checkScrollEnd);
+    _pageCtrl.addListener(_updatePastHeader);
+    // «Не выключать экран»: применяем настройку после первого
+    // кадра (platform channel); дальнейшие смены keepScreenOn
+    // отслеживает `ref.listen` в build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _applyWakeLock(ref.read(readerDisplaySettingsProvider).keepScreenOn);
+    });
     // Persist the "last position" and the daily reading-history
     // increment once per screen-mount, after the first frame so
     // we don't block the initial paint. Both are UPSERTs so
@@ -197,7 +228,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         if (idx >= 0) {
           // Определяем режим: lineByLine → `_SingleScrollMushaf`
           // (через GlobalKey), book → локальный `_scrollToAyah`.
-          if (_readingMode == 'lineByLine') {
+          if (ref.read(readerDisplaySettingsProvider).readingMode == 'lineByLine') {
             // Defer scroll на **следующий** postFrame — иначе
             // `RenderBox` ещё не laid out. На самом первом
             // postFrame (этот) `Scrollable` уже создан, но
@@ -326,7 +357,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // суры, но последний scroll-tick не успел записать
     // `ayahs.last` из-за throttle (200ms) или медленного скролла.
     _pageCtrl.removeListener(_checkScrollEnd);
-    final repo = ref.read(quranRepositoryProvider);
+    _pageCtrl.removeListener(_updatePastHeader);
+    _autoScrollTicker?.stop();
+    _autoScrollTicker?.dispose();
+    _autoScrollTicker = null;
+    // Освобождаем wake-lock, если Reader его держал — иначе экран
+    // останется незаблокированным после выхода из чтения.
+    if (_wakeLockOn) {
+      _wakeLockOn = false;
+      unawaited(WakelockPlus.disable());
+    }
+    final repo = _quranRepo;
     if (_lastAyahs != null && _lastAyahs!.isNotEmpty) {
       final lastAyah = _lastAyahs!.last;
       // Проверка 1: scroll position
@@ -369,6 +410,90 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _setControlsVisible(bool visible) {
     if (_controlsVisible == visible) return;
     setState(() => _controlsVisible = visible);
+  }
+
+  // ── Автоскролл ────────────────────────────────────────────────
+
+  /// Плавный автоскролл: Ticker даёт кадровую частоту, каждый тик
+  /// прибавляет `autoScrollSpeed px/s × dt` через `jumpTo` — без
+  /// рывков и без цепочек `animateTo`. Останавливается сам у конца
+  /// суры или при ручном жесте пользователя (см.
+  /// `NotificationListener` в build).
+  void _toggleAutoScroll() {
+    HapticFeedback.selectionClick();
+    if (_autoScrollActive) {
+      _stopAutoScroll();
+    } else {
+      _startAutoScroll();
+    }
+  }
+
+  void _startAutoScroll() {
+    if (!_pageCtrl.hasClients) return;
+    setState(() {
+      _autoScrollActive = true;
+      // Панель остаётся видимой — нужна кнопка остановки.
+      _controlsVisible = true;
+    });
+    _autoScrollLastElapsedMs = 0;
+    _autoScrollTicker = createTicker(_onAutoScrollTick)..start();
+  }
+
+  void _stopAutoScroll() {
+    _autoScrollTicker?.stop();
+    _autoScrollTicker?.dispose();
+    _autoScrollTicker = null;
+    if (_autoScrollActive && mounted) {
+      setState(() => _autoScrollActive = false);
+    } else {
+      _autoScrollActive = false;
+    }
+  }
+
+  void _onAutoScrollTick(Duration elapsed) {
+    if (!_pageCtrl.hasClients) {
+      _stopAutoScroll();
+      return;
+    }
+    final elapsedMs = elapsed.inMicroseconds / 1000;
+    final dtMs = elapsedMs - _autoScrollLastElapsedMs;
+    _autoScrollLastElapsedMs = elapsedMs;
+    // Скорость читаем на каждый тик: слайдер в настройках меняет
+    // её «на лету» без перезапуска.
+    final speed = ref.read(readerDisplaySettingsProvider).autoScrollSpeed;
+    final pos = _pageCtrl.position;
+    final next = pos.pixels + speed * dtMs / 1000;
+    if (next >= pos.maxScrollExtent) {
+      _pageCtrl.jumpTo(pos.maxScrollExtent);
+      _stopAutoScroll();
+      return;
+    }
+    _pageCtrl.jumpTo(next);
+  }
+
+  /// «Не выключать экран»: дёргаем платформу только при реальном
+  /// изменении флага (состояние кэшируем в [_wakeLockOn]).
+  void _applyWakeLock(bool enabled) {
+    if (enabled == _wakeLockOn) return;
+    _wakeLockOn = enabled;
+    unawaited(enabled ? WakelockPlus.enable() : WakelockPlus.disable());
+  }
+
+  /// Порог прокрутки, после которого [SurahHeader] считается вышедшим
+  /// из зоны видимости. Приближение: высота ornament-рамки в portrait
+  /// (~138dp при универсальной ширине 360dp) + её верхний padding (24dp).
+  /// Точное измерение через `RenderBox` избыточно для показа/скрытия
+  /// чипа-ориентира (см. план).
+  static const _kHeaderScrollThreshold = 160.0;
+
+  /// Обновляет [_pastHeader] по текущему scroll offset'у `_pageCtrl`.
+  /// Вызывается listener'ом (добавлен в `initState`, снят в `dispose`).
+  void _updatePastHeader() {
+    if (!_pageCtrl.hasClients) return;
+    final past = _pageCtrl.offset >= _kHeaderScrollThreshold;
+    if (past != _pastHeader) {
+      setState(() => _pastHeader = past);
+    }
   }
 
   /// Содержимое Mushaf-зоны: GestureDetector (toggle панелей) →
@@ -469,7 +594,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                         // смене шрифта. `effectiveDisplay` гарантирует,
                         // что при смене ориентации (textWidthPercent
                         // кэп) AyahTile получает обновлённый display.
-                        'mushaf-$_readingMode-${ayahs.length}-'
+                        'mushaf-${display.readingMode}-${ayahs.length}-'
                         '${effectiveDisplay.fontFamily}-'
                         '${effectiveDisplay.textWidthPercent.toInt()}',
                       ),
@@ -481,7 +606,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                       display: effectiveDisplay,
                       bookmarkedIds: bookmarkedIds,
                       scrollCtrl: _pageCtrl,
-                      lineByLine: _readingMode == 'lineByLine',
+                      lineByLine: display.readingMode == 'lineByLine',
                       surahNumber: dataAsync.value?.surah?.id ?? 0,
                       onInitialLoad: (loaded) {
                         _lastAyahs = loaded;
@@ -491,7 +616,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                             (a) => a.ayahNumber == widget.initialAyah,
                           );
                           if (idx >= 0) {
-                            if (_readingMode == 'lineByLine') {
+          if (ref.read(readerDisplaySettingsProvider).readingMode == 'lineByLine') {
                               WidgetsBinding.instance.addPostFrameCallback((
                                 _,
                               ) {
@@ -571,7 +696,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                         // сворачивается. Скролл вверх НЕ
                         // возвращает панель (см. подробный
                         // комментарий в исходной build()).
-                        if (delta > 4) {
+                        // Во время автоскролла `jumpTo` тоже даёт
+                        // дельту — панелям сворачиваться нельзя
+                        // (там кнопка остановки).
+                        if (delta > 4 && !_autoScrollActive) {
                           _setControlsVisible(false);
                         }
                       },
@@ -600,6 +728,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final ayahsAsync = ref.watch(_ayahsStreamProvider(widget.surahId));
     final bookmarkedIds =
         ref.watch(bookmarkedAyahIdsProvider).value ?? const <int>{};
+    // «Не выключать экран»: реакция на смену настройки без rebuild'а
+    // всего экрана — только платформенный вызов.
+    ref.listen(readerDisplaySettingsProvider, (prev, next) {
+      if (prev?.keepScreenOn != next.keepScreenOn) {
+        _applyWakeLock(next.keepScreenOn);
+      }
+    });
 
     return Scaffold(
       // `themeVariant` влияет на фон зоны чтения, не на глобальную
@@ -628,7 +763,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               // (см. ниже), чтобы статус-бар и навигация не
               // перекрывались.
               Positioned.fill(
-                child: SafeArea(
+                child: NotificationListener<ScrollStartNotification>(
+                  // Ручной жест (drag/fling) имеет приоритет над
+                  // автоскроллом: пользователь перехватил управление —
+                  // останавливаем авто-движение. Программный `jumpTo`
+                  // приходит без dragDetails и автоскролл не трогает.
+                  onNotification: (n) {
+                    if (n.dragDetails != null && _autoScrollActive) {
+                      _stopAutoScroll();
+                    }
+                    return false;
+                  },
+                  child: SafeArea(
                   // Включаем горизонтальные safe areas (`left: true`,
                   // `right: true`) — иначе в landscape Android navigation
                   // bar переезжает на боковую сторону и перекрывает
@@ -682,86 +828,79 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 },
                   ),
                 ),
+                ),
               ),
-          // Передний план: верхняя control-панель (заголовок
-          // суры + reading-mode toggle + settings). Анимировано
-          // через `AnimatedSlide + AnimatedOpacity`. Позиция
-          // `top: 0, left: 0, right: 0` + `SafeArea top` —
-          // панель стартует под системным status-bar.
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _AnimatedTopBar(
-              visible: _controlsVisible,
-              surahNameAr: dataAsync.value?.surah == null
-                  ? ''
-                  : // Арабское название суры в верхней панели —
-                    // glyph-строка из `Surah Name V2.ttf` (PUA).
-                    // `surah001` → U+E001 и т.д. В V2 шрифте
-                    // стиль глифа отличается от V4 (используется
-                    // в списке сур) — здесь чуть иная отрисовка.
-                    surahNameGlyph(dataAsync.value!.surah!.id),
-              surahNameLatin: dataAsync.value?.surah == null
-                  ? '…'
-                  : t.surahName(
-                      dataAsync.value!.surah!.id,
-                      fallback: dataAsync.value!.surah!.nameTransliteration,
-                    ),
-              ayahsCount: dataAsync.value?.surah?.ayahCount ?? 0,
-              ayahsCountLabel:
-                  dataAsync.value?.surah == null
-                      ? ''
-                      : t.ayahsCount(dataAsync.value!.surah!.ayahCount),
-              readingMode: _readingMode,
-              readingModeLabel: _readingMode == 'lineByLine'
-                  ? t.readingModeLineByLine
-                  : t.readingModeBook,
-              readingModeTooltip: t.readingModeTooltip,
-              onBack: () => safePop(context),
-              onToggleReadingMode: () {
-                // Пишем в SharedPreferences и обновляем **локальный**
-                // `_readingMode` state через `setState` ниже — без
-                // участия Riverpod, чтобы не триггерить redirect в
-                // go_router. `appPreferencesProvider` снова
-                // иммутабельный `Provider`, и `setReadingMode` —
-                // fire-and-forget. На следующем mount / refresh
-                // провайдер отдаст свежее значение.
-                final next = _readingMode == 'lineByLine'
-                    ? 'book'
-                    : 'lineByLine';
-                unawaited(ref.read(appPreferencesProvider.notifier).setReadingMode(next));
-                setState(() {
-                  _readingMode = next;
-                });
-              },
-              onSettings: () {
-                // Сразу открываем **полный экран** настроек
-                // отображения (`/reader-settings/display`) — он
-                // содержит все 4 группы (Текст/Макет/Тема/
-                // Дополнительно) и даёт sticky-preview с
-                // live-обновлением. Bottom-sheet с quick-
-                // настройками (размер арабского / режим / язык)
-                // убран — все эти параметры либо уже в экране
-                // (размер шрифта), либо доступны через bottom-nav
-                // `/profile` (язык, режим чтения).
-                //
-                // `push` (не `go`): back возвращает в Reader
-                // с уже применёнными изменениями; пользователь
-                // остаётся в контексте чтения.
-                context.push('/reader-settings/display');
-              },
-            ),
-          ),
-          // Передний план: нижняя control-панель — mini-player.
-          // Отрисовывается только если идёт воспроизведение
-          // (`state.surah != null`). Анимируется синхронно с top
-          // bar через тот же `_controlsVisible` флаг.
+          // Передний план: ghost-dock (бывш. верхняя панель) +
+          // mini-player. Оба расположены ВНИЗУ над системными
+          // кнопками навигации — `SafeArea` отдаёт bottom-inset
+          // (кнопки / gesture-area). Ghost-dock сидит над
+          // mini-player (в Column), поэтому они не перекрываются.
+          // Анимированы синхронно через общий `_controlsVisible`.
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            child: _AnimatedBottomBar(visible: _controlsVisible),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _AnimatedTopBar(
+                    visible: _controlsVisible,
+                    showTitle: _pastHeader,
+                    surahNameLatin: dataAsync.value?.surah == null
+                        ? '…'
+                        : t.surahName(
+                            dataAsync.value!.surah!.id,
+                            fallback:
+                                dataAsync.value!.surah!.nameTransliteration,
+                          ),
+                    ayahsCountLabel: dataAsync.value?.surah == null
+                        ? ''
+                        : t.ayahsCount(dataAsync.value!.surah!.ayahCount),
+                    readingMode: display.readingMode,
+                    readingModeTooltip: t.readingModeTooltip,
+                    palette: ReaderPalette.of(display.themeVariant),
+                    showTranslation: display.showTranslation,
+                    translationTooltip: t.readerTranslationToggle,
+                    onToggleTranslation: () {
+                      HapticFeedback.selectionClick();
+                      ref.read(displaySettingsProvider.notifier).set(
+                        display.copyWith(
+                          showTranslation: !display.showTranslation,
+                        ),
+                      );
+                    },
+                    autoScrollActive: _autoScrollActive,
+                    autoScrollTooltip: t.readerAutoScroll,
+                    onToggleAutoScroll: _toggleAutoScroll,
+                    onThemeToggle: (anchor) {
+                      // anchor — BuildContext самой кнопки палитры
+                      // (из `_PillCluster`), а не экрана: popup
+                      // якорится на кнопку, а не на весь Reader.
+                      _showThemeSwitcher(anchor, display);
+                    },
+                    onBack: () => safePop(context),
+                    onToggleReadingMode: () {
+                      final next = display.readingMode == 'lineByLine'
+                          ? 'book'
+                          : 'lineByLine';
+                      ref.read(displaySettingsProvider.notifier).set(
+                        display.copyWith(readingMode: next),
+                      );
+                    },
+                    onSettings: () {
+                      context.push('/reader-settings/display');
+                    },
+                  ),
+                  _AnimatedBottomBar(
+                    visible: _controlsVisible,
+                    palette: ReaderPalette.of(display.themeVariant),
+                  ),
+                ],
+              ),
+            ),
           ),
           // НЕ ставим `Positioned.fill` с `GestureDetector` поверх
           // top bar / bottom bar — это перехватывает тапы по их
@@ -779,6 +918,46 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         },
       ),
     );
+  }
+
+  void _showThemeSwitcher(BuildContext context, ReaderDisplaySettings display) {
+    final t = AppLocalizations.of(context);
+    final button = context.findRenderObject() as RenderBox?;
+    if (button == null) return;
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        button.localToGlobal(Offset.zero).dx,
+        button.localToGlobal(Offset.zero).dy + button.size.height + 8,
+        button.localToGlobal(Offset.zero).dx + button.size.width,
+        button.localToGlobal(Offset.zero).dy,
+      ),
+      items: ReaderDisplaySettings.themeVariants.map((v) {
+        final p = ReaderPalette.of(v);
+        return PopupMenuItem<String>(
+          value: v,
+          child: Row(
+            children: [
+              ThemeVariantSwatch(palette: p, size: 28),
+              const SizedBox(width: 12),
+              Text(
+                p.label(t),
+                style: TextStyle(
+                  color: ReaderPalette.of(display.themeVariant).text,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    ).then((value) {
+      if (value != null && value != display.themeVariant) {
+        ref.read(displaySettingsProvider.notifier).set(
+          display.copyWith(themeVariant: value),
+        );
+      }
+    });
   }
 }
 
@@ -798,7 +977,9 @@ class _AnimatedControlsFrame extends StatelessWidget {
       scale: visible ? 1.0 : 0.995,
       duration: const Duration(milliseconds: 240),
       curve: Curves.easeOutCubic,
-      child: child,
+      // RepaintBoundary: контент (сотни аятов) не должен
+      // перерисовываться из-за 0.5%-scale-анимации рамки.
+      child: RepaintBoundary(child: child),
     );
   }
 }
@@ -812,26 +993,43 @@ class _AnimatedControlsFrame extends StatelessWidget {
 class _AnimatedTopBar extends StatelessWidget {
   const _AnimatedTopBar({
     required this.visible,
-    required this.surahNameAr,
+    required this.showTitle,
     required this.surahNameLatin,
-    required this.ayahsCount,
     required this.ayahsCountLabel,
     required this.readingMode,
-    required this.readingModeLabel,
     required this.readingModeTooltip,
+    required this.palette,
+    required this.showTranslation,
+    required this.translationTooltip,
+    required this.onToggleTranslation,
+    required this.autoScrollActive,
+    required this.autoScrollTooltip,
+    required this.onToggleAutoScroll,
+    required this.onThemeToggle,
     required this.onBack,
     required this.onToggleReadingMode,
     required this.onSettings,
   });
 
   final bool visible;
-  final String surahNameAr;
+  final bool showTitle;
   final String surahNameLatin;
-  final int ayahsCount;
   final String ayahsCountLabel;
   final String readingMode;
-  final String readingModeLabel;
   final String readingModeTooltip;
+  final ReaderPalette palette;
+
+  /// Переключатель перевода под текстом аятов.
+  final bool showTranslation;
+  final String translationTooltip;
+  final VoidCallback onToggleTranslation;
+
+  /// Автоскролл текста (плавное авто-движение вниз).
+  final bool autoScrollActive;
+  final String autoScrollTooltip;
+  final VoidCallback onToggleAutoScroll;
+
+  final void Function(BuildContext anchor)? onThemeToggle;
   final VoidCallback onBack;
   final VoidCallback onToggleReadingMode;
   final VoidCallback onSettings;
@@ -839,115 +1037,418 @@ class _AnimatedTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLineByLine = readingMode == 'lineByLine';
-    return AnimatedSlide(
-      // `Offset(0, -1)` сдвигает панель на всю высоту вверх —
-      // полностью за пределы экрана. `Offset.zero` — панель
-      // полностью видна.
-      offset: visible ? Offset.zero : const Offset(0, -1),
+    // RepaintBoundary: slide/opacity-анимация панели не должна
+    // перерисовывать слой контента, и наоборот.
+    return RepaintBoundary(
+      child: AnimatedSlide(
+      offset: visible ? Offset.zero : const Offset(0, 1),
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
       child: AnimatedOpacity(
         opacity: visible ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 200),
-        // `IgnorePointer` — стандартный паттерн для hide/show
-        // анимированных панелей. Без него панель **получает**
-        // hit-test **во время анимации** скрытия (260ms), и тапы
-        // по области Mushaf поглощаются панелью → Mushaf
-        // GestureDetector не срабатывает. Это объясняет
-        // нестабильный z-order: иногда тап на TopBar доходит
-        // (Mushaf уже не перехватывает), иногда — нет (TopBar
-        // ещё в hit-test).
         child: IgnorePointer(
           ignoring: !visible,
-          child: SafeArea(
-          bottom: false,
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              // Полупрозрачный dark-green фон, имитирующий
-              // системный app-bar. `surfaceTint` отсутствует —
-              // матовая заливка под стеклом, как в Material 3.
-              color: AppColors.background.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppColors.gold.withValues(alpha: 0.35),
-                width: 0.8,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                CircleIconButton(
-                  icon: Icons.arrow_back_ios_new,
-                  iconSize: 18,
-                  onTap: onBack,
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        surahNameAr.isEmpty ? surahNameLatin : surahNameAr,
-                        textDirection: TextDirection.rtl,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.gold,
-                          // Арабское название суры рендерится
-                          // glyph-шрифтом `Surah Name V2.ttf` —
-                          // glyph `surah001` → U+E001 и т.д.
-                          // (см. `surahNameGlyph`). Сюда уже
-                          // приходит пред-вычисленная glyph-строка
-                          // от parent'а (см. `_AnimatedTopBar.наверху`).
-                          fontFamily: surahNameV2FontFamily,
-                          height: 1.1,
-                        ),
+          child: SizedBox(
+            // Компактный ghost-dock: всего ~50dp (vs. ~100dp у
+            // старой полноширинной карточки с названием). Расположен
+            // внизу, над системной навигацией и над mini-player.
+            height: 50,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // ── Кнопка «назад» (слева) ────────────────
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: _GhostCircle(
+                        icon: Icons.arrow_back_ios_new,
+                        iconSize: 18,
+                        palette: palette,
+                        onTap: onBack,
                       ),
-                      Text(
-                        '$surahNameLatin • $ayahsCountLabel',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-                _ReadingModeToggle(
-                  isLineByLine: isLineByLine,
-                  tooltip: readingModeTooltip,
-                  label: readingModeLabel,
-                  onTap: onToggleReadingMode,
-                ),
-                const SizedBox(width: 4),
-                CircleIconButton(
-                  icon: Icons.tune,
-                  iconSize: 20,
-                  onTap: onSettings,
-                ),
-              ],
-            ),
+                  // ── Чип-ориентир (по центру, при проскролле) ─
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 240),
+                      switchInCurve: Curves.easeOutBack,
+                      switchOutCurve: Curves.easeIn,
+                      transitionBuilder: (child, anim) => FadeTransition(
+                        opacity: anim,
+                        child: ScaleTransition(scale: anim, child: child),
+                      ),
+                      child: showTitle
+                          ? _TitleChip(
+                              key: const ValueKey('title'),
+                              label: '$surahNameLatin • $ayahsCountLabel',
+                              palette: palette,
+                            )
+                          : const SizedBox(key: ValueKey('empty')),
+                    ),
+                  ),
+                  // ── Pill-кластер действий (справа) ─────────
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: _PillCluster(
+                        isLineByLine: isLineByLine,
+                        modeTooltip: readingModeTooltip,
+                        palette: palette,
+                        showTranslation: showTranslation,
+                        translationTooltip: translationTooltip,
+                        onToggleTranslation: onToggleTranslation,
+                        autoScrollActive: autoScrollActive,
+                        autoScrollTooltip: autoScrollTooltip,
+                        onToggleAutoScroll: onToggleAutoScroll,
+                        onToggleReadingMode: onToggleReadingMode,
+                        onThemeToggle: onThemeToggle,
+                        onSettings: onSettings,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
           ),
         ),
+      ),
+      ),
+    );
+  }
+}
+
+/// Полупрозрачная «подложка» + золотой hairline.
+///
+/// Раньше здесь был `BackdropFilter(blur 10)`: три живых фильтра над
+/// прокручиваемым мушафом давали saveLayer+blur каждый кадр скролла
+/// (непрерывно при автоскролле). Заменено на плотную заливку —
+/// визуально читаемо на любом фоне, GPU-нейтрально.
+Widget _glass({
+  required ReaderPalette palette,
+  required double radius,
+  required Widget child,
+}) {
+  return Container(
+    decoration: BoxDecoration(
+      color: palette.surface.withValues(alpha: 0.92),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(
+        color: palette.gold.withValues(alpha: 0.22),
+        width: 0.8,
+      ),
+    ),
+    child: child,
+  );
+}
+
+/// Круглая glass-кнопка (назад / одиночное действие).
+class _GhostCircle extends StatelessWidget {
+  const _GhostCircle({
+    required this.icon,
+    required this.iconSize,
+    required this.palette,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final double iconSize;
+  final ReaderPalette palette;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _glass(
+      palette: palette,
+      radius: 20,
+      child: SizedBox(
+        width: 40,
+        height: 40,
+        child: IconButton(
+          padding: EdgeInsets.zero,
+          iconSize: iconSize,
+          icon: Icon(icon, color: palette.gold),
+          onPressed: onTap,
         ),
       ),
     );
   }
+}
+
+/// Компактный чип с названием суры и счётчиком аятов (показывается,
+/// когда декоративный header проскроллен из зоны видимости).
+class _TitleChip extends StatelessWidget {
+  const _TitleChip({
+    required this.label,
+    required this.palette,
+    super.key,
+  });
+
+  final String label;
+  final ReaderPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return _glass(
+      palette: palette,
+      radius: 16,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: palette.text.withValues(alpha: 0.85),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Единая кнопка ghost-дока: глиф 22 пп + слот точки-индикатора
+/// (все кнопки одинаковой высоты, точка появляется у активных
+/// тумблеров) + Tooltip + Semantics.
+///
+/// Состояния:
+///  - [active] — золотая точка под иконкой («функция включена»);
+///  - [dimmed] — приглушённый глиф (выключенный тумблер);
+///  - [slash]  — диагональная черта поверх глифа (паттерн *_off);
+///  - [toggled] — передаётся в `Semantics(toggled:)`: скринридер
+///    объявляет состояние тумблера («включено/выключено»).
+///
+/// [builder] переопределяет тап-зону (тема: popup якорится на
+/// контекст самой кнопки).
+class _DockIcon extends StatelessWidget {
+  const _DockIcon({
+    required this.icon,
+    required this.palette,
+    this.onTap,
+    this.tooltip,
+    this.active = false,
+    this.dimmed = false,
+    this.slash = false,
+    this.toggled,
+    this.builder,
+  });
+
+  final IconData icon;
+  final ReaderPalette palette;
+  final VoidCallback? onTap;
+  final String? tooltip;
+  final bool active;
+  final bool dimmed;
+  final bool slash;
+  final bool? toggled;
+  final Widget Function(BuildContext ctx, Widget child)? builder;
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        dimmed ? palette.gold.withValues(alpha: 0.55) : palette.gold;
+    final Widget glyph = slash
+        ? _SlashedGlyph(icon: icon, color: color)
+        : Icon(icon, color: color, size: 22);
+
+    // Слот точки существует всегда — иконка не «прыгает» при
+    // переключении состояния.
+    final child = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(width: 24, height: 24, child: Center(child: glyph)),
+        const SizedBox(height: 2),
+        Container(
+          width: 4,
+          height: 4,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: active ? palette.gold : Colors.transparent,
+          ),
+        ),
+      ],
+    );
+
+    final Widget control;
+    if (builder != null) {
+      // Builder даёт тап-зоне собственный BuildContext (якорь popup).
+      control = Builder(
+        builder: (btnCtx) => Padding(
+          padding: const EdgeInsets.all(8),
+          child: builder!(btnCtx, child),
+        ),
+      );
+    } else {
+      control = IconButton(
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+        icon: child,
+        onPressed: onTap,
+      );
+    }
+
+    return Semantics(
+      button: true,
+      toggled: toggled,
+      label: tooltip,
+      child: tooltip == null || tooltip!.isEmpty
+          ? control
+          : Tooltip(message: tooltip!, child: control),
+    );
+  }
+}
+
+/// Глиф с диагональной чертой — универсальный маркер «выключено»
+/// (паттерн Material *_off: wifi_off, mic_off). Используется для
+/// перевода, у которого нет встроенного *_off-варианта.
+class _SlashedGlyph extends StatelessWidget {
+  const _SlashedGlyph({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Icon(icon, color: color, size: 22),
+        Transform.rotate(
+          // Черта сверху-слева направо-вниз, как в *_off-иконках.
+          angle: 0.7853981633974483, // pi/4
+          child: Container(
+            width: 24,
+            height: 1.8,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(1),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Стадиум-кластер иконок справа: режим чтения, тема, автоскролл,
+/// перевод, настройки — разделённые тонкими hairline-линиями.
+class _PillCluster extends StatelessWidget {
+  const _PillCluster({
+    required this.isLineByLine,
+    required this.modeTooltip,
+    required this.palette,
+    required this.showTranslation,
+    required this.translationTooltip,
+    required this.onToggleTranslation,
+    required this.autoScrollActive,
+    required this.autoScrollTooltip,
+    required this.onToggleAutoScroll,
+    required this.onToggleReadingMode,
+    required this.onThemeToggle,
+    required this.onSettings,
+  });
+
+  final bool isLineByLine;
+  final String modeTooltip;
+  final ReaderPalette palette;
+  final bool showTranslation;
+  final String translationTooltip;
+  final VoidCallback onToggleTranslation;
+  final bool autoScrollActive;
+  final String autoScrollTooltip;
+  final VoidCallback onToggleAutoScroll;
+  final VoidCallback onToggleReadingMode;
+  final void Function(BuildContext anchor)? onThemeToggle;
+  final VoidCallback onSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    // Единая система иконок дока:
+    //  - залитые глифы одного оптического веса (22 пп);
+    //  - состояние вкл/выкл — сменой СИЛУЭТА (а не только цвета):
+    //    автоскролл «двойная стрелка → пауза в круге», перевод
+    //    «глиф 文A → тот же глиф с диагональной чертой»;
+    //  - золотая точка-индикатор под активной кнопкой: одним
+    //    взглядом видно, какие функции включены;
+    //  - `Semantics(toggled:)` сообщает скринридеру состояние.
+    return _glass(
+      palette: palette,
+      radius: 20,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Режим чтения: стопка отдельных строк (построчно) ↔
+          // открытая книга (сплошной текст).
+          _DockIcon(
+            icon: isLineByLine ? Icons.view_stream : Icons.menu_book,
+            tooltip: modeTooltip,
+            palette: palette,
+            onTap: onToggleReadingMode,
+          ),
+          _hairline(palette),
+          if (onThemeToggle != null) ...[
+            _DockIcon(
+              icon: Icons.palette_outlined,
+              palette: palette,
+              // Тема открывает popup — якорится на саму кнопку,
+              // поэтому тап-зона строится через `builder` (контекст
+              // передаётся в `onThemeToggle`).
+              builder: (btnCtx, child) => InkWell(
+                onTap: () => onThemeToggle!(btnCtx),
+                customBorder: const CircleBorder(),
+                child: child,
+              ),
+            ),
+            _hairline(palette),
+          ],
+          // Автоскролл: двойная стрелка вниз = «непрерывное движение»,
+          // активное состояние — пауза в круге («идёт, тап остановит»).
+          // Круг отличает её от паузы аудиоплеера.
+          _DockIcon(
+            icon: autoScrollActive
+                ? Icons.pause_circle_outline
+                : Icons.keyboard_double_arrow_down,
+            tooltip: autoScrollTooltip,
+            palette: palette,
+            active: autoScrollActive,
+            toggled: autoScrollActive,
+            onTap: onToggleAutoScroll,
+          ),
+          _hairline(palette),
+          // Перевод: универсальный глиф перевода «文A»; выключенное
+          // состояние — тот же глиф с диагональной чертой (паттерн
+          // Material *_off: wifi_off, mic_off).
+          _DockIcon(
+            icon: Icons.translate,
+            slash: !showTranslation,
+            dimmed: !showTranslation,
+            tooltip: translationTooltip,
+            palette: palette,
+            active: showTranslation,
+            toggled: showTranslation,
+            onTap: onToggleTranslation,
+          ),
+          _hairline(palette),
+          _DockIcon(
+            icon: Icons.tune,
+            palette: palette,
+            onTap: onSettings,
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _hairline(ReaderPalette palette) => Container(
+        width: 1,
+        height: 22,
+        color: palette.gold.withValues(alpha: 0.18),
+      );
 }
 
 /// Нижняя control-панель: mini-player. Отрисовывается только
@@ -965,8 +1466,9 @@ class _AnimatedTopBar extends StatelessWidget {
 /// держим рендеринг плеера внутри `Builder`, чтобы
 /// зависимость от audio-state не раздувала rebuild Reader'а).
 class _AnimatedBottomBar extends ConsumerWidget {
-  const _AnimatedBottomBar({required this.visible});
+  const _AnimatedBottomBar({required this.visible, required this.palette});
   final bool visible;
+  final ReaderPalette palette;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1006,24 +1508,24 @@ class _AnimatedBottomBar extends ConsumerWidget {
                       child: Ink(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(20),
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              AppColors.surfaceElevated,
-                              AppColors.surface,
+                              palette.surface,
+                              palette.background,
                             ],
                           ),
                           border: Border.all(
                             color: hasError
                                 ? AppColors.error
-                                : AppColors.gold.withValues(alpha: 0.6),
+                                : palette.gold.withValues(alpha: 0.6),
                             width: 1.2,
                           ),
                           boxShadow: [
                             BoxShadow(
                               color:
-                                  (hasError ? AppColors.error : AppColors.gold)
+                                  (hasError ? AppColors.error : palette.gold)
                                       .withValues(alpha: 0.15),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
@@ -1045,7 +1547,7 @@ class _AnimatedBottomBar extends ConsumerWidget {
                               background: Colors.transparent,
                               borderColor: hasError
                                   ? AppColors.error
-                                  : AppColors.gold,
+                                  : palette.gold,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -1060,10 +1562,10 @@ class _AnimatedBottomBar extends ConsumerWidget {
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary,
+                                      color: palette.text,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -1084,7 +1586,7 @@ class _AnimatedBottomBar extends ConsumerWidget {
                                       fontSize: 11,
                                       color: hasError
                                           ? AppColors.error
-                                          : AppColors.textTertiary,
+                                          : palette.text.withValues(alpha: 0.6),
                                     ),
                                   ),
                                 ],
@@ -1121,16 +1623,16 @@ class _AnimatedBottomBar extends ConsumerWidget {
                                         : Icons.play_arrow),
                                 color: hasError
                                     ? AppColors.error
-                                    : AppColors.gold,
+                                    : palette.gold,
                               ),
                             ),
                             IconButton(
                               onPressed: () => ref
                                   .read(quranAudioHandlerProvider)
                                   .stop(),
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.close,
-                                color: AppColors.textTertiary,
+                                color: palette.text.withValues(alpha: 0.6),
                               ),
                             ),
                           ],
@@ -1153,61 +1655,6 @@ class _AnimatedBottomBar extends ConsumerWidget {
 /// между `view_column` (построчно) и `menu_book` (книга);
 /// внизу — подпись (label) в маленьком моноширинном стиле,
 /// чтобы было понятно без tooltip'а.
-class _ReadingModeToggle extends StatelessWidget {
-  const _ReadingModeToggle({
-    required this.isLineByLine,
-    required this.tooltip,
-    required this.label,
-    required this.onTap,
-  });
-
-  final bool isLineByLine;
-  final String tooltip;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceElevated.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: AppColors.gold.withValues(alpha: 0.4),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isLineByLine ? Icons.view_column_outlined : Icons.menu_book,
-                color: AppColors.gold,
-                size: 18,
-              ),
-              const SizedBox(height: 1),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 9,
-                  color: AppColors.textSecondary,
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// (вызов `onAyahVisible`). Throttle 200ms — на быстром
 /// скролле запись в БД не должна срабатывать чаще раза в
 /// 200ms (UPSERT-ы всё равно идемпотентны, но debounce

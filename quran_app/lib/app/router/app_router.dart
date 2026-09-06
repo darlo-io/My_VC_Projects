@@ -100,6 +100,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, state) =>
                 const NoTransitionPage(child: SettingsScreen()),
           ),
+          GoRoute(
+            // «Слушать» внутри шелла: нижняя навигация + MiniPlayer
+            // видны на экране. Открывается через context.push — pop
+            // возвращает на предыдущий таб.
+            path: '/listen',
+            pageBuilder: (_, state) => const NoTransitionPage(child: ListenScreen()),
+          ),
         ],
       ),
       GoRoute(
@@ -123,10 +130,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         // не всегда корректно резолвит порядок.
         path: '/reader-settings/display',
         builder: (_, _) => const ReaderDisplaySettingsScreen(),
-      ),
-      GoRoute(
-        path: '/listen',
-        builder: (_, _) => const ListenScreen(),
       ),
       GoRoute(
         path: '/learn',

@@ -1286,10 +1286,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get displaySettingsPreview => 'معاينة';
 
   @override
-  String get displaySettingsGroupText => 'النص';
+  String get displaySettingsGroupText => 'النص العربي';
 
   @override
-  String get displaySettingsGroupLayout => 'التخطيط';
+  String get displaySettingsGroupLayout => 'تخطيط الصفحة';
 
   @override
   String get displaySettingsGroupTheme => 'السمة';
@@ -1322,40 +1322,28 @@ class AppLocalizationsAr extends AppLocalizations {
   String get displaySettingsReset => 'إعادة التعيين';
 
   @override
-  String get displaySettingsResetConfirmTitle =>
-      'إعادة تعيين جميع إعدادات العرض؟';
+  String get displaySettingsResetDone => 'تمت إعادة تعيين الإعدادات';
 
   @override
-  String get displaySettingsResetConfirmBody =>
-      'ستعود جميع معاملات العرض إلى الافتراضي. يُحفظ تقدّمك وعلاماتك.';
+  String get displaySettingsLetterSpacing => 'تباعد الأحرف';
 
   @override
-  String get displaySettingsDiscardTitle => 'تجاهل التغييرات؟';
+  String get displaySettingsTextWidth => 'عرض النص';
 
   @override
-  String get displaySettingsDiscardBody =>
-      'لم يتم حفظ تغييراتك على إعدادات العرض. المغادرة على أي حال؟';
+  String get displaySettingsGroupReading => 'القراءة';
 
   @override
-  String get displaySettingsSave => 'تم';
+  String get displaySettingsKeepScreenOn => 'إبقاء الشاشة مضاءة';
 
   @override
-  String get displaySettingsDiscard => 'تجاهل';
+  String get displaySettingsAutoScrollSpeed => 'سرعة التمرير التلقائي';
 
   @override
-  String get displaySettingsCancel => 'إلغاء';
+  String get readerAutoScroll => 'التمرير التلقائي';
 
   @override
-  String get displaySettingsUnitPx => 'بكسل';
-
-  @override
-  String get displaySettingsUnitPercent => '٪';
-
-  @override
-  String get displaySettingsFontFamilyAmiriRegular => 'Amiri عادي';
-
-  @override
-  String get displaySettingsFontFamilyAmiriBold => 'Amiri عريض';
+  String get readerTranslationToggle => 'إظهار/إخفاء الترجمة';
 
   @override
   String get displaySettingsThemeDark => 'داكنة';
@@ -1372,6 +1360,27 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get displaySettingsPreviewTranslation =>
       'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
+
+  @override
+  String get displaySettingsUndo => 'تراجع';
+
+  @override
+  String get displaySettingsGroupTranslation => 'الترجمة';
+
+  @override
+  String get displaySettingsTranslatorHint => 'اختر الترجمة';
+
+  @override
+  String get displaySettingsTranslatorError => 'فشل تحميل المترجمين';
+
+  @override
+  String get displaySettingsTranslatorTitle => 'اختيار المترجم';
+
+  @override
+  String get displaySettingsReadingMode => 'وضع القراءة';
+
+  @override
+  String get displaySettingsAdvanced => 'إضافي';
 
   @override
   String get tafsirButton => 'التفسير';

@@ -5,6 +5,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/daos/quran_com_reciter_dao.dart';
 import '../../../core/database/daos/reciter_dao.dart';
 import 'mp3quran_api.dart';
+import 'quran_audio_reciter_mapping.dart';
 import 'quran_com_api.dart';
 import 'quran_com_reciter_mapping.dart';
 import 'reciter_ru_names.dart';
@@ -31,24 +32,19 @@ String? resolveSurahUrl(Reciter reciter, int surahNumber) {
   return '$base$surahStr.mp3';
 }
 
-/// Резолв URL суры через Quran.com CDN (Sprint 1.5).
+/// Резолв per-surah URL через QuranAudio CDN (quranicaudio.com) —
+/// см. [resolveQuranAudioSurahUrl] в `quran_audio_reciter_mapping.dart`.
+/// Заменил сломанный per-surah резолв verses.quran.com (проверка
+/// 2026-08-25: `{path}/mp3/{NNN}.mp3` не существует на Quran.com CDN —
+/// 404; там есть только per-ayah).
 ///
-/// Источник истины — [kMp3quranToQuranCom]. `null` если для mp3quran.id
-/// нет маппинга (fallback на [resolveSurahUrl]).
-String? resolveQuranComSurahUrl(int? mp3quranId, int surahNumber) {
-  if (mp3quranId == null) return null;
-  final m = kMp3quranToQuranCom[mp3quranId];
-  if (m == null) return null;
-  final surahStr = surahNumber.toString().padLeft(3, '0');
-  // Per-surah URL — Quran.com тоже отдаёт per-surah (Alafasy/mp3/001.mp3
-  // содержит все 7 аятов Surah 1). Для per-ayah см. resolveQuranComAyahUrl.
-  return 'https://verses.quran.com/${m.path}/mp3/$surahStr.mp3';
-}
-
-/// Резолв URL конкретного аята (Sprint 1.5, Phase 2).
+/// Резолв URL конкретного аята через Quran.com CDN (Sprint 1.5, Phase 2).
 ///
-/// Per-ayah URL формат: `{reciter_path}/mp3/{SSSAYY}.mp3` где
-/// SSS = 3-значный номер суры, AYY = 3-значный номер аята.
+/// Per-ayah URL формат: `{reciter_path}/mp3/{SSSAYY}.mp3` где SSS =
+/// 3-значный номер суры, AYY = 3-значный номер аята. Проверено
+/// 2026-08-25: формат жив (200) — в отличие от per-surah, которого на
+/// Quran.com CDN нет. Используется kMp3quranToQuranCom (id + path
+/// стабильны для per-ayah).
 String? resolveQuranComAyahUrl(int? mp3quranId, int surahNumber, int ayahNumber) {
   if (mp3quranId == null) return null;
   final m = kMp3quranToQuranCom[mp3quranId];
@@ -56,6 +52,27 @@ String? resolveQuranComAyahUrl(int? mp3quranId, int surahNumber, int ayahNumber)
   final surahStr = surahNumber.toString().padLeft(3, '0');
   final ayahStr = ayahNumber.toString().padLeft(3, '0');
   return 'https://verses.quran.com/${m.path}/mp3/$surahStr$ayahStr.mp3';
+}
+
+/// Упорядоченный список кандидатов URL суры для отказоустойчивой
+/// загрузки: сначала QuranAudio CDN (quranicaudio.com, если есть
+/// маппинг), затем mp3quran.net.
+///
+/// Почему список, а не один URL: любой CDN может деградировать
+/// (mp3quran.net нестабилен с mid-2026 — DNS hijacks, rate limits;
+/// Quran.com вообще не имеет per-surah файлов). Перебор кандидатов
+/// деградирует мягко: если primary умер, playback/prefetch уходят на
+/// фоллбэк вместо «ничего не играет».
+List<String> resolveSurahUrlCandidates(Reciter reciter, int surahNumber) {
+  final candidates = <String>[];
+  final quranAudio =
+      resolveQuranAudioSurahUrl(reciter.mp3quranId, surahNumber);
+  if (quranAudio != null) candidates.add(quranAudio);
+  final mp3quran = resolveSurahUrl(reciter, surahNumber);
+  if (mp3quran != null && !candidates.contains(mp3quran)) {
+    candidates.add(mp3quran);
+  }
+  return candidates;
 }
 
 /// Префикс кэш-файла. Использует [Reciter.id] (формат `mp3quran:N`)
@@ -233,10 +250,21 @@ class RecitersRepository {
   /// записывает в БД. Три параллельных реквеста (ar + en + ru) за
   /// ~2-3 секунды суммарно. Идемпотентно — повторные вызовы
   /// обновляют кеш свежими данными.
+  ///
+  /// Бросает [StateError], если все языковые запросы упали (нет
+  /// сети / блок хоста) — иначе `fetchRecitersMultiLocale` тихо
+  /// вернёт пустой результат, и кнопка «Обновить список» в UI
+  /// выглядит «мёртвой» без какой-либо обратной связи.
   Future<int> syncFromApi({
     List<String> languages = const ['ar', 'eng', 'ru'],
   }) async {
     final merged = await _api.fetchRecitersMultiLocale(languages: languages);
+    if (merged.isEmpty) {
+      throw StateError(
+        'mp3quran.net API не вернул ни одного чтеца. '
+        'Проверьте подключение к интернету.',
+      );
+    }
     final now = DateTime.now().millisecondsSinceEpoch;
     var inserted = 0;
     for (final entry in merged.entries) {
@@ -353,26 +381,6 @@ class RecitersRepository {
       name: 'reciters_repo',
     );
     return inserted;
-  }
-
-  /// Hybrid resolve: предпочитает Quran.com если запись есть, иначе
-  /// fallback на mp3quran CDN.
-  ///
-  /// Synchronous: lookup через static-маппинг `kMp3quranToQuranCom`
-  /// (см. [quran_com_reciter_mapping.dart]). Не async — UI поток
-  /// не должен ждать lookup'а в DB при начале playback'а. На
-  /// практике все 8 дефолтных ректоров покрыты маппингом; если
-  /// потребуется hot-add нового ректора без перекомпиляции —
-  /// `kMp3quranToQuranCom` можно расширить.
-  ///
-  /// Ранее здесь был TODO про AsyncValue/FutureProvider; после
-  /// cutover (2026-07-17, см. `audio_player_controller.dart:229`)
-  /// static map достаточно. Async-вариант можно сделать если
-  /// потребуется динамическая синхронизация маппинга с
-  /// `QuranComReciterDao` (см. `reciters_sync_service.dart:314`).
-  String? resolveSurahUrlHybrid(Reciter reciter, int surahNumber) {
-    return resolveQuranComSurahUrl(reciter.mp3quranId, surahNumber) ??
-        resolveSurahUrl(reciter, surahNumber);
   }
 
   /// Стрим избранных.

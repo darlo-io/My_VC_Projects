@@ -11,14 +11,14 @@ import '../../../../l10n/generated/app_localizations.dart';
 
 /// Пути к PNG-иконкам главного экрана (см. `assets/icons/home/`).
 /// Извлечены из макета, валидированы визуально.
-const String _kIconRead = 'assets/icons/home/read.png';
-const String _kIconListen = 'assets/icons/home/listen.png';
-const String _kIconLearn = 'assets/icons/home/learn.png';
-const String _kIconTest = 'assets/icons/home/test.png';
-const String _kIconTasbih = 'assets/icons/home/tasbih.png';
-const String _kIconStats = 'assets/icons/home/stats.png';
-const String _kIconQuranRehal = 'assets/icons/home/quran_rehal.png';
-const String _kIconSettings = 'assets/icons/home/settings.png';
+const String _kIconRead = 'assets/icons/home/read.webp';
+const String _kIconListen = 'assets/icons/home/listen.webp';
+const String _kIconLearn = 'assets/icons/home/learn.webp';
+const String _kIconTest = 'assets/icons/home/test.webp';
+const String _kIconTasbih = 'assets/icons/home/tasbih.webp';
+const String _kIconStats = 'assets/icons/home/stats.webp';
+const String _kIconQuranRehal = 'assets/icons/home/quran_rehal.webp';
+const String _kIconSettings = 'assets/icons/home/settings.webp';
 
 /// WebP-фон главного экрана: мечеть в правом верхнем углу, левая
 /// половина — кремовая (`AppColors.background`). Генерируется из
@@ -231,7 +231,15 @@ class _Header extends StatelessWidget {
             height: 40,
             child: Padding(
               padding: const EdgeInsets.all(10),
-              child: Image.asset(_kIconSettings, fit: BoxFit.contain),
+              // cacheWidth декодирует битмап в размере отображения
+              // (исходные PNG 370×350 px), экономя память и время
+              // декода на главном экране.
+              child: Image.asset(
+                _kIconSettings,
+                fit: BoxFit.contain,
+                cacheWidth:
+                    (20 * MediaQuery.devicePixelRatioOf(context)).round(),
+              ),
             ),
           ),
         ),
@@ -342,7 +350,12 @@ class _ContinueCard extends StatelessWidget {
               SizedBox(
                 width: 56,
                 height: 56,
-                child: Image.asset(_kIconQuranRehal, fit: BoxFit.contain),
+                child: Image.asset(
+                  _kIconQuranRehal,
+                  fit: BoxFit.contain,
+                  cacheWidth:
+                      (56 * MediaQuery.devicePixelRatioOf(context)).round(),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -593,6 +606,10 @@ Padding(
                       child: Image.asset(
                         item.iconAsset,
                         fit: BoxFit.contain,
+                        // Иконка показывается в ~44 dp (64 − padding 2×10).
+                        cacheWidth:
+                            (44 * MediaQuery.devicePixelRatioOf(context))
+                                .round(),
                       ),
                     ),
                     const SizedBox(height: 8),

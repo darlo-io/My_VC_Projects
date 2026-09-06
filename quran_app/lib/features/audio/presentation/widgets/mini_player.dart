@@ -5,12 +5,32 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/providers.dart';
 import '../../../../core/i18n/localized_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/audio_player_controller.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/ornaments.dart';
 
 /// Компактный плеер поверх экрана, когда идёт воспроизведение.
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
+
+  /// Подзаголовок: текущий аят + позиция/длительность
+  /// («Аят 3 из 7 · 01:24 / 02:10»). Раньше здесь было имя чтеца,
+  /// которое для синкнутых id (`mp3quran:N`) резолвилось в '?'.
+  static String _subtitle(AudioPlayerState s) {
+    final total = s.totalAyahs ?? s.surah?.ayahCount ?? 0;
+    final raw = s.currentAyah ?? 1;
+    final cur = total > 0 ? raw.clamp(1, total) : raw;
+    final ayahPart =
+        total > 0 ? 'Аят $cur из $total' : 'Аят $cur';
+    if (s.durationMs <= 0) return ayahPart;
+    return '$ayahPart · ${_fmt(s.positionMs)} / ${_fmt(s.durationMs)}';
+  }
+
+  static String _fmt(int ms) {
+    final s = ms < 0 ? 0 : ms ~/ 1000;
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${s ~/ 60}:${two(s % 60)}';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -81,18 +101,14 @@ class MiniPlayer extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        hasError
-                            ? t.playerError
-                            : (state.reciter == null
-                                ? ''
-                                : t.reciterName(
-                                    state.reciter!.id,
-                                    fallback: state.reciter!.nameEn,
-                                  )),
+                        hasError ? t.playerError : _subtitle(state),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11,
+                          fontFeatures: hasError
+                              ? null
+                              : const [FontFeature.tabularFigures()],
                           color: hasError
                               ? AppColors.error
                               : AppColors.textTertiary,

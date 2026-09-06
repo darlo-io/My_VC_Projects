@@ -208,6 +208,7 @@ class CircleIconButton extends StatelessWidget {
     this.iconSize = 22,
     this.background = AppColors.surface,
     this.borderColor = AppColors.borderSubtle,
+    this.iconColor = AppColors.gold,
     super.key,
   });
 
@@ -217,6 +218,7 @@ class CircleIconButton extends StatelessWidget {
   final double iconSize;
   final Color background;
   final Color borderColor;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -233,7 +235,7 @@ class CircleIconButton extends StatelessWidget {
             color: background,
             border: Border.all(color: borderColor),
           ),
-          child: Icon(icon, color: AppColors.gold, size: iconSize),
+          child: Icon(icon, color: iconColor, size: iconSize),
         ),
       ),
     );

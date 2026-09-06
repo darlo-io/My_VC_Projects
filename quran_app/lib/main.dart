@@ -27,10 +27,14 @@ Future<void> main() async {
 // готов. `OrientationGuard._portraitOnly` (default) =
 // portrait-only, как и `routerDelegate.currentConfiguration` listener
 // в `app_router.dart` применит то же значение при первом push'е.
-await SystemChrome.setPreferredOrientations(const [
-  DeviceOrientation.portraitUp,
-  DeviceOrientation.portraitDown,
-]);
+//
+// Оптимизация стартапа: три независимые операции (orientations,
+// prefs, AudioService.init) запускаются параллельно и await'ятся
+// вместе — критический путь равен самой долгой из них, а не сумме.
+    final orientationsFuture = SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -41,17 +45,6 @@ await SystemChrome.setPreferredOrientations(const [
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
-
-    final prefs = await SharedPreferences.getInstance();
-    // Установить язык системы по умолчанию при первом запуске
-    if (prefs.getString('app.languageCode') == null) {
-      final sysLocale = WidgetsBinding.instance.platformDispatcher.locale;
-      final supported = ['ru', 'en', 'ar'];
-      final detected = supported.contains(sysLocale.languageCode)
-          ? sysLocale.languageCode
-          : 'en';
-      await prefs.setString('app.languageCode', detected);
-    }
 
     // Initialize audio_service first — it constructs the handler and
     // wires it to the OS-level media session + foreground service. The
@@ -72,7 +65,23 @@ await SystemChrome.setPreferredOrientations(const [
     // доказать «definitely assigned» (иначе `final QuranAudioHandler
     // handler` в try/catch ругается «might already be assigned» —
     // см. kernel_snapshot_program failed... handler).
-    final handler = await _initAudioHandler();
+    //
+    // Запускаем до await prefs — параллельно с остальным startup'ом.
+    final handlerFuture = _initAudioHandler();
+
+    final prefs = await SharedPreferences.getInstance();
+    // Установить язык системы по умолчанию при первом запуске
+    if (prefs.getString('app.languageCode') == null) {
+      final sysLocale = WidgetsBinding.instance.platformDispatcher.locale;
+      final supported = ['ru', 'en', 'ar'];
+      final detected = supported.contains(sysLocale.languageCode)
+          ? sysLocale.languageCode
+          : 'en';
+      await prefs.setString('app.languageCode', detected);
+    }
+
+    await orientationsFuture;
+    final handler = await handlerFuture;
 
     final container = ProviderContainer(
       overrides: [

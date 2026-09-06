@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/content/content_bootstrapper.dart';
 import '../core/content/content_manifest.dart';
 import '../core/content/content_update_service.dart';
+import '../core/content/local_seed_service.dart';
 import '../core/content/quran_manifest_api.dart';
 import '../core/data/bookmarks_repository.dart';
 import '../core/data/learning_repository.dart';
@@ -149,6 +150,10 @@ Future<void> setLanguageCode(String? code) =>
     await state.setReadingMode(mode);
   }
 
+  Future<void> setActiveTranslatorId(int id) async {
+    await state.setActiveTranslatorId(id);
+  }
+
   // Custom DNS settings вЂ” РќР• С‚СЂРёРіРіРµСЂРёРј app-wide rebuild
   // Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё; РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЏРІРЅРѕ РЅР°Р¶РёРјР°РµС‚ Save РІ Settings,
   // Рё `dioProvider` СЃРґРµР»Р°РµС‚ `_ref.invalidate(...)` СЏРІРЅРѕ С‡РµСЂРµР·
@@ -216,8 +221,16 @@ Future<void> setReciterId(String id) async {
 Future<void> setThemeMode(String mode) =>
     _setAndNotify(() => state.setThemeMode(mode));
 
-Future<void> setFirstLaunchDone(bool v) =>
-    _setAndNotify(() => state.setFirstLaunchDone(v));
+  Future<void> setFirstLaunchDone(bool v) async {
+    // БЕЗ `state = AppPreferences(_prefs)` — app-wide rebuild в этот
+    // момент (сразу после `bootstrap()` на чистой установке)
+    // пересобирал `contentBootstrapperProvider` и провоцировал
+    // гоночный цикл редиректов `/bootstrap` ↔ `/onboarding`
+    // (пользователь застревал на «Загрузка Корана…»). Значение
+    // читается напрямую через геттер `isFirstLaunchDone` — синхронно
+    // и всегда свежо, подписчики не нужны.
+    await state.setFirstLaunchDone(v);
+  }
 
 Future<void> setCacheLimitMb(int mb) =>
     _setAndNotify(() => state.setCacheLimitMb(mb));
@@ -520,6 +533,15 @@ class DisplaySettingsNotifier extends StateNotifier<ReaderDisplaySettings> {
     state = s;
   }
 
+  /// Обновить ТОЛЬКО in-memory state, без записи в SharedPreferences.
+  ///
+  /// Для непрерывных жестов ([Slider.onChanged]): каждый тик драга
+  /// иначе гоняет JSON-encode + 4 platform-channel записи (~50–60/с).
+  /// Персист выполняет [set] один раз в `onChangeEnd`.
+  void setLocal(ReaderDisplaySettings s) {
+    state = s;
+  }
+
   /// РџСЂРёРЅСѓРґРёС‚РµР»СЊРЅС‹Р№ refresh вЂ” РІС‹Р·С‹РІР°РµС‚СЃСЏ РёР· `AppPreferencesNotifier.setDisplaySettings`
   /// РµСЃР»Рё С‡С‚Рѕ-С‚Рѕ (РЅР°РїСЂРёРјРµСЂ, `clearAll`) РёР·РјРµРЅРёР»Рѕ displaySettings РІ
   /// SharedPreferences РёР·РІРЅРµ РЅР°С€РµРіРѕ РїСЂСЏРјРѕРіРѕ flow.
@@ -799,8 +821,11 @@ final contentBootstrapperProvider = Provider<ContentBootstrapper>(
       surahDao: ref.watch(surahDaoProvider),
       ayahDao: ref.watch(ayahDaoProvider),
       translationDao: ref.watch(translationDaoProvider),
+      wordsDao: ref.watch(wordsDaoProvider),
+      wordTimingsDao: ref.watch(wordTimingsDaoProvider),
       manifestRepository: ref.watch(contentManifestRepositoryProvider),
       recitersRepository: ref.watch(recitersRepositoryProvider),
+      localSeed: LocalSeedService(),
       contentUpdateService: ref.watch(contentUpdateServiceProvider),
       audioCache: ref.watch(audioCacheProvider),
       recitersSyncService: ref.watch(recitersSyncServiceProvider),
@@ -927,24 +952,35 @@ final searchRepositoryProvider = Provider<SearchRepository>((ref) {
   );
 });
 
-/// РЎРѕСЃС‚РѕСЏРЅРёРµ РєРѕРЅС‚РµРЅС‚Р°: Р·Р°РіСЂСѓР¶РµРЅ Р»Рё С‚РµРєСЃС‚ РљРѕСЂР°РЅР°.
+/// Состояние контента: загружен ли текст Корана.
 class ContentReadyNotifier extends AsyncNotifier<bool> {
   @override
   Future<bool> build() async {
-    final bootstrapper = ref.watch(contentBootstrapperProvider);
+    // `ref.read`, а НЕ `ref.watch`: пересборка графа бутстрапера
+    // (например, каскад от `appPreferencesProvider`) не должна
+    // перезапускать `build()` и затирать состояние, установленное
+    // `bootstrap()`. Явная ревалидация — только через
+    // `ref.invalidate(contentReadyProvider)` (см. `resetAllUserData`).
+    final bootstrapper = ref.read(contentBootstrapperProvider);
     return bootstrapper.isReady();
   }
 
   Future<void> bootstrap() async {
+    // `build()` уже выполнил isReady() — фиксируем результат до
+    // сброса в loading, чтобы не делать повторные COUNT-запросы
+    // на каждый warm start.
+    final alreadyReady = state.valueOrNull;
     state = const AsyncValue.loading();
     try {
-      final ok = await ref.read(contentBootstrapperProvider).bootstrap();
+      final ok = await ref
+          .read(contentBootstrapperProvider)
+          .bootstrap(ready: alreadyReady);
       state = AsyncValue.data(ok);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       // Re-throw so the caller (e.g. _BootstrapScreen) can show a retry
       // button. Without this, errors are silently absorbed: the router
-      // stays on /bootstrap and the user sees an infinite "LoadingвЂ¦"
+      // stays on /bootstrap and the user sees an infinite "Loading…"
       // screen with no way to recover.
       rethrow;
     }

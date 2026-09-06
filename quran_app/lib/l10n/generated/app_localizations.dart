@@ -2515,13 +2515,13 @@ abstract class AppLocalizations {
   /// No description provided for @displaySettingsGroupText.
   ///
   /// In en, this message translates to:
-  /// **'Text'**
+  /// **'Arabic text'**
   String get displaySettingsGroupText;
 
   /// No description provided for @displaySettingsGroupLayout.
   ///
   /// In en, this message translates to:
-  /// **'Layout'**
+  /// **'Page layout'**
   String get displaySettingsGroupLayout;
 
   /// No description provided for @displaySettingsGroupTheme.
@@ -2584,71 +2584,53 @@ abstract class AppLocalizations {
   /// **'Reset'**
   String get displaySettingsReset;
 
-  /// No description provided for @displaySettingsResetConfirmTitle.
+  /// No description provided for @displaySettingsResetDone.
   ///
   /// In en, this message translates to:
-  /// **'Reset all display settings?'**
-  String get displaySettingsResetConfirmTitle;
+  /// **'Settings have been reset'**
+  String get displaySettingsResetDone;
 
-  /// No description provided for @displaySettingsResetConfirmBody.
+  /// No description provided for @displaySettingsLetterSpacing.
   ///
   /// In en, this message translates to:
-  /// **'All reading display parameters will return to defaults. Your last position and bookmarks are kept.'**
-  String get displaySettingsResetConfirmBody;
+  /// **'Letter spacing'**
+  String get displaySettingsLetterSpacing;
 
-  /// No description provided for @displaySettingsDiscardTitle.
+  /// No description provided for @displaySettingsTextWidth.
   ///
   /// In en, this message translates to:
-  /// **'Discard changes?'**
-  String get displaySettingsDiscardTitle;
+  /// **'Text width'**
+  String get displaySettingsTextWidth;
 
-  /// No description provided for @displaySettingsDiscardBody.
+  /// No description provided for @displaySettingsGroupReading.
   ///
   /// In en, this message translates to:
-  /// **'Your changes to the display settings were not saved. Leave anyway?'**
-  String get displaySettingsDiscardBody;
+  /// **'Reading'**
+  String get displaySettingsGroupReading;
 
-  /// No description provided for @displaySettingsSave.
+  /// No description provided for @displaySettingsKeepScreenOn.
   ///
   /// In en, this message translates to:
-  /// **'Done'**
-  String get displaySettingsSave;
+  /// **'Keep screen on'**
+  String get displaySettingsKeepScreenOn;
 
-  /// No description provided for @displaySettingsDiscard.
+  /// No description provided for @displaySettingsAutoScrollSpeed.
   ///
   /// In en, this message translates to:
-  /// **'Discard'**
-  String get displaySettingsDiscard;
+  /// **'Auto-scroll speed'**
+  String get displaySettingsAutoScrollSpeed;
 
-  /// No description provided for @displaySettingsCancel.
+  /// No description provided for @readerAutoScroll.
   ///
   /// In en, this message translates to:
-  /// **'Cancel'**
-  String get displaySettingsCancel;
+  /// **'Auto-scroll'**
+  String get readerAutoScroll;
 
-  /// No description provided for @displaySettingsUnitPx.
+  /// No description provided for @readerTranslationToggle.
   ///
   /// In en, this message translates to:
-  /// **'px'**
-  String get displaySettingsUnitPx;
-
-  /// No description provided for @displaySettingsUnitPercent.
-  ///
-  /// In en, this message translates to:
-  /// **'%'**
-  String get displaySettingsUnitPercent;
-
-  /// No description provided for @displaySettingsFontFamilyAmiriRegular.
-  ///
-  /// In en, this message translates to:
-  /// **'Amiri Regular'**
-  String get displaySettingsFontFamilyAmiriRegular;
-
-  /// No description provided for @displaySettingsFontFamilyAmiriBold.
-  ///
-  /// In en, this message translates to:
-  /// **'Amiri Bold'**
-  String get displaySettingsFontFamilyAmiriBold;
+  /// **'Show/hide translation'**
+  String get readerTranslationToggle;
 
   /// No description provided for @displaySettingsThemeDark.
   ///
@@ -2679,6 +2661,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'In the name of Allah, the Most Gracious, the Most Merciful.'**
   String get displaySettingsPreviewTranslation;
+
+  /// No description provided for @displaySettingsUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get displaySettingsUndo;
+
+  /// No description provided for @displaySettingsGroupTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation'**
+  String get displaySettingsGroupTranslation;
+
+  /// No description provided for @displaySettingsTranslatorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'select translation'**
+  String get displaySettingsTranslatorHint;
+
+  /// No description provided for @displaySettingsTranslatorError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load translators'**
+  String get displaySettingsTranslatorError;
+
+  /// No description provided for @displaySettingsTranslatorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Translator'**
+  String get displaySettingsTranslatorTitle;
+
+  /// No description provided for @displaySettingsReadingMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading mode'**
+  String get displaySettingsReadingMode;
+
+  /// No description provided for @displaySettingsAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get displaySettingsAdvanced;
 
   /// No description provided for @tafsirButton.
   ///

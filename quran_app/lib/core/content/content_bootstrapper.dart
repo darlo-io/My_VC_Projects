@@ -7,13 +7,19 @@ import 'package:flutter/foundation.dart' show ValueNotifier;
 import '../../features/audio/data/reciters_repository.dart';
 import '../../features/audio/data/reciters_sync_service.dart';
 import '../../features/audio/data/audio_cache.dart';
+import '../../features/quran/data/al_fatiha_seed.dart';
 import '../database/app_database.dart';
 import '../database/daos/ayah_dao.dart';
 import '../database/daos/surah_dao.dart';
 import '../database/daos/translation_dao.dart';
+import '../database/daos/word_timings_dao.dart';
+import '../database/daos/words_dao.dart';
 import '../database/surah_ru_names.dart';
+import '../search/arabic_normalizer.dart';
 import 'content_manifest.dart';
 import 'content_update_service.dart';
+import 'local_seed_service.dart';
+import 'seed_types.dart';
 
 class ContentBootstrapper {
   ContentBootstrapper({
@@ -21,8 +27,11 @@ class ContentBootstrapper {
     required this.surahDao,
     required this.ayahDao,
     required this.translationDao,
+    required this.wordsDao,
+    required this.wordTimingsDao,
     required this.manifestRepository,
     required this.recitersRepository,
+    required this.localSeed,
     this.contentUpdateService,
     this.audioCache,
     this.recitersSyncService,
@@ -32,8 +41,16 @@ class ContentBootstrapper {
   final SurahDao surahDao;
   final AyahDao ayahDao;
   final TranslationDao translationDao;
+  final WordsDao wordsDao;
+  final WordTimingsDao wordTimingsDao;
   final ContentManifestRepository manifestRepository;
   final RecitersRepository recitersRepository;
+
+  /// Локальный seed-датасет (все 114 сур + переводы), вшитый в APK
+  /// как `assets/quran_seed/quran_full.json`. Гарантирует полностью
+  /// офлайн первый запуск — сеть не требуется никогда в критическом
+  /// пути бутстрапа.
+  final LocalSeedService localSeed;
 
   /// Опциональный [ContentUpdateService] для network-fetch +
   /// verify + apply manifest'а. Передаётся вызывающим (см.
@@ -57,6 +74,11 @@ class ContentBootstrapper {
   /// Состояние прогресса для UI.
   final ValueNotifier<BootstrapProgress> progress =
       ValueNotifier(const BootstrapProgress.idle());
+
+  /// Реентерабельность-гард: повторный вызов `bootstrap()` во время
+  /// активного (remount bootstrap-экрана, двойной `_run`) шарит тот
+  /// же Future вместо запуска второй сид-транзакции.
+  Future<bool>? _inFlight;
 
   /// Прогресс сетевой загрузки остальных сур (опционально).
   final ValueNotifier<NetworkFetchProgress> networkProgress =
@@ -89,16 +111,34 @@ class ContentBootstrapper {
     }
   }
 
-  /// затем (опционально) пробует сеть для проверки обновлений.
-  /// Возвращает true, если контент применён.
-  Future<bool> bootstrap() async {
+  /// Текст Корана бандлится в APK (`assets/quran_seed/quran_full.json`)
+  /// и сидируется в БД на первой установке — сеть НЕ требуется
+  /// (критический путь полностью офлайн). Сетевые проверки —
+  /// только best-effort в фоне. Возвращает true, если контент применён.
+  ///
+  /// [ready] — готовность контента, если вызывающий её только что
+  /// определил (например `ContentReadyNotifier.build`). Позволяет не
+  /// выполнять повторные COUNT-запросы. `null` — запросить самим.
+  Future<bool> bootstrap({bool? ready}) async {
+    final inflight = _inFlight;
+    if (inflight != null) return inflight;
+    final future = _bootstrapLocked(ready: ready);
+    _inFlight = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_inFlight, future)) _inFlight = null;
+    }
+  }
+
+  Future<bool> _bootstrapLocked({bool? ready}) async {
     // Round 8: `seedTranslators()` теперь вызывается из main.dart
     // через postFrameCallback на каждом cold start, чтобы existing
     // installations получили translators. Раньше я дублировал
     // вызов здесь — убрал, т.к. двойной вызов не нужен и мог
     // приводить к race condition при записи в БД.
     developer.log('bootstrap START', name: 'ContentBootstrapper');
-    if (await isReady()) {
+    if (ready ?? await isReady()) {
 
       // Repair-pass: на старых install'ах v11→v12 backfill отработал
       // вхолостую (таблица surahs была ещё пуста на момент миграции),
@@ -110,15 +150,17 @@ class ContentBootstrapper {
 
       progress.value = const BootstrapProgress.complete(offline: true);
     } else {
-      // Round 9.4: cold install без quran_full.json.
-      // translators уже seedятся через seedTranslators() (Round 8).
-      // verses и surahs metadata будут загружены lazy-load'ом
-      // при первом открытии Reader через AyahsService.
-      progress.value = const BootstrapProgress.complete(offline: false);
+      // Свежая установка / после сброса данных: сидируем все 114 сур
+      // из бандла в БД. Одна транзакция — при прерывании БД
+      // остаётся пустой и следующий запуск повторит с нуля.
+      progress.value = const BootstrapProgress.loadingLocal();
+      final result = await localSeed.load();
+      await _applyLocalSeed(result);
+      progress.value = const BootstrapProgress.complete(offline: true);
     }
 
     // 2) Сетевой fetch — best-effort, не блокирует UI. Если не
-    // получится — приложение работает на lazy-fetch данных. Запускаем
+    // получится — приложение работает на локальном сиде. Запускаем
     // в ОБОИХ ветках (cold install + warm start) — это критично:
     // без него ContentUpdateService никогда не сработает на
     // устройствах, где seed-bootstrap уже завершился.
@@ -176,23 +218,180 @@ class ContentBootstrapper {
   /// ничего не меняет, если данные уже есть. Нужно для устройств,
   /// которые установили v12 до того, как мы начали заполнять русские
   /// имена при bootstrap'е.
+  ///
+  /// Оптимизация стартапа: раньше выполнялось до 228 awaited UPDATE
+  /// на каждый warm start. Теперь — один дешёвый pre-check SELECT:
+  /// если NULL-строк нет (нормальный случай), сразу выходим. Если
+  /// есть — все UPDATE в одной транзакции.
   Future<void> _backfillMissingRussianSurahNames() async {
-    for (var i = 1; i <= 114; i++) {
-      final name = kSurahRuNames[i];
-      if (name != null) {
-        await db.customStatement(
-          'UPDATE surahs SET name_ru = ? WHERE id = ? AND name_ru IS NULL',
-          [name, i],
-        );
-      }
-      final sub = kSurahRuSubtitles[i];
-      if (sub != null) {
-        await db.customStatement(
-          'UPDATE surahs SET subtitle_ru = ? WHERE id = ? AND subtitle_ru IS NULL',
-          [sub, i],
-        );
-      }
+    final missing = await db.customSelect(
+      'SELECT COUNT(*) AS c FROM surahs '
+      'WHERE name_ru IS NULL OR subtitle_ru IS NULL',
+    ).getSingle();
+    if (missing.read<int>('c') == 0) {
+      return;
     }
+
+    await db.transaction(() async {
+      for (var i = 1; i <= 114; i++) {
+        final name = kSurahRuNames[i];
+        if (name != null) {
+          await db.customStatement(
+            'UPDATE surahs SET name_ru = ? WHERE id = ? AND name_ru IS NULL',
+            [name, i],
+          );
+        }
+        final sub = kSurahRuSubtitles[i];
+        if (sub != null) {
+          await db.customStatement(
+            'UPDATE surahs SET subtitle_ru = ? WHERE id = ? AND subtitle_ru IS NULL',
+            [sub, i],
+          );
+        }
+      }
+    });
+  }
+
+  /// Применить локальный сид из `assets/quran_seed/quran_full.json`:
+  /// surahs + ayahs + translators + translations одной транзакцией,
+  /// затем backfill `juz`/`page`/`hizb` (миграция `onCreate`
+  /// отработала по пустым таблицам ДО сидирования) и запись
+  /// `defaultManifest` с SHA256 payload'а.
+  ///
+  /// Одна транзакция на весь контент: при прерывании (краш,
+  /// нехватка диска) откатывается всё, и следующий запуск
+  /// повторяет сидирование с нуля — полупосеянной БД не бывает.
+  Future<void> _applyLocalSeed(ContentDownloadResult result) async {
+    developer.log('_applyLocalSeed START (${result.ayahs.length} ayahs)',
+        name: 'ContentBootstrapper');
+    await db.transaction(() async {
+      await surahDao.insertAll(
+        result.surahs.map((s) {
+          final number = s['number'] as int;
+          return SurahsCompanion.insert(
+            id: Value(number),
+            nameAr: (s['name'] as String?) ?? '',
+            nameEn: (s['englishName'] as String?) ?? '',
+            nameTransliteration:
+                (s['englishNameTranslation'] as String?) ?? '',
+            revelationType: (s['revelationType'] as String?) ?? '',
+            ayahCount: s['numberOfAyahs'] as int,
+            orderInMushaf: number,
+            // JSON seed не содержит русских имён — заполняем сразу
+            // из констант (иначе миграционный backfill по пустой
+            // таблице уже отработал вхолостую).
+            nameRu: Value(kSurahRuNames[number]),
+            subtitleRu: Value(kSurahRuSubtitles[number]),
+          );
+        }).toList(),
+      );
+      await ayahDao.insertAyahs(
+        result.ayahs
+            .map(
+              (a) => AyahsCompanion.insert(
+                id: Value(a['id'] as int),
+                surahId: a['surah_id'] as int,
+                ayahNumber: a['ayah_number'] as int,
+                textUthmani: a['text_uthmani'] as String,
+                // Нормализация предвычислена в seed-изоляте
+                // (LocalSeedService._doLoad); fallback на локальную
+                // нормализацию для seed'ов из сети, где ключа нет.
+                textNormalized: (a['text_normalized'] as String?) ??
+                    ArabicNormalizer.normalize(a['text_uthmani'] as String),
+                // juz/page/hizb остаются NULL при вставке и
+                // заполняются ниже через backfill-методы.
+              ),
+            )
+            .toList(),
+      );
+      await translationDao.insertTranslators(
+        result.translators
+            .map(
+              (t) => TranslatorsCompanion.insert(
+                id: Value(t['id'] as int),
+                name: t['name'] as String,
+                languageCode: t['language_code'] as String,
+                source: (t['source'] as String?) ?? '',
+              ),
+            )
+            .toList(),
+      );
+      await translationDao.insertTranslations(
+        result.translations
+            .map(
+              (t) => TranslationsCompanion.insert(
+                ayahId: t['ayah_id'] as int,
+                translatorId: t['translator_id'] as int,
+                languageCode: t['language_code'] as String,
+                textValue: t['text'] as String,
+              ),
+            )
+            .toList(),
+      );
+    });
+
+    // Backfill juz/page/hizb ПОСЛЕ сидирования (миграционные
+    // вызовы в `onCreate` отработали по пустой таблице). Оба
+    // метода идемпотентны — повторный запуск безопасен.
+    await ayahDao.backfillJuzColumn();
+    await ayahDao.backfillPageAndHizbColumn();
+
+    // Manifest: фиксируем применённую версию + SHA256 payload'а —
+    // следующий бутстрап сможет проверить бандл на повреждение.
+    // Хеш считается в том же фоновом изоляте, что и парсинг seed'а
+    // (см. LocalSeedService.rawSha256) — без повторного чтения
+    // 5.7 МБ актива на UI-потоке.
+    await manifestRepository.apply(
+      defaultManifest(),
+      payloadSha256: localSeed.rawSha256,
+    );
+
+    // Сид словаря слов: из `words`-блока JSON (если есть; сейчас
+    // бандл его не содержит) либо хардкод Аль-Фатихи как минимум.
+    await _seedWordsFromResult(result);
+    await _seedAlFatihaWords();
+  }
+
+  /// Вставка `words` из сид-файла. Идемпотентно: если таблица уже
+  /// заполнена — no-op (не мержим, чтобы не дублировать позиции).
+  Future<void> _seedWordsFromResult(ContentDownloadResult result) async {
+    if (result.words.isEmpty) return;
+    if (await wordsDao.count() > 0) return;
+    await wordsDao.insertAll(
+      result.words
+          .map(
+            (w) => WordsCompanion.insert(
+              ayahId: w['ayah_id'] as int,
+              position: w['position'] as int,
+              arabic: w['arabic'] as String,
+              normalized: w['arabic'] as String,
+              translation: Value(w['translation'] as String?),
+              lemma: Value(w['lemma'] as String?),
+              root: Value(w['root'] as String?),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  /// Хардкод-сид слов Аль-Фатихи (+ тайминги) — минимальное
+  /// покрытие для per-word фич на свежей установке, пока полный
+  /// словарь не подтянут из сети. Идемпотентно через count-проверку.
+  Future<void> _seedAlFatihaWords() async {
+    if (await wordsDao.count() > 0) return;
+    const baseAyahId = 1;
+    await wordsDao.insertAll(AlFatihaSeed.wordsCompanions(baseAyahId));
+    final firstWord = await db.customSelect(
+      'SELECT id FROM words WHERE ayah_id = ? ORDER BY id ASC LIMIT 1',
+      variables: [Variable.withInt(baseAyahId)],
+      readsFrom: {db.words},
+    ).getSingleOrNull();
+    if (firstWord == null) return;
+    final timings = AlFatihaSeed.buildTimings(
+      baseAyahId: baseAyahId,
+      wordsBaseId: firstWord.read<int>('id'),
+    );
+    await wordTimingsDao.insertAll(timings);
   }
 
   /// В фоне: проверка обновлений через сеть. Не критично.

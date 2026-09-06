@@ -13,9 +13,16 @@ class SurahTimings {
 
 final wordTimingsForCurrentSurahProvider =
     FutureProvider.autoDispose<SurahTimings>((ref) async {
-  final state = ref.watch(audioPlayerControllerProvider);
-  final surah = state.surah;
-  final reciter = state.reciter;
+  // Селективная зависимость ТОЛЬКО от surah/reciter. Раньше watch на
+  // весь `AudioPlayerState` инвалидировал провайдер на каждый тик
+  // позиции → повторный DB-запрос таймингов всей суры десятки раз
+  // в секунду. Surah/Reciter — drift-строки со значимым `==`,
+  // поэтому `.select` не дёргает провайдер без реальной смены
+  // суры/ректора.
+  final surah =
+      ref.watch(audioPlayerControllerProvider.select((s) => s.surah));
+  final reciter =
+      ref.watch(audioPlayerControllerProvider.select((s) => s.reciter));
   if (surah == null || reciter == null) {
     return const SurahTimings(rows: [], startByWordId: {});
   }
@@ -35,25 +42,51 @@ class CurrentWordId {
   final int value;
   static const beforeFirst = CurrentWordId(-1);
   static const afterLast = CurrentWordId(-2);
+
+  /// Значимое равенство нужно `Stream.distinct()` в
+  /// [currentWordIdProvider]: виджеты получают событие только при
+  /// реальной смене слова, а не на каждый тик позиции.
+  @override
+  bool operator ==(Object other) =>
+      other is CurrentWordId && other.value == value;
+
+  @override
+  int get hashCode => value.hashCode;
 }
 
-final currentWordIdProvider = Provider.autoDispose<CurrentWordId>((ref) {
-  final state = ref.watch(audioPlayerControllerProvider);
-  if (!state.playing && !state.loading) {
-    return CurrentWordId.beforeFirst;
+/// Активное слово — потоковый провайдер поверх точного
+/// [AudioPlayerController.positionStream]. Эмитит значение только в
+/// момент смены слова (`distinct()`), поэтому 286 `_ArabicTextBody`
+/// открытой суры пересобираются 1–3 раза в секунду (на границах
+/// слов), а не ~20 раз на каждый тик позиции.
+final currentWordIdProvider =
+    StreamProvider.autoDispose<CurrentWordId>((ref) async* {
+  final playing =
+      ref.watch(audioPlayerControllerProvider.select((s) => s.playing));
+  if (!playing) {
+    yield CurrentWordId.beforeFirst;
+    return;
   }
-  final pos = state.positionMs;
-  final timings = ref.watch(wordTimingsForCurrentSurahProvider).value?.rows
-      ?? const [];
-  if (timings.isEmpty) return CurrentWordId.beforeFirst;
+  final timings = await ref.watch(wordTimingsForCurrentSurahProvider.future);
+  final rows = timings.rows;
+  if (rows.isEmpty) {
+    yield CurrentWordId.beforeFirst;
+    return;
+  }
+  final controller = ref.watch(audioPlayerControllerProvider.notifier);
+  yield* controller.positionStream
+      .map((p) => _wordIdAt(rows, p.inMilliseconds))
+      .distinct();
+});
 
-  // Бинарный поиск по startMs (контракт: timings отсортированы по
-  // startMs в пределах одной позиции).
+/// Бинарный поиск активного слова по `startMs` (контракт: timings
+/// отсортированы по `startMs` в пределах одной суры).
+CurrentWordId _wordIdAt(List<WordTimingRow> rows, int pos) {
   var lo = 0;
-  var hi = timings.length - 1;
+  var hi = rows.length - 1;
   while (lo <= hi) {
     final mid = (lo + hi) >> 1;
-    final t = timings[mid];
+    final t = rows[mid];
     if (pos < t.startMs) {
       hi = mid - 1;
     } else if (pos >= t.endMs) {
@@ -62,9 +95,9 @@ final currentWordIdProvider = Provider.autoDispose<CurrentWordId>((ref) {
       return CurrentWordId(t.wordId);
     }
   }
-  if (pos < timings.first.startMs) return CurrentWordId.beforeFirst;
+  if (pos < rows.first.startMs) return CurrentWordId.beforeFirst;
   return CurrentWordId.afterLast;
-});
+}
 
 /// Seek to a specific word in the currently loaded audio. O(1) lookup.
 Future<void> seekToWord(WidgetRef ref, int wordId) async {

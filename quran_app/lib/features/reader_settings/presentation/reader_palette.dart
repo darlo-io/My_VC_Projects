@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors_dark.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 
 /// Цветовая палитра одной из тем Reader'а. Не зависит от
 /// глобальной темы приложения: [themeVariant] живёт в
@@ -73,4 +74,61 @@ class ReaderPalette {
   /// Находит палитру по `themeVariant`. Неизвестный id →
   /// [dark] (фолбэк — глазам комфортно всегда).
   static ReaderPalette of(String id) => all[id] ?? _dark;
+
+  /// Локализованное имя темы (единая точка правды — дублировалось в
+  /// Reader-popup и в экране настроек чтения). Неизвестный id
+  /// показываем как есть.
+  String label(AppLocalizations t) => themeVariantLabel(t, id);
+}
+
+/// Локализованное имя темы по `id`. См. [ReaderPalette.label].
+String themeVariantLabel(AppLocalizations t, String id) => switch (id) {
+      'dark' => t.displaySettingsThemeDark,
+      'sepia' => t.displaySettingsThemeSepia,
+      'light' => t.displaySettingsThemeLight,
+      'parchment' => t.displaySettingsThemeParchment,
+      _ => id,
+    };
+
+/// Круглый свотч темы (фон + золотая рамка). Общая отрисовка для
+/// Reader-popup и экрана настроек чтения.
+class ThemeVariantSwatch extends StatelessWidget {
+  const ThemeVariantSwatch({
+    required this.palette,
+    required this.size,
+    this.borderWidth = 2,
+    this.borderColor,
+    this.check = false,
+    this.checkColor,
+    super.key,
+  });
+
+  final ReaderPalette palette;
+  final double size;
+  final double borderWidth;
+
+  /// Переопределение цвета рамки (например, золотом выбранной темы).
+  /// `null` → золото самой палитры [palette].
+  final Color? borderColor;
+  final bool check;
+  final Color? checkColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: palette.background,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: borderColor ?? palette.gold,
+          width: borderWidth,
+        ),
+      ),
+      child: check
+          ? Icon(Icons.check, color: checkColor ?? palette.gold, size: size / 2)
+          : null,
+    );
+  }
 }

@@ -27,12 +27,28 @@ static const _routes = ['/', '/tasbih', '/bookmarks', '/profile'];
     for (var i = 0; i < _routes.length; i++) {
       if (location == _routes[i]) return i;
     }
-    return 0;
+    // Не-табовые маршруты внутри шелла (например, /listen) не
+    // подсвечивают ни один таб.
+    return -1;
   }
 
   @override
   Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).matchedLocation;
+    // ВАЖНО: GoRouterState.of(context).matchedLocation внутри билдера
+    // ShellRoute возвращает локацию САМОГО СЕГМЕНТА ШЕЛЛА ('/'), а не
+    // вложенного маршрута (/listen и т.п.) — из-за этого MiniPlayer
+    // «просачивался» на экран прослушивания. Берём полный путь
+    // текущей конфигурации — он всегда глубокий ('/listen').
+    final location = GoRouter.of(context)
+        .routerDelegate
+        .currentConfiguration
+        .uri
+        .path;
+    // TEMP-DEBUG: консольные логи не пробрасываются в этой связке —
+    // пишем location в файл, читается через `adb run-as cat`.
+    File(
+      '${Directory.systemTemp.path}/ms_location.txt',
+    ).writeAsStringSync(location);
     final index = _indexFor(location);
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -50,7 +66,14 @@ static const _routes = ['/', '/tasbih', '/bookmarks', '/profile'];
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const MiniPlayer(),
+          // На экране «Слушать» MiniPlayer скрыт: экран сам является
+          // полным плеером, дублирующий мини-плеер только съедает
+          // высоту. На остальных табах — быстрый доступ к плееру.
+          if (location != '/listen')
+            // RepaintBoundary: MiniPlayer репеинтится на каждом
+            // обновлении позиции/состояния плеера — без границы слой
+            // перерисовывал бы весь scaffold.
+            const RepaintBoundary(child: MiniPlayer()),
           // Светлая навигация — соответствует макету (белый фон,
           // серые иконки, оливковая активная с подсвеченным pill).
           Container(

@@ -58,6 +58,9 @@ app.*.map.json
 # (debug screenshots, extracted DB dumps, temp-path leaks, working lists).
 # These are NOT part of the project — kept locally only.
 screenshot*.png
+shot*.png
+reader.png
+resize_screenshot.ps1
 scr.png
 app_v12.bin
 app_v12.db

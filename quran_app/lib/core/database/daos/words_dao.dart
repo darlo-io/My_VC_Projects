@@ -17,12 +17,21 @@ part 'words_dao.g.dart';
 class WordsDao extends DatabaseAccessor<AppDatabase> with _$WordsDaoMixin {
   WordsDao(super.db);
 
-  /// Слова одного аята, отсортированные по position.
-  Future<List<Word>> getByAyah(int ayahId) =>
-      (select(words)
-            ..where((w) => w.ayahId.equals(ayahId))
-            ..orderBy([(w) => OrderingTerm.asc(w.position)]))
-          .get();
+  /// Слова всей суры одним запросом (JOIN с `ayahs`), отсортированные
+  /// по (ayah_number, position). Дешевле N отдельных запросов на аят:
+  /// открытие Аль-Бакары раньше делало 286 отдельных SELECT'ов.
+  Future<List<Word>> getBySurah(int surahId) async {
+    final query = select(words).join([
+      innerJoin(ayahs, ayahs.id.equalsExp(words.ayahId)),
+    ])
+      ..where(ayahs.surahId.equals(surahId))
+      ..orderBy([
+        OrderingTerm.asc(ayahs.ayahNumber),
+        OrderingTerm.asc(words.position),
+      ]);
+    final rows = await query.get();
+    return rows.map((r) => r.readTable(words)).toList(growable: false);
+  }
 
   Future<int> count() async {
     final row = await customSelect(

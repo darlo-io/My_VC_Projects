@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,54 +7,16 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/daos/surah_dao.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../../shared/widgets/screen_header.dart';
 import '../data/audio_player_controller.dart';
+import '../data/quran_audio_reciter_mapping.dart';
 import '../data/reciters_repository.dart';
-import '../data/quran_com_reciter_mapping.dart';
+import '../data/reciters_sync_service.dart';
 
-// === Theme constants for the redesigned listen screen ===
-// Тёмная изумрудная палитра в духе референса `docs/images/listen.png`.
-// Применяется только к этому экрану через Theme widget.
-const _kEmerald = Color(0xFF0B3D2E); // base поверхность
-const _kEmeraldDeep = Color(0xFF062A1F); // фон
-const _kGold = Color(0xFFD4A951); // акцент (как на референсе)
-const _kGoldSoft = Color(0xFFE0BC6C);
-const _kGoldDeep = Color(0xFFB8902A);
-const _kTextOnDark = Color(0xFFEFE6D0);
-const _kTextOnDarkSoft = Color(0xFFB6A989);
-
-ThemeData _buildListenTheme(BuildContext context) {
-  final base = Theme.of(context);
-  final darkBase = base.brightness == Brightness.dark
-      ? base
-      : ThemeData.dark().copyWith(
-          scaffoldBackgroundColor: _kEmeraldDeep,
-          canvasColor: _kEmeraldDeep,
-        );
-  return darkBase.copyWith(
-    scaffoldBackgroundColor: _kEmeraldDeep,
-    canvasColor: _kEmeraldDeep,
-    colorScheme: const ColorScheme.dark(
-      primary: _kGold,
-      onPrimary: _kEmeraldDeep,
-      secondary: _kGoldSoft,
-      onSecondary: _kEmeraldDeep,
-      surface: _kEmerald,
-      onSurface: _kTextOnDark,
-      surfaceContainerHighest: _kEmerald,
-      error: Color(0xFFE57373),
-    ),
-    textTheme: base.textTheme.copyWith(
-      bodyLarge: base.textTheme.bodyLarge?.copyWith(color: _kTextOnDark),
-      bodyMedium:
-          base.textTheme.bodyMedium?.copyWith(color: _kTextOnDarkSoft),
-      titleLarge: base.textTheme.titleLarge?.copyWith(
-        color: _kTextOnDark,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  );
-}
-
+/// Экран «Слушать» в общем стиле приложения: светлый кремовый фон,
+/// белые карточки с тонкой рамкой, золотые акценты (как на экране
+/// чтения). Отдельная тема не используется — работает глобальная
+/// светлая тема из [AppTheme.light].
 class ListenScreen extends ConsumerStatefulWidget {
   const ListenScreen({super.key});
 
@@ -67,6 +28,44 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
   String? _reciterId;
   int? _surahId;
   int? _ayahId;
+  bool _syncing = false;
+
+  /// Ручная синхронизация списка чтецов из пустого состояния.
+  /// Использует [RecitersSyncService.forceSync] (полный пайплайн:
+  /// mp3quran + quran.com + fix-up имён) вместо прямого вызова
+  /// репозитория — состояние сервиса даёт обратную связь, а стрим
+  /// `recitersStreamProvider` сам перерисует экран при успехе.
+  Future<void> _refreshReciters() async {
+    if (_syncing) return;
+    setState(() => _syncing = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final svc = ref.read(recitersSyncServiceProvider);
+      await svc.forceSync();
+      final st = svc.state.value;
+      if (!mounted) return;
+      if (st.stage == RecitersSyncStage.failed) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Не удалось обновить список: ${st.error}'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Не удалось обновить список: $e'),
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +73,6 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
     final locale = Localizations.localeOf(context);
     final localeCode = locale.languageCode;
     final recitersAsync = ref.watch(recitersStreamProvider);
-    final playerState = ref.watch(audioPlayerControllerProvider);
     final surahDao = ref.watch(surahDaoProvider);
 
     // Авто-выбор: при первой загрузке списка — первый ректор с
@@ -89,7 +87,7 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
             orElse: () => list.first,
           );
           _reciterId = candidate.id;
-          // Сурah по умолчанию — первая в БД.
+          // Сура по умолчанию — первая в БД.
           _surahId ??= 1;
           _ayahId ??= 1;
         }
@@ -128,128 +126,78 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
       }
     });
 
-    return Theme(
-      data: _buildListenTheme(context),
-      child: Scaffold(
-        backgroundColor: _kEmerald,
-        // Декоративный фоновый паттерн (мечеть + звёзды) — рендерится
-        // простым CustomPainter, чтобы не зависеть от assets.
-        body: Stack(
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Positioned.fill(
-              child: CustomPaint(painter: _IslamicPatternPainter()),
+            ScreenHeader(
+              title: t.navListen,
+              subtitle: t.navListenSubtitle,
+              onBack: () => safePop(context),
             ),
-            SafeArea(
-              bottom: false,
-              child: Column(
-                children: [
-                  _ListenTopBar(
-                    title: t.navListen,
-                    subtitle: t.navListenSubtitle,
-                    onBack: () => safePop(context),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: recitersAsync.when(
-                      loading: () => const Center(
-                        child: CircularProgressIndicator(color: _kGold),
-                      ),
-                      error: (e, _) => Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            '$e',
-                            style: const TextStyle(color: _kTextOnDark),
-                          ),
-                        ),
-                      ),
-                      data: (reciters) {
-                        if (reciters.isEmpty) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(32),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.cloud_off_outlined,
-                                      size: 48, color: _kTextOnDarkSoft),
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    'Список чтецов пуст.\nНажмите «Обновить».',
-                                    style: TextStyle(
-                                      color: _kTextOnDark,
-                                      fontSize: 16,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  ElevatedButton.icon(
-                                    onPressed: () async {
-                                      try {
-                                        await ref
-                                            .read(recitersRepositoryProvider)
-                                            .syncFromApi();
-                                      } catch (e) {
-                                        if (!mounted) return;
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(content: Text('$e')),
-                                        );
-                                        return;
-                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: _kGold,
-                                      foregroundColor: _kEmeraldDeep,
-                                    ),
-                                    icon: const Icon(Icons.refresh),
-                                    label: const Text('Обновить список'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-                        return _ListenBody(
-                          reciters: reciters,
-                          localeCode: localeCode,
-                          playerState: playerState,
-                          selectedReciterId: _reciterId,
-                          selectedSurahId: _surahId,
-                          selectedAyahId: _ayahId,
-                          onReciterChanged: _onReciterPicked,
-                          onSurahChanged: _onSurahPicked,
-                          onAyahChanged: _onAyahPicked,
-                          onPlay: () {
-                            final r = _reciterId ?? reciters.first.id;
-                            final s = _surahId ?? 1;
-                            ref
-                                .read(audioPlayerControllerProvider.notifier)
-                                .playSurah(
-                                  reciterId: r,
-                                  surahId: s,
-                                  startAyah: _ayahId,
-                                );
-                          },
-                          onTogglePause: () => ref
-                              .read(audioPlayerControllerProvider.notifier)
-                              .togglePlay(),
-                          onSpeed: (s) => ref
-                              .read(audioPlayerControllerProvider.notifier)
-                              .setSpeed(s),
-                          onSleepTimer: (m) => ref
-                              .read(audioPlayerControllerProvider.notifier)
-                              .setSleepTimer(m),
-                          onNightModeToggle: () => ref
-                              .read(audioPlayerControllerProvider.notifier)
-                              .setNightMode(!playerState.nightMode),
-                          surahDao: surahDao,
-                        );
-                      },
+            Expanded(
+              child: recitersAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      '$e',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                   ),
-                ],
+                ),
+                data: (reciters) {
+                  if (reciters.isEmpty) {
+                    return _EmptyReciters(
+                      syncing: _syncing,
+                      onRefresh: _refreshReciters,
+                    );
+                  }
+                  return _ListenBody(
+                    reciters: reciters,
+                    localeCode: localeCode,
+                    selectedReciterId: _reciterId,
+                    selectedSurahId: _surahId,
+                    selectedAyahId: _ayahId,
+                    onReciterChanged: _onReciterPicked,
+                    onSurahChanged: _onSurahPicked,
+                    onAyahChanged: _onAyahPicked,
+                    onPlay: () {
+                      final r = _reciterId ?? reciters.first.id;
+                      final s = _surahId ?? 1;
+                      ref
+                          .read(audioPlayerControllerProvider.notifier)
+                          .playSurah(
+                            reciterId: r,
+                            surahId: s,
+                            startAyah: _ayahId,
+                          );
+                    },
+                    onTogglePause: () => ref
+                        .read(audioPlayerControllerProvider.notifier)
+                        .togglePlay(),
+                    onSpeed: (s) => ref
+                        .read(audioPlayerControllerProvider.notifier)
+                        .setSpeed(s),
+                    onSleepTimer: (m) => ref
+                        .read(audioPlayerControllerProvider.notifier)
+                        .setSleepTimer(m),
+                    onNightModeToggle: () {
+                      // Читаем state в момент вызова, а не через watch:
+                      // иначе весь экран перестраивался бы на каждый
+                      // секундный тик позиции плеера.
+                      final st = ref.read(audioPlayerControllerProvider);
+                      ref
+                          .read(audioPlayerControllerProvider.notifier)
+                          .setNightMode(!st.nightMode);
+                    },
+                    surahDao: surahDao,
+                  );
+                },
               ),
             ),
           ],
@@ -260,7 +208,7 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
 
   // ─── Обработчики выбора суры/аята/чтеца ────────────────────
   //
-  // Поведение при смене (см. обсуждение в user-request):
+  // Поведение при смене:
   //   • смена чтеца — только обновляем local state; play-кнопка
   //     остаётся за пользователем (файл ещё не скачан, нечего
   //     «стартовать», и юзер может захотеть выбрать суру).
@@ -275,7 +223,6 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
   // и переходит в play когда MP3 готов.
 
   void _onReciterPicked(String id) {
-    // Только state. См. комментарий выше.
     setState(() => _reciterId = id);
   }
 
@@ -308,69 +255,66 @@ class _ListenScreenState extends ConsumerState<ListenScreen> {
   }
 }
 
-// === Top bar ===
-class _ListenTopBar extends StatelessWidget {
-  const _ListenTopBar({
-    required this.title,
-    required this.subtitle,
-    required this.onBack,
-  });
-  final String title;
-  final String subtitle;
-  final VoidCallback onBack;
+// === Пустое состояние (нет чтецов) ===
+class _EmptyReciters extends StatelessWidget {
+  const _EmptyReciters({required this.syncing, required this.onRefresh});
+
+  final bool syncing;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          IconButton(
-            onPressed: onBack,
-            icon: const Icon(Icons.chevron_left, color: _kTextOnDark, size: 28),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _kTextOnDark,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w300,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                if (subtitle.isNotEmpty)
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _kTextOnDarkSoft,
-                      fontSize: 13,
-                    ),
-                  ),
-              ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.cloud_off_outlined,
+              size: 48,
+              color: AppColors.textTertiary,
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            const Text(
+              'Список чтецов пуст.\nНажмите «Обновить».',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 15,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (syncing)
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              )
+            else
+              FilledButton.icon(
+                onPressed: onRefresh,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Обновить список'),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
-// === Body — single reciter card + surah/ayah selectors + player ===
+// === Body — reciter card + surah/ayah selectors + player ===
+//
+// Не подписан на audioPlayerControllerProvider: состояние плеера
+// смотрят внутри себя только _AyahPanel/_Player/_PlaybackControls
+// (через ConsumerWidget), поэтому секундные тики позиции НЕ
+// перестраивают статичную оболочку (карточка чтеца, селекторы).
 class _ListenBody extends StatelessWidget {
   const _ListenBody({
     required this.reciters,
     required this.localeCode,
-    required this.playerState,
     required this.selectedReciterId,
     required this.selectedSurahId,
     required this.selectedAyahId,
@@ -387,7 +331,6 @@ class _ListenBody extends StatelessWidget {
 
   final List<Reciter> reciters;
   final String localeCode;
-  final AudioPlayerState playerState;
   final String? selectedReciterId;
   final int? selectedSurahId;
   final int? selectedAyahId;
@@ -415,41 +358,48 @@ class _ListenBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reciter = _currentReciter;
-    // Всё в одну Column без ListView — пользователь должен видеть
-    // весь плеер целиком без прокрутки. Шрифты и отступы подобраны
-    // под 360dp ширины × 720dp высоты (типичный телефон).
+    // Плеер и панель настроек всегда прижаты к низу; верхняя часть
+    // (карточка чтеца, селекторы, панель аята) живёт в скролле —
+    // overflow невозможен ни при открытой клавиатуре (Scaffold с
+    // resizeToAvoidBottomInset сам уменьшает body, и viewInsets до
+    // сюда не долетают), ни на низких экранах.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
       child: Column(
-        mainAxisSize: MainAxisSize.max,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _ReciterCard(
-            reciter: reciter,
-            localeCode: localeCode,
-            onTap: () => _showReciterDropdown(context),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _ReciterCard(
+                    reciter: reciter,
+                    localeCode: localeCode,
+                    onTap: () => _showReciterDropdown(context),
+                  ),
+                  const SizedBox(height: 10),
+                  _SurahAyahSelectors(
+                    surahId: selectedSurahId,
+                    ayahId: selectedAyahId,
+                    onSurahChanged: onSurahChanged,
+                    onAyahChanged: onAyahChanged,
+                    surahDao: surahDao,
+                    localeCode: localeCode,
+                  ),
+                  const SizedBox(height: 10),
+                  const _AyahPanel(),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 10),
-          _SurahAyahSelectors(
-            surahId: selectedSurahId,
-            ayahId: selectedAyahId,
-            playerState: playerState,
-            onSurahChanged: onSurahChanged,
-            onAyahChanged: onAyahChanged,
-            surahDao: surahDao,
-            localeCode: localeCode,
-          ),
-          const SizedBox(height: 10),
-          _AyahPanel(playerState: playerState),
-          const Spacer(),
+          const SizedBox(height: 12),
           _Player(
-            state: playerState,
             onPlay: onPlay,
             onTogglePause: onTogglePause,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           _PlaybackControls(
-            state: playerState,
             onSpeed: onSpeed,
             onSleepTimer: onSleepTimer,
             onNightModeToggle: onNightModeToggle,
@@ -463,7 +413,6 @@ class _ListenBody extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _kEmeraldDeep,
       builder: (sheetCtx) => _ReciterDropdownSheet(
         localeCode: localeCode,
         selectedId: selectedReciterId,
@@ -492,84 +441,89 @@ class _ReciterCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final display = displayNameForLocale(reciter, localeCode);
     // Короткая подпись под именем: "Хафс от Асыма" / "ад-Дури от Абу
-    // Амра" / "Коран для обучения". Без префикса "Версия: " и без
-    // стиля чтения ("- Murattal") — они перегружают карточку.
+    // Амра" / "Коран для обучения".
     final rewaya = shortRewaya(reciter.mp3quranRewaya)?.trim() ?? '';
 
-    return InkWell(
-      onTap: onTap,
+    return Material(
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: _kEmerald,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _kGold.withValues(alpha: 0.4)),
-        ),
-        child: Row(
-          children: [
-            // «Фото»: пока — градиентный круг с первой буквой имени.
-            Container(
-              width: 56,
-              height: 56,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [_kGold, _kGoldDeep],
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.borderSubtle),
+          ),
+          child: Row(
+            children: [
+              // Аватар-плейсхолдер: круг с золотой рамкой и первой
+              // буквой имени — как GoldIconBadge на главной.
+              Container(
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.surfaceElevated,
+                  border: Border.fromBorderSide(
+                    BorderSide(color: AppColors.gold, width: 1.2),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  display.isNotEmpty ? display[0] : '?',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.gold,
+                  ),
                 ),
               ),
-              alignment: Alignment.center,
-              child: Text(
-                display.isNotEmpty ? display[0] : '?',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: _kEmeraldDeep,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Rewaya — над именем (маленьким мелким шрифтом).
-                  if (rewaya.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Rewaya — над именем (маленьким золотым шрифтом).
+                    if (rewaya.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Text(
+                          rewaya,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.gold,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                    // Имя чтеца с FittedBox — уменьшается, если не влезает.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
                       child: Text(
-                        rewaya,
+                        display,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: _kGold,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          height: 1.2,
+                          color: AppColors.textPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          height: 1.15,
                         ),
                       ),
                     ),
-                  // Имя чтеца с FittedBox — уменьшается, если не влезает.
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      display,
-                      maxLines: 1,
-                      style: const TextStyle(
-                        color: _kTextOnDark,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        height: 1.15,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const Icon(Icons.expand_more, color: _kTextOnDarkSoft, size: 20),
-          ],
+              const Icon(Icons.expand_more, color: AppColors.textTertiary),
+            ],
+          ),
         ),
       ),
     );
@@ -581,7 +535,6 @@ class _SurahAyahSelectors extends ConsumerWidget {
   const _SurahAyahSelectors({
     required this.surahId,
     required this.ayahId,
-    required this.playerState,
     required this.onSurahChanged,
     required this.onAyahChanged,
     required this.surahDao,
@@ -590,7 +543,6 @@ class _SurahAyahSelectors extends ConsumerWidget {
 
   final int? surahId;
   final int? ayahId;
-  final AudioPlayerState playerState;
   final ValueChanged<int> onSurahChanged;
   final ValueChanged<int> onAyahChanged;
   final SurahDao surahDao;
@@ -598,17 +550,10 @@ class _SurahAyahSelectors extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Раньше брали `playerState.surah?.ayahCount` — это значение
-    // из последнего `playSurah()`. После выбора новой суры, но до
-    // play, `state.surah` остаётся старой → пользователь видит
-    // «Аят 1 из 7» даже для Al-Baqara (286). Теперь смотрим на
-    // `surahId` напрямую через БД — это значение, которое юзер
-    // только что выбрал в Surah picker.
-    //
-    // Используем `.value` вместо `maybeWhen` — он возвращает данные
-    // когда есть, и `null` пока Future ещё в loading/error. До
-    // завершения первого `getById`-запроса показываем «…» вместо
-    // «Выбрать», чтобы UI не путал «не выбрано» с «loading».
+    // Смотрим на `surahId` напрямую через БД (а не на
+    // `playerState.surah`) — это значение, которое юзер только что
+    // выбрал в Surah picker. `.value` возвращает данные когда есть,
+    // и `null`, пока Future ещё в loading/error.
     final selectedSurahAsync = surahId != null
         ? ref.watch(surahByIdProvider(SurahIdKey(surahId!)))
         : null;
@@ -616,16 +561,14 @@ class _SurahAyahSelectors extends ConsumerWidget {
     final isLoading = selectedSurahAsync is AsyncLoading;
     final totalAyahs = selectedSurah?.ayahCount ?? 0;
 
-    // Для primary-value чипа «Сура» показываем «номер. подзаголовок»:
-    // «55. Милостивый» — коротко и ёмко, как в дизайн-референсе.
-    //
-    // Если БД ещё не ответила — НЕ показываем «Выбрать» (это путает
-    // с «сура не выбрана»), а показываем loading-плейсхолдер.
+    // Для чипа «Сура» показываем «номер. название»: «55. Милостивый».
+    // Если БД ещё не ответила — показываем «…» вместо «Выбрать».
     final String? surahName;
     final String surahSubtitle;
     if (selectedSurah != null) {
       final sub = subtitleForSurah(selectedSurah, localeCode);
-      surahName = '$surahId. ${sub.isNotEmpty ? sub : displayNameForSurah(selectedSurah, localeCode)}';
+      surahName =
+          '$surahId. ${sub.isNotEmpty ? sub : displayNameForSurah(selectedSurah, localeCode)}';
       surahSubtitle = displayNameForSurah(selectedSurah, localeCode);
     } else if (surahId != null && isLoading) {
       surahName = '…';
@@ -637,8 +580,9 @@ class _SurahAyahSelectors extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: _kEmerald,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderSubtle),
       ),
       child: Row(
         children: [
@@ -651,7 +595,7 @@ class _SurahAyahSelectors extends ConsumerWidget {
               onTap: () => _showSurahPicker(context),
             ),
           ),
-          const _Divider(),
+          const _VerticalDivider(),
           Expanded(
             child: _SelectorTile(
               icon: Icons.format_list_numbered_rtl,
@@ -672,7 +616,6 @@ class _SurahAyahSelectors extends ConsumerWidget {
     final selected = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _kEmerald,
       builder: (_) => _SurahListSheet(
         surahDao: surahDao,
         selectedId: surahId,
@@ -685,8 +628,7 @@ class _SurahAyahSelectors extends ConsumerWidget {
   }
 
   /// Всегда читаем [totalAyahs] по [surahId] внутри builder'а — иначе
-  /// при смене суры picker показывает старые данные (bug user-report:
-  /// «при выборе „Аль-Бакара“ список аятов от „Аль-Фатихи“»).
+  /// при смене суры picker показывает старые данные.
   void _showAyahPicker(BuildContext context, int surahIdValue) async {
     final surah = await surahDao.getById(surahIdValue);
     if (surah == null) return;
@@ -694,7 +636,6 @@ class _SurahAyahSelectors extends ConsumerWidget {
     final selected = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _kEmerald,
       builder: (_) => _AyahListSheet(
         totalAyahs: surah.ayahCount,
         selectedAyah: ayahId,
@@ -706,13 +647,14 @@ class _SurahAyahSelectors extends ConsumerWidget {
   }
 }
 
-class _Divider extends StatelessWidget {
-  const _Divider();
+class _VerticalDivider extends StatelessWidget {
+  const _VerticalDivider();
+
   @override
   Widget build(BuildContext context) => Container(
         width: 1,
         height: 32,
-        color: _kGold.withValues(alpha: 0.3),
+        color: AppColors.borderSubtle,
       );
 }
 
@@ -735,6 +677,7 @@ class _SelectorTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         child: Column(
@@ -743,13 +686,14 @@ class _SelectorTile extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, color: _kGold, size: 16),
+                Icon(icon, color: AppColors.gold, size: 16),
                 const SizedBox(width: 6),
                 Text(
                   label,
                   style: const TextStyle(
-                    color: _kTextOnDarkSoft,
+                    color: AppColors.textTertiary,
                     fontSize: 11,
+                    fontWeight: FontWeight.w500,
                     letterSpacing: 1,
                   ),
                 ),
@@ -758,8 +702,10 @@ class _SelectorTile extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: _kTextOnDark,
+                color: AppColors.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -768,8 +714,10 @@ class _SelectorTile extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: _kTextOnDarkSoft,
+                  color: AppColors.textSecondary,
                   fontSize: 11,
                 ),
               ),
@@ -781,7 +729,49 @@ class _SelectorTile extends StatelessWidget {
   }
 }
 
-class _SurahListSheet extends StatelessWidget {
+// === Общий хеддер bottom-sheet'ов (ручка + заголовок) ===
+class _SheetHeader extends StatelessWidget {
+  const _SheetHeader({required this.icon, required this.title});
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(top: 12, bottom: 4),
+          width: 40,
+          height: 4,
+          decoration: BoxDecoration(
+            color: AppColors.border,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.gold, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SurahListSheet extends StatefulWidget {
   const _SurahListSheet({
     required this.surahDao,
     required this.selectedId,
@@ -792,104 +782,98 @@ class _SurahListSheet extends StatelessWidget {
   final String localeCode;
 
   @override
+  State<_SurahListSheet> createState() => _SurahListSheetState();
+}
+
+class _SurahListSheetState extends State<_SurahListSheet> {
+  // Future кэшируется в initState: builder DraggableScrollableSheet
+  // вызывается на каждый drag-frame, и раньше каждый вызов создавал
+  // новый `surahDao.getAll()` → повторный DB-запрос на каждый кадр.
+  late final Future<List<Surah>> _surahsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _surahsFuture = widget.surahDao.getAll();
+  }
+
+  int? get selectedId => widget.selectedId;
+  String get localeCode => widget.localeCode;
+
+  @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
       maxChildSize: 0.95,
       minChildSize: 0.5,
-      builder: (ctx, controller) => Container(
-        decoration: const BoxDecoration(
-          color: _kEmerald,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 8, bottom: 4),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: _kTextOnDarkSoft.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 8, 20, 12),
-              child: Row(
-                children: [
-                  Icon(Icons.menu_book_outlined,
-                      color: _kGold, size: 22),
-                  SizedBox(width: 8),
-                  Text(
-                    'Выбор суры',
-                    style: TextStyle(
-                      color: _kTextOnDark,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: FutureBuilder<List<Surah>>(
-                future: surahDao.getAll(),
-                builder: (context, snap) {
-                  if (!snap.hasData) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: _kGold),
-                    );
-                  }
-                  final list = snap.data!;
-                  return ListView.builder(
-                    controller: controller,
-                    itemCount: list.length,
-                    itemBuilder: (_, i) {
-                      final s = list[i];
-                      final selected = s.id == selectedId;
-                      final name = displayNameForSurah(s, localeCode);
-                      final sub = subtitleForSurah(s, localeCode);
-                      return ListTile(
-                        leading: CircleAvatar(
-                          radius: 18,
-                          backgroundColor: _kEmeraldDeep,
-                          child: Text(
-                            '${s.id}',
-                            style: TextStyle(
-                              color: selected ? _kGold : _kTextOnDark,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          '${s.id}. $name',
+      builder: (ctx, controller) => Column(
+        children: [
+          const _SheetHeader(icon: Icons.menu_book_outlined, title: 'Выбор суры'),
+          Expanded(
+            child: FutureBuilder<List<Surah>>(
+              future: _surahsFuture,
+              builder: (context, snap) {
+                if (!snap.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final list = snap.data!;
+                return ListView.builder(
+                  controller: controller,
+                  itemCount: list.length,
+                  itemBuilder: (_, i) {
+                    final s = list[i];
+                    final selected = s.id == selectedId;
+                    final name = displayNameForSurah(s, localeCode);
+                    final sub = subtitleForSurah(s, localeCode);
+                    return ListTile(
+                      leading: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: selected
+                            ? AppColors.gold
+                            : AppColors.surfaceElevated,
+                        child: Text(
+                          '${s.id}',
                           style: TextStyle(
-                            color: _kTextOnDark,
-                            fontWeight:
-                                selected ? FontWeight.w700 : FontWeight.w500,
+                            color: selected
+                                ? AppColors.textOnGold
+                                : AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        subtitle: sub.isEmpty
-                            ? null
-                            : Text(
-                                sub,
-                                style: const TextStyle(
-                                    color: _kTextOnDarkSoft,
-                                    fontSize: 12),
+                      ),
+                      title: Text(
+                        '${s.id}. $name',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
                         ),
-                        trailing: selected
-                            ? const Icon(Icons.check,
-                                color: _kGold, size: 20)
-                            : null,
-                        onTap: () => Navigator.pop(context, s.id),
-                      );
-                    },
-                  );
-                },
-              ),
+                      ),
+                      subtitle: sub.isEmpty
+                          ? null
+                          : Text(
+                              sub,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                      trailing: selected
+                          ? const Icon(Icons.check,
+                              color: AppColors.gold, size: 20)
+                          : null,
+                      onTap: () => Navigator.pop(context, s.id),
+                    );
+                  },
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -897,9 +881,8 @@ class _SurahListSheet extends StatelessWidget {
 
 /// Bottom sheet со списком аятов выбранной суры.
 ///
-/// Аяты генерируются 1..N из `Surahs.ayahCount` (для текущей суры,
-/// известен через playerState). Tap → возвращает выбранный номер через
-/// [Navigator.pop] с аргументом.
+/// Аяты генерируются 1..N из `Surahs.ayahCount`. Tap → возвращает
+/// выбранный номер через [Navigator.pop] с аргументом.
 class _AyahListSheet extends StatelessWidget {
   const _AyahListSheet({
     required this.totalAyahs,
@@ -917,7 +900,7 @@ class _AyahListSheet extends StatelessWidget {
           padding: EdgeInsets.all(24),
           child: Text(
             'Сначала выберите суру',
-            style: TextStyle(color: _kTextOnDark, fontSize: 16),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
           ),
         ),
       );
@@ -926,88 +909,57 @@ class _AyahListSheet extends StatelessWidget {
       initialChildSize: 0.7,
       maxChildSize: 0.95,
       minChildSize: 0.4,
-      builder: (ctx, controller) => Container(
-        decoration: const BoxDecoration(
-          color: _kEmeraldDeep,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 8, bottom: 4),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: _kTextOnDarkSoft.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(2),
+      builder: (ctx, controller) => Column(
+        children: [
+          _SheetHeader(
+            icon: Icons.bookmark_outline,
+            title: 'Аяты 1..$totalAyahs',
+          ),
+          Expanded(
+            child: GridView.builder(
+              controller: controller,
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 5,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1.0,
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-              child: Row(
-                children: [
-                  const Icon(Icons.bookmark_outline,
-                      color: _kGold, size: 22),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Аяты 1..$totalAyahs',
-                    style: const TextStyle(
-                      color: _kTextOnDark,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
+              itemCount: totalAyahs,
+              itemBuilder: (_, i) {
+                final n = i + 1;
+                final selected = n == selectedAyah;
+                return InkWell(
+                  onTap: () => Navigator.pop(context, n),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.gold
+                          : AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(10),
+                      border: selected
+                          ? null
+                          : Border.all(color: AppColors.borderSubtle),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$n',
+                      style: TextStyle(
+                        color: selected
+                            ? AppColors.textOnGold
+                            : AppColors.textPrimary,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
-                ],
-              ),
+                );
+              },
             ),
-            Expanded(
-              child: GridView.builder(
-                controller: controller,
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 5,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.0,
-                ),
-                itemCount: totalAyahs,
-                itemBuilder: (_, i) {
-                  final n = i + 1;
-                  final selected = n == selectedAyah;
-                  return InkWell(
-                    onTap: () => Navigator.pop(context, n),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? _kGold
-                            : _kEmerald.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(10),
-                        border: selected
-                            ? null
-                            : Border.all(
-                                color:
-                                    _kGoldDeep.withValues(alpha: 0.3)),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '$n',
-                        style: TextStyle(
-                          color: selected
-                              ? _kEmeraldDeep
-                              : _kTextOnDark,
-                          fontWeight:
-                              selected ? FontWeight.w700 : FontWeight.w500,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1015,24 +967,23 @@ class _AyahListSheet extends StatelessWidget {
 
 // === Current ayah panel (плавная анимация при смене аята) ===
 //
-// Редизайн 2026-07-11:
-//   • Убран круг с ۝ (раньше показывался как «NO GLYPH» если
-//     в шрифте нет глифа для U+06DD — арабская энд-айи).
-//   • Убраны все три названия суры (русское, арабское, локализованное
-//     подзаголовочное) — вся эта информация уже есть в chip'е Сура
-//     сверху, дублировать на 360dp негде.
-//   • Перевод текущего аята на языке приложения — мелким серым шрифтом
-//     под арабским текстом (как в дизайн-референсе docs/images/listen.png).
+//   • Арабский текст аята — шрифтом Amiri, цветом основного текста
+//     (как AyahTile на экране чтения).
+//   • Перевод текущего аята на языке приложения — мелким серым
+//     шрифтом под арабским текстом.
 class _AyahPanel extends ConsumerWidget {
-  const _AyahPanel({required this.playerState});
-
-  final AudioPlayerState playerState;
+  const _AyahPanel();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final surah = playerState.surah;
-    final total = playerState.totalAyahs ?? surah?.ayahCount ?? 0;
-    final curAyah = playerState.currentAyah ?? 1;
+    // Селект только нужных полей: панель перестраивается при смене
+    // суры/аята, но НЕ на каждый секундный тик позиции.
+    final player = ref.watch(audioPlayerControllerProvider.select(
+      (s) => (surah: s.surah, totalAyahs: s.totalAyahs, currentAyah: s.currentAyah),
+    ));
+    final surah = player.surah;
+    final total = player.totalAyahs ?? surah?.ayahCount ?? 0;
+    final curAyah = player.currentAyah ?? 1;
     final safeCurAyah = total > 0 ? curAyah.clamp(1, total) : 0;
 
     final ayahTextAsync = (surah != null && safeCurAyah > 0)
@@ -1047,8 +998,9 @@ class _AyahPanel extends ConsumerWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _kEmerald,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderSubtle),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
@@ -1069,7 +1021,7 @@ class _AyahPanel extends ConsumerWidget {
                         '﷽',
                         textDirection: TextDirection.rtl,
                         style: TextStyle(
-                          color: _kTextOnDarkSoft,
+                          color: AppColors.textSecondary,
                           fontSize: 28,
                         ),
                       ),
@@ -1084,7 +1036,7 @@ class _AyahPanel extends ConsumerWidget {
                           child: Center(
                             child: Text(
                               '—',
-                              style: TextStyle(color: _kTextOnDarkSoft),
+                              style: TextStyle(color: AppColors.textTertiary),
                             ),
                           ),
                         );
@@ -1095,10 +1047,11 @@ class _AyahPanel extends ConsumerWidget {
                         textAlign: TextAlign.center,
                         textDirection: TextDirection.rtl,
                         style: const TextStyle(
-                          color: _kTextOnDark,
+                          color: AppColors.textPrimary,
                           fontSize: 22,
-                          height: 1.7,
-                          fontWeight: FontWeight.w500,
+                          height: 1.9,
+                          fontWeight: FontWeight.w400,
+                          fontFamily: 'Amiri',
                         ),
                       );
                     },
@@ -1130,7 +1083,7 @@ class _AyahPanel extends ConsumerWidget {
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: _kTextOnDarkSoft,
+                            color: AppColors.textSecondary,
                             fontSize: 12,
                             height: 1.35,
                           ),
@@ -1148,24 +1101,27 @@ class _AyahPanel extends ConsumerWidget {
 }
 
 // === Player (центральная кнопка play/pause + прогресс-бар) ===
+///
+/// Сам смотрит audioPlayerControllerProvider: это единственное место
+/// экрана, которому нужны тики позиции/playing — перестраивается
+/// только seek-bar и play-кнопка, а не оболочка экрана.
 class _Player extends ConsumerWidget {
   const _Player({
-    required this.state,
     required this.onPlay,
     required this.onTogglePause,
   });
 
-  final AudioPlayerState state;
   final VoidCallback onPlay;
   final VoidCallback onTogglePause;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(audioPlayerControllerProvider);
     return Column(
       children: [
         // Полный прогресс-бар (seek).
         _SeekBar(state: state),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         // Центральный контрол: loop / prev / play / next / shuffle
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1173,7 +1129,7 @@ class _Player extends ConsumerWidget {
             IconButton(
               tooltip: 'Повтор',
               onPressed: () {},
-              icon: const Icon(Icons.repeat, color: _kTextOnDarkSoft),
+              icon: const Icon(Icons.repeat, color: AppColors.textTertiary),
               iconSize: 24,
             ),
             IconButton(
@@ -1183,8 +1139,11 @@ class _Player extends ConsumerWidget {
                   const SnackBar(content: Text('Предыдущий аят')),
                 );
               },
-              icon: const Icon(Icons.skip_previous,
-                  color: _kTextOnDark, size: 36),
+              icon: const Icon(
+                Icons.skip_previous,
+                color: AppColors.textPrimary,
+                size: 36,
+              ),
             ),
             // Главная круглая кнопка — play/pause.
             _BigPlayButton(
@@ -1200,12 +1159,16 @@ class _Player extends ConsumerWidget {
                   const SnackBar(content: Text('Следующий аят')),
                 );
               },
-              icon: const Icon(Icons.skip_next, color: _kTextOnDark, size: 36),
+              icon: const Icon(
+                Icons.skip_next,
+                color: AppColors.textPrimary,
+                size: 36,
+              ),
             ),
             IconButton(
               tooltip: 'Перемешать',
               onPressed: () {},
-              icon: const Icon(Icons.shuffle, color: _kTextOnDarkSoft),
+              icon: const Icon(Icons.shuffle, color: AppColors.textTertiary),
               iconSize: 24,
             ),
           ],
@@ -1229,12 +1192,8 @@ class _BigPlayButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ВАЖНО: play-кнопка всегда должна быть тапабельна. Раньше
-    // `enabled: hasTrack` (state.surah != null) гасило onTap на
-    // первом запуске — state.surah == null пока пользователь не
-    // выберет суру. Получалось, что play не работал до тех пор, пока
-    // пользователь не открывал бы picker. Убираем гейт — onPlay
-    // сам вызовет `playSurah()` который поставит state.surah.
+    // ВАЖНО: play-кнопка всегда должна быть тапабельна — onPlay сам
+    // вызовет `playSurah()`, который поставит state.surah.
     return GestureDetector(
       onTap: playing ? onPause : onPlay,
       child: AnimatedContainer(
@@ -1243,23 +1202,18 @@ class _BigPlayButton extends StatelessWidget {
         height: 84,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: const RadialGradient(
-            colors: [
-              _kGold,
-              _kGoldDeep,
-            ],
-          ),
+          gradient: AppColors.goldGradient,
           boxShadow: [
             BoxShadow(
-              color: _kGold.withValues(alpha: 0.4),
-              blurRadius: 24,
-              spreadRadius: 2,
+              color: AppColors.gold.withValues(alpha: 0.35),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Icon(
           playing ? Icons.pause : Icons.play_arrow,
-          color: _kEmeraldDeep,
+          color: AppColors.textOnGold,
           size: 42,
         ),
       ),
@@ -1280,10 +1234,10 @@ class _SeekBar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SliderTheme(
-          data: SliderThemeData(
-            activeTrackColor: _kGold,
-            inactiveTrackColor: _kGold.withValues(alpha: 0.25),
-            thumbColor: _kGold,
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: AppColors.gold,
+            inactiveTrackColor: AppColors.gold.withValues(alpha: 0.2),
+            thumbColor: AppColors.gold,
             trackHeight: 3,
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
             overlayShape: SliderComponentShape.noOverlay,
@@ -1304,7 +1258,7 @@ class _SeekBar extends StatelessWidget {
               Text(
                 _formatTime(position),
                 style: const TextStyle(
-                  color: _kTextOnDarkSoft,
+                  color: AppColors.textSecondary,
                   fontSize: 11,
                   fontFeatures: [FontFeature.tabularFigures()],
                 ),
@@ -1312,7 +1266,7 @@ class _SeekBar extends StatelessWidget {
               Text(
                 duration > 0 ? '-${_formatTime(remaining)}' : '—',
                 style: const TextStyle(
-                  color: _kTextOnDarkSoft,
+                  color: AppColors.textSecondary,
                   fontSize: 11,
                   fontFeatures: [FontFeature.tabularFigures()],
                 ),
@@ -1401,26 +1355,17 @@ class _ReciterDropdownSheetState extends ConsumerState<_ReciterDropdownSheet> {
     //
     // 1) По `reciter.id` — даже если данные пришли с дубликатами
     //    (sync-гонка, кеш DB), здесь строки с одинаковым id
-    //    сворачиваются в одну. Иначе два ряда с одним reciter.id
-    //    дают два spinner'а при тапе по download-иконке (оба
-    //    `_ReciterDownloadIcon` подписаны на один стейт).
+    //    сворачиваются в одну.
     //
     // 2) По display name (ru / en / ar) — РАЗНЫЕ ректоры с одинаковым
-    //    русским именем. Это кривой перевод mp3quran: например,
-    //    mp3quran:54 = «Абдур-Рахман Ас-Судайс», mp3quran:120 = тот же
-    //    текст с суффиксом «(2)», mp3quran:138 = «(3)» (хотя реально
-    //    это Noreen Mohammad Siddiq — копипаст из базы mp3quran).
-    //    Оставляем только первый встретившийся по приоритету id
-    //    (mp3quran:54 — канонический), остальные скрываем.
+    //    русским именем. Это кривой перевод mp3quran. Оставляем только
+    //    первый встретившийся по приоритету id.
     final dedupedById = <String, Reciter>{};
     for (final r in filtered) {
       dedupedById.putIfAbsent(r.id, () => r);
     }
     final seenNames = <String>{};
     final unique = <Reciter>[];
-    // Сортируем по id, чтобы канонический (меньший id mp3quran
-    // обычно = основной ректор) шёл первым. Внутри одной группы
-    // дубликатов имён выживает первый.
     final byIdSorted = dedupedById.values.toList()
       ..sort((a, b) {
         // Сначала наши дефолтные ('ar.alafasy' и т.п.) идут первыми,
@@ -1433,7 +1378,8 @@ class _ReciterDropdownSheetState extends ConsumerState<_ReciterDropdownSheet> {
         return a.id.compareTo(b.id);
       });
     for (final r in byIdSorted) {
-      final displayName = displayNameForLocale(r, widget.localeCode).toLowerCase();
+      final displayName =
+          displayNameForLocale(r, widget.localeCode).toLowerCase();
       final key = displayName.isNotEmpty
           ? displayName
           : (r.nameEn ?? r.nameAr).toLowerCase();
@@ -1442,125 +1388,104 @@ class _ReciterDropdownSheetState extends ConsumerState<_ReciterDropdownSheet> {
       }
     }
 
+    // Группировка (избранные → выбранный → остальные) считается ОДИН
+    // раз за rebuild.
+    final grouped = _groupByFavorite(unique, selectedId);
+
     return DraggableScrollableSheet(
       initialChildSize: 0.85,
       maxChildSize: 0.95,
       minChildSize: 0.5,
-      builder: (ctx, controller) => Container(
-        decoration: const BoxDecoration(
-          color: _kEmeraldDeep,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            // Handle
-            Container(
-              margin: const EdgeInsets.only(top: 8, bottom: 4),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: _kTextOnDarkSoft.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(2),
+      builder: (ctx, controller) => Column(
+        children: [
+          const _SheetHeader(
+            icon: Icons.people_alt_outlined,
+            title: 'Выбор чтеца',
+          ),
+          // Поиск — фильтр по nameAr / nameEn / nameRu.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: TextField(
+              onChanged: (v) => setState(() => _query = v),
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+              ),
+              decoration: const InputDecoration(
+                hintText: 'Поиск...',
+                hintStyle: TextStyle(
+                  color: AppColors.textTertiary,
+                  fontSize: 14,
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: AppColors.gold,
+                  size: 20,
+                ),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 12,
+                ),
               ),
             ),
-            // Title
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 8, 20, 12),
-              child: Row(
-                children: [
-                  Icon(Icons.people_alt_outlined,
-                      color: _kGold, size: 22),
-                  SizedBox(width: 8),
-                  Text(
-                    'Выбор чтеца',
-                    style: TextStyle(
-                      color: _kTextOnDark,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Поиск — фильтр по nameAr / nameEn / nameRu.
+          ),
+          if (unique.isEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: TextField(
-                onChanged: (v) => setState(() => _query = v),
-                style: const TextStyle(color: _kTextOnDark, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Поиск...',
-                  hintStyle: const TextStyle(
-                      color: _kTextOnDarkSoft, fontSize: 14),
-                  prefixIcon: const Icon(Icons.search,
-                      color: _kTextOnDarkSoft, size: 20),
-                  isDense: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: _kEmerald.withValues(alpha: 0.4),
+              padding: const EdgeInsets.all(32),
+              child: Center(
+                child: Text(
+                  q.isEmpty
+                      ? 'Нет чтецов. Нажмите «Обновить» в списке.'
+                      : 'Ничего не найдено по «$q».',
+                  style: const TextStyle(color: AppColors.textSecondary),
+                  textAlign: TextAlign.center,
                 ),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                controller: controller,
+                itemCount: grouped.length + 1,
+                itemBuilder: (_, i) {
+                  if (i == 0) return const _SectionHeader('Все');
+                  final r = grouped[i - 1];
+                  return _ReciterDropdownTile(
+                    reciter: r,
+                    localeCode: widget.localeCode,
+                    selected: r.id == selectedId,
+                    favorite: _isFav(r),
+                    onTap: () => widget.onSelect(r),
+                    onToggleFavorite: () => _toggleFavorite(r),
+                  );
+                },
               ),
             ),
-            if (unique.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(32),
-                child: Center(
-                  child: Text(
-                    q.isEmpty
-                        ? 'Нет чтецов. Нажмите «Обновить» в списке.'
-                        : 'Ничего не найдено по «$q».',
-                    style: const TextStyle(color: _kTextOnDarkSoft),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              )
-            else
-              Expanded(
-                child: ListView.separated(
-                  controller: controller,
-                  itemCount:
-                      _groupByFavorite(unique, selectedId).length + 1,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: 0),
-                  itemBuilder: (_, i) {
-                    final grouped =
-                        _groupByFavorite(unique, selectedId);
-                    if (i == 0) return const _SectionHeader('Все');
-                    final r = grouped[i - 1];
-                    return _ReciterDropdownTile(
-                      reciter: r,
-                      localeCode: widget.localeCode,
-                      selected: r.id == selectedId,
-                      favorite: _isFav(r),
-                      onTap: () => widget.onSelect(r),
-                      onToggleFavorite: () => _toggleFavorite(r),
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  // Для простоты группируем так: сначала — избранные, потом все
-  // (но де-дуплицируем «избранных» в общем списке).
+  // Группируем так: сначала — избранные, потом все (но де-дуплицируем
+  // «избранных» в общем списке).
   List<Reciter> _groupByFavorite(List<Reciter> all, String? selectedId) {
+    // Вызывается и на пустом списке (до ветки `unique.isEmpty` в
+    // build) — пустой вход возвращаем сразу.
+    if (all.isEmpty) return const [];
     final favs = all.where((r) => r.isFavorite).toList();
     final rest = all.where((r) => !r.isFavorite).toList();
     if (selectedId != null && favs.every((r) => r.id != selectedId)) {
       // Поднимаем выбранного чтеца наверх, даже если он не избранный.
       final sel = all.firstWhere(
         (r) => r.id == selectedId,
-        orElse: () => rest.first,
+        orElse: () => rest.isNotEmpty ? rest.first : favs.first,
       );
-      return [sel, ...favs.where((r) => r.id != sel.id), ...rest];
+      return [
+        sel,
+        ...favs.where((r) => r.id != sel.id),
+        ...rest.where((r) => r.id != sel.id),
+      ];
     }
     return [...favs, ...rest];
   }
@@ -1576,7 +1501,7 @@ class _SectionHeader extends StatelessWidget {
         child: Text(
           title.toUpperCase(),
           style: const TextStyle(
-            color: _kGold,
+            color: AppColors.gold,
             fontSize: 11,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
@@ -1606,23 +1531,19 @@ class _ReciterDropdownTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final display = displayNameForLocale(reciter, localeCode);
     // Один компактный subtitle — qira'a с rawn («Хафс от Асыма»), или
-    // «Коран для обучения» / арабский fallback. Бейджи «128 kbps» /
-    // «Murattal» раньше ехали за границу, поэтому теперь они —
-    // мелким серым текстом в нижней строке, не мешая основному имени.
+    // «Коран для обучения» / арабский fallback.
     final meta = subtitleForReciter(reciter, localeCode);
     final style = shortStyle(reciter.mp3quranRewaya);
-    // Sprint 1.5d: индикатор источника. Используем static mapping —
-    // `kMp3quranToQuranCom` уже синхронизирован с `QuranComReciters`
-    // таблицей при sync. Если у ректора есть Quran.com-вариант —
-    // показываем «Q.com» бейдж (vs «mp3quran» для legacy).
-    final hasQuranCom = reciter.mp3quranId != null &&
-        kMp3quranToQuranCom.containsKey(reciter.mp3quranId);
+    // Индикатор источника: если у ректора есть quranicaudio-вариант —
+    // показываем «QA» бейдж (vs «mp3quran» для legacy).
+    final hasQuranAudio = reciter.mp3quranId != null &&
+        kMp3quranToQuranAudio.containsKey(reciter.mp3quranId);
     final metaParts = <String>[
       if (meta.isNotEmpty && meta != display) meta,
     ];
     final metaLine = metaParts.join(' · ');
     final tailsLine = [
-      if (hasQuranCom) 'Q.com' else 'mp3quran',
+      if (hasQuranAudio) 'QA' else 'mp3quran',
       '128 kbps',
       if (style != null && style.isNotEmpty) style,
     ].join(' · ');
@@ -1636,11 +1557,11 @@ class _ReciterDropdownTile extends ConsumerWidget {
           children: [
             CircleAvatar(
               radius: 16,
-              backgroundColor: _kEmerald,
+              backgroundColor: AppColors.surfaceElevated,
               child: Text(
                 display.isNotEmpty ? display[0] : '?',
                 style: const TextStyle(
-                  color: _kGold,
+                  color: AppColors.gold,
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
                 ),
@@ -1652,16 +1573,13 @@ class _ReciterDropdownTile extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Полное имя чтеца — 1 строка + ellipsis (старое
-                  // поведение maxLines: 2 отрезало имя на узкой панели,
-                  // когда были большие бейджи; теперь их нет — одной
-                  // строки хватает для 95% имён).
+                  // Полное имя чтеца — 1 строка + ellipsis.
                   Text(
                     display,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: _kTextOnDark,
+                      color: AppColors.textPrimary,
                       fontSize: 14,
                       height: 1.2,
                       fontWeight:
@@ -1669,7 +1587,7 @@ class _ReciterDropdownTile extends ConsumerWidget {
                     ),
                   ),
                   // «Версия Корана для обучения» / «Хафс от Асыма» /
-                  // арабское имя — под именем, как просил user.
+                  // арабское имя — под именем.
                   if (metaLine.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
@@ -1677,21 +1595,20 @@ class _ReciterDropdownTile extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: _kTextOnDarkSoft,
+                        color: AppColors.textSecondary,
                         fontSize: 11,
                         height: 1.3,
                       ),
                     ),
                   ],
                   // Технический «хвост» мелким серым — 128 kbps / Murattal.
-                  // Не кликабельный, просто мета-info.
                   const SizedBox(height: 1),
                   Text(
                     tailsLine,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _kTextOnDarkSoft.withValues(alpha: 0.7),
+                    style: const TextStyle(
+                      color: AppColors.textTertiary,
                       fontSize: 10,
                       height: 1.2,
                       letterSpacing: 0.2,
@@ -1701,8 +1618,7 @@ class _ReciterDropdownTile extends ConsumerWidget {
               ),
             ),
             // Trailing-блок: download/star/selected — без InkWell-ов,
-            // чтобы row.onTap не срабатывал на тап по иконкам. Row
-            // с mainAxisSize.min занимает ровно столько, сколько надо.
+            // чтобы row.onTap не срабатывал на тап по иконкам.
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1716,7 +1632,8 @@ class _ReciterDropdownTile extends ConsumerWidget {
                     icon: Icon(
                       favorite ? Icons.star : Icons.star_outline,
                       size: 18,
-                      color: favorite ? _kGold : _kTextOnDarkSoft,
+                      color:
+                          favorite ? AppColors.gold : AppColors.textTertiary,
                     ),
                     onPressed: onToggleFavorite,
                   ),
@@ -1724,7 +1641,8 @@ class _ReciterDropdownTile extends ConsumerWidget {
                 SizedBox(
                   width: 18,
                   child: selected
-                      ? const Icon(Icons.check, color: _kGold, size: 18)
+                      ? const Icon(Icons.check,
+                          color: AppColors.gold, size: 18)
                       : const SizedBox.shrink(),
                 ),
               ],
@@ -1742,7 +1660,6 @@ class _ReciterDropdownTile extends ConsumerWidget {
 ///   * idle, ничего не скачано        → `cloud_download_outlined`
 ///   * идёт загрузка                   → spinner с «57 / 114»
 ///   * все 114 скачаны                  → `download_done` / золотой чек
-///   * last attempt failed              → `cloud_off` + snackbar-retry по тапу
 class _ReciterDownloadIcon extends ConsumerWidget {
   const _ReciterDownloadIcon({required this.reciter});
 
@@ -1778,14 +1695,14 @@ class _ReciterDownloadIcon extends ConsumerWidget {
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   value: total > 0 ? completed / total : null,
-                  color: _kGold,
-                  backgroundColor: _kGoldDeep.withValues(alpha: 0.3),
+                  color: AppColors.gold,
+                  backgroundColor: AppColors.gold.withValues(alpha: 0.25),
                 ),
               ),
               Text(
                 '$completed',
                 style: const TextStyle(
-                  color: _kGold,
+                  color: AppColors.gold,
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1805,7 +1722,7 @@ class _ReciterDownloadIcon extends ConsumerWidget {
           tooltip: 'Все 114 сур скачаны',
           icon: Icon(
             Icons.download_done_rounded,
-            color: _kGold,
+            color: AppColors.gold,
             size: 18,
           ),
           onPressed: null, // disabled — уже скачано
@@ -1821,7 +1738,7 @@ class _ReciterDownloadIcon extends ConsumerWidget {
         tooltip: 'Скачать все 114 сур для офлайн-прослушивания',
         icon: Icon(
           Icons.cloud_download_outlined,
-          color: _kTextOnDarkSoft.withValues(alpha: 0.85),
+          color: AppColors.textSecondary.withValues(alpha: 0.85),
           size: 18,
         ),
         onPressed: () {
@@ -1834,21 +1751,15 @@ class _ReciterDownloadIcon extends ConsumerWidget {
   }
 }
 
-// ============================================================================
-// Ниже — служебные виджеты плеера и кнопок, перенесённые сюда из старой
-// реализации без изменений логики, но с тёмной темой. Работают в паре с
-// AudioPlayerController (positionStream.listen и т. д.).
-// ============================================================================
+// === Панель настроек воспроизведения (скорость / таймер сна / ночь) ===
 
-class _PlaybackControls extends StatelessWidget {
+class _PlaybackControls extends ConsumerWidget {
   const _PlaybackControls({
-    required this.state,
     required this.onSpeed,
     required this.onSleepTimer,
     required this.onNightModeToggle,
   });
 
-  final AudioPlayerState state;
   final ValueChanged<double> onSpeed;
   final ValueChanged<int?> onSleepTimer;
   final VoidCallback onNightModeToggle;
@@ -1857,11 +1768,22 @@ class _PlaybackControls extends StatelessWidget {
   static const _kSleepOptions = <int?>[null, 5, 10, 15, 30, 60];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Нужны только speed/sleepTimer/nightMode — селект не даёт
+    // перестраивать панель на тиках позиции (они меняют только
+    // positionMs/durationMs/currentAyah).
+    final state = ref.watch(audioPlayerControllerProvider.select(
+      (s) => (
+        speed: s.speed,
+        sleepTimerAtMs: s.sleepTimerAtMs,
+        nightMode: s.nightMode,
+      ),
+    ));
     return Container(
       decoration: BoxDecoration(
-        color: _kEmerald,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderSubtle),
       ),
       padding: const EdgeInsets.all(8),
       child: Row(
@@ -1876,7 +1798,7 @@ class _PlaybackControls extends StatelessWidget {
           _ControlTile(
             icon: Icons.bedtime,
             label: 'Таймер сна',
-            value: _sleepLabel(state),
+            value: _sleepLabel(state.sleepTimerAtMs),
             onTap: () => _showSleepPicker(context),
           ),
           _ControlTile(
@@ -1916,10 +1838,10 @@ class _PlaybackControls extends StatelessWidget {
 }
 
 /// Превращает [sleepTimerAtMs] (timestamp) в подпись «Выкл» / «N мин».
-String _sleepLabel(AudioPlayerState s) {
-  if (s.sleepTimerAtMs == null) return 'Выкл';
-  final msLeft =
-      s.sleepTimerAtMs!.millisecondsSinceEpoch - DateTime.now().millisecondsSinceEpoch;
+String _sleepLabel(DateTime? sleepTimerAt) {
+  if (sleepTimerAt == null) return 'Выкл';
+  final msLeft = sleepTimerAt.millisecondsSinceEpoch -
+      DateTime.now().millisecondsSinceEpoch;
   if (msLeft <= 0) return 'Выкл';
   final min = (msLeft / 60000).ceil();
   return '$min мин';
@@ -1947,12 +1869,12 @@ class _ControlTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Column(
               children: [
-                Icon(icon, color: _kGold, size: 22),
+                Icon(icon, color: AppColors.gold, size: 22),
                 const SizedBox(height: 4),
                 Text(
                   value,
                   style: const TextStyle(
-                    color: _kTextOnDark,
+                    color: AppColors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1960,7 +1882,7 @@ class _ControlTile extends StatelessWidget {
                 Text(
                   label,
                   style: const TextStyle(
-                    color: _kTextOnDarkSoft,
+                    color: AppColors.textSecondary,
                     fontSize: 11,
                   ),
                 ),
@@ -1983,18 +1905,18 @@ class _ListSheet<T> extends StatelessWidget {
   final String Function(T) label;
 
   @override
-  Widget build(BuildContext context) => Container(
-        color: _kEmeraldDeep,
+  Widget build(BuildContext context) => SizedBox(
         height: 320,
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.only(top: 16),
               child: Text(
                 title,
                 style: const TextStyle(
-                  color: _kTextOnDark,
+                  color: AppColors.textPrimary,
                   fontSize: 18,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -2002,10 +1924,7 @@ class _ListSheet<T> extends StatelessWidget {
               child: ListView(
                 children: options
                     .map((o) => ListTile(
-                          title: Text(
-                            label(o),
-                            style: const TextStyle(color: _kTextOnDark),
-                          ),
+                          title: Text(label(o)),
                           onTap: () => Navigator.pop(context, o),
                         ))
                     .toList(),
@@ -2015,71 +1934,3 @@ class _ListSheet<T> extends StatelessWidget {
         ),
       );
 }
-
-// === Background pattern painter (геометрическая арабеска) ===
-class _IslamicPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFD4A951).withValues(alpha: 0.05)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5;
-
-    const step = 80.0;
-    for (double y = 0; y < size.height; y += step) {
-      for (double x = 0; x < size.width; x += step) {
-        _paintStar(canvas, Offset(x, y), step * 0.3, paint);
-      }
-    }
-  }
-
-  void _paintStar(Canvas canvas, Offset c, double r, Paint p) {
-    final path = Path();
-    for (var i = 0; i < 8; i++) {
-      final angle = (i * 3.14159 * 2) / 8;
-      final r1 = i.isEven ? r : r * 0.5;
-      final pt = Offset(c.dx + r1 * _cos(angle), c.dy + r1 * _sin(angle));
-      if (i == 0) {
-        path.moveTo(pt.dx, pt.dy);
-      } else {
-        path.lineTo(pt.dx, pt.dy);
-      }
-    }
-    path.close();
-    canvas.drawPath(path, p);
-  }
-
-  // Встроенные Taylor-разложения для cos/sin (без импорта dart:math).
-  double _cos(double a) {
-    final v = a % (2 * 3.14159265);
-    final v2 = v * v;
-    const fact = [1, 1, 2, 6, 24, 120];
-    double result = 1, term = 1;
-    for (var n = 1; n <= 5; n++) {
-      term *= -v2 / (fact[n] * fact[n]);
-      result += term;
-    }
-    return result;
-  }
-
-  double _sin(double a) {
-    final v = a % (2 * 3.14159265);
-    final v2 = v * v;
-    // Taylor series for sin, degree 8. Need n+1 up to 7 → 8 fact'ов.
-    const fact = [1, 1, 2, 6, 24, 120, 720, 5040];
-    double result = v, term = v;
-    for (var n = 1; n <= 5; n++) {
-      term *= -v2 / (fact[n] * fact[n + 1]);
-      result += term;
-    }
-    return result;
-  }
-
-  @override
-  bool shouldRepaint(covariant _IslamicPatternPainter old) => false;
-}
-
-// === Removed legacy _PlayerErrorBanner class — ошибка теперь
-// отображается через SnackBar в _ListenScreenState. ===
-
-void _renderPlaceholderForDeleted() {} // ignore: unused_element
